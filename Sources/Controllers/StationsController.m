@@ -1,4 +1,5 @@
 #import "FileReader.h"
+#import "MainSplitViewController.h"
 #import "Pandora/Station.h"
 #import "PlaybackController.h"
 #import "PreferencesController.h"
@@ -10,6 +11,8 @@
 #define SORT_DATE 1
 
 @implementation StationsController
+
+@synthesize stationsTable, stationsRefreshing;
 
 - (id) init {
   [[NSNotificationCenter defaultCenter]
@@ -57,10 +60,7 @@
 
 - (void) awakeFromNib {
   [super awakeFromNib];
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-  stations.contentView.window.appearance = [NSAppearance appearanceNamed:NSAppearanceNameAqua];
-#pragma clang diagnostic pop
+  // Let stations view respect system appearance (removed forced Aqua theme)
 }
 
 #pragma clang diagnostic push
@@ -101,17 +101,30 @@
 }
 
 - (void)showStationsPanel {
+  MainSplitViewController *splitVC = [HMSAppDelegate splitViewController];
+  if (splitVC) {
+    [splitVC showStationsSidebar];
+    [self focus];
+  } else {
+    // Fallback to old drawer method
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-  [self showDrawer];
+    [self showDrawer];
 #pragma clang diagnostic pop
+  }
 }
 
 - (void)hideStationsPanel {
+  MainSplitViewController *splitVC = [HMSAppDelegate splitViewController];
+  if (splitVC) {
+    [splitVC toggleSidebar];
+  } else {
+    // Fallback to old drawer method
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-  [self hideDrawer];
+    [self hideDrawer];
 #pragma clang diagnostic pop
+  }
 }
 
 #pragma clang diagnostic push
@@ -138,7 +151,10 @@
 }
 
 - (void) focus {
-  [[stations parentWindow] makeFirstResponder:stationsTable];
+  NSWindow *win = stationsTable.window;
+  if (win) {
+    [win makeFirstResponder:stationsTable];
+  }
 }
 
 - (int) stationIndex:(Station *)station {

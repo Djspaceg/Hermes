@@ -11,6 +11,7 @@
 #import "AuthController.h"
 #import "HistoryController.h"
 #import "Integration/Keychain.h"
+#import "MainSplitViewController.h"
 #import "PlaybackController.h"
 #import "PreferencesController.h"
 #import "StationController.h"
@@ -28,6 +29,8 @@
 
 @property (readonly) NSString *hermesLogFile;
 @property (readonly, nonatomic) FILE *hermesLogFileHandle;
+@property (nonatomic, strong) NSView *cachedStationsContainer;
+@property (nonatomic, strong) NSView *cachedHistoryContainer;
 
 @end
 
@@ -119,24 +122,30 @@
 }
 
 - (void) setCurrentView:(NSView *)view {
-  NSView *superview = [window contentView];
-
-  if ([[superview subviews] count] > 0) {
-    NSView *prev_view = [superview subviews][0];
-    if (prev_view == view) {
-      return;
-    }
-    [superview replaceSubview:prev_view with:view];
+  if (self.splitViewController) {
+    // Use split view controller's content area
+    [self.splitViewController setMainContentView:view];
   } else {
-    [superview addSubview:view];
+    // Fallback to old method (shouldn't happen)
+    NSView *superview = [window contentView];
+    
+    if ([[superview subviews] count] > 0) {
+      NSView *prev_view = [superview subviews][0];
+      if (prev_view == view) {
+        return;
+      }
+      [superview replaceSubview:prev_view with:view];
+    } else {
+      [superview addSubview:view];
+    }
+    
+    NSRect frame = [view frame];
+    NSRect superFrame = [superview frame];
+    frame.size.width = superFrame.size.width;
+    frame.size.height = superFrame.size.height;
+    
+    [view setFrame:frame];
   }
-
-  NSRect frame = [view frame];
-  NSRect superFrame = [superview frame];
-  frame.size.width = superFrame.size.width;
-  frame.size.height = superFrame.size.height;
-  
-  [view setFrame:frame];
 
   [self updateWindowTitle];
 }
@@ -185,6 +194,186 @@
   [self updateStatusItemVisibility:nil];
 }
 
+- (void)setupSplitViewController {
+  // Enable window resizing
+  window.styleMask |= NSWindowStyleMaskResizable;
+  window.minSize = NSMakeSize(600, 400);
+  window.maxSize = NSMakeSize(FLT_MAX, FLT_MAX);
+  
+  // Create split view controller
+  self.splitViewController = [[MainSplitViewController alloc] init];
+  
+  // Set the split view as the window's content view controller
+  window.contentViewController = self.splitViewController;
+  
+  // Listen for sidebar mode changes
+  [[NSNotificationCenter defaultCenter] addObserver:self
+                                           selector:@selector(handleSidebarModeChanged:)
+                                               name:@"SidebarModeChanged"
+                                             object:self.splitViewController];
+  
+  // Initial sidebar mode based on preferences
+  NSInteger openDrawer = [PREF_KEY_VALUE(OPEN_DRAWER) integerValue];
+  if (openDrawer == DRAWER_HISTORY || openDrawer == DRAWER_NONE_HIST) {
+    self.splitViewController.sidebarMode = SidebarModeHistory;
+  } else {
+    self.splitViewController.sidebarMode = SidebarModeStations;
+  }
+  
+  // Populate sidebar after XIB loads (will be called later)
+  dispatch_async(dispatch_get_main_queue(), ^{
+    [self populateSplitViewContent];
+  });
+}
+
+- (void)populateSplitViewContent {
+  // Populate sidebar after views are loaded
+  // Initial sidebar content will be set by updateSidebarContent
+  [self updateSidebarContent];
+}
+
+- (NSView *)createStationsContainerView {
+  // Return cached container if it exists
+  if (self.cachedStationsContainer) {
+    return self.cachedStationsContainer;
+  }
+  
+  // Create a container view for the stations content
+  NSView *container = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 250, 400)];
+  // Don't force layer or colors - let it inherit theme
+  
+  // Get the stations table
+  NSTableView *table = stations.stationsTable;
+  
+  if (table) {
+    // Find the scroll view that contains the table
+    NSScrollView *scrollView = nil;
+    NSView *parent = table.superview;
+    while (parent && ![parent isKindOfClass:[NSScrollView class]]) {
+      parent = parent.superview;
+    }
+    
+    if ([parent isKindOfClass:[NSScrollView class]]) {
+      scrollView = (NSScrollView *)parent;
+      
+      // Remove from current parent (drawer)
+      [scrollView removeFromSuperview];
+      
+      // Create layout: table above, buttons at bottom
+      CGFloat buttonHeight = 28;
+      CGFloat padding = 8;
+      CGFloat buttonBarHeight = buttonHeight + padding * 2;
+      
+      // Add scroll view (table) first - it fills most of the space
+      [container addSubview:scrollView];
+      NSRect scrollFrame = container.bounds;
+      scrollFrame.size.height -= buttonBarHeight;
+      scrollFrame.origin.y = buttonBarHeight;  // Leave space at bottom for buttons
+      scrollView.frame = scrollFrame;
+      scrollView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable | NSViewMaxYMargin;
+      
+      // Add button bar at the bottom (fixed position)
+      NSView *buttonBar = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, container.bounds.size.width, buttonBarHeight)];
+      buttonBar.autoresizingMask = NSViewWidthSizable | NSViewMaxYMargin;  // Stay at bottom
+      // Don't set background - let it inherit from parent and respect theme
+      [container addSubview:buttonBar positioned:NSWindowAbove relativeTo:scrollView];
+      
+      // Create buttons with better spacing
+      CGFloat buttonWidth = 55;
+      CGFloat buttonSpacing = 5;
+      CGFloat currentX = padding;
+      
+      NSButton *playButton = [[NSButton alloc] initWithFrame:NSMakeRect(currentX, padding, buttonWidth, buttonHeight)];
+      [playButton setTitle:@"Play"];
+      [playButton setTarget:stations];
+      [playButton setAction:@selector(playSelected:)];
+      [playButton setBezelStyle:NSBezelStyleRounded];
+      [buttonBar addSubview:playButton];
+      currentX += buttonWidth + buttonSpacing;
+      
+      NSButton *addButton = [[NSButton alloc] initWithFrame:NSMakeRect(currentX, padding, buttonWidth, buttonHeight)];
+      [addButton setTitle:@"Add"];
+      [addButton setTarget:stations];
+      [addButton setAction:@selector(addStation:)];
+      [addButton setBezelStyle:NSBezelStyleRounded];
+      [buttonBar addSubview:addButton];
+      currentX += buttonWidth + buttonSpacing;
+      
+      NSButton *editButton = [[NSButton alloc] initWithFrame:NSMakeRect(currentX, padding, buttonWidth, buttonHeight)];
+      [editButton setTitle:@"Edit"];
+      [editButton setTarget:stations];
+      [editButton setAction:@selector(editSelected:)];
+      [editButton setBezelStyle:NSBezelStyleRounded];
+      [buttonBar addSubview:editButton];
+    }
+  }
+  
+  // Cache the container
+  self.cachedStationsContainer = container;
+  return container;
+}
+
+- (NSView *)createHistoryContainerView {
+  // Return cached container if it exists
+  if (self.cachedHistoryContainer) {
+    return self.cachedHistoryContainer;
+  }
+  
+  // Create a container view for the history content
+  NSView *container = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 250, 400)];
+  // Don't force layer or colors - let it inherit theme
+  
+  // Get the history collection view
+  NSCollectionView *collectionView = history.collection;
+  
+  if (collectionView) {
+    // Find the scroll view that contains the collection
+    NSScrollView *scrollView = nil;
+    NSView *parent = collectionView.superview;
+    while (parent && ![parent isKindOfClass:[NSScrollView class]]) {
+      parent = parent.superview;
+    }
+    
+    if ([parent isKindOfClass:[NSScrollView class]]) {
+      scrollView = (NSScrollView *)parent;
+      
+      // Remove from current parent (drawer)
+      [scrollView removeFromSuperview];
+      
+      // Add to container
+      [container addSubview:scrollView];
+      scrollView.frame = container.bounds;
+      scrollView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+    }
+  }
+  
+  // Cache the container
+  self.cachedHistoryContainer = container;
+  return container;
+}
+
+- (void)handleSidebarModeChanged:(NSNotification *)notification {
+  // Update sidebar content when mode changes
+  [self updateSidebarContent];
+}
+
+- (void)updateSidebarContent {
+  // Switch sidebar content based on current mode
+  if (self.splitViewController.sidebarMode == SidebarModeStations) {
+    NSView *stationsContainer = [self createStationsContainerView];
+    [self.splitViewController setSidebarContentView:stationsContainer];
+    [drawerToggle setImage:[NSImage imageNamed:@"history"]];
+    [drawerToggle setToolTip:@"Show song history"];
+    drawerToggle.paletteLabel = drawerToggle.label = @"History";
+  } else {
+    NSView *historyContainer = [self createHistoryContainerView];
+    [self.splitViewController setSidebarContentView:historyContainer];
+    [drawerToggle setImage:[NSImage imageNamed:@"radio"]];
+    [drawerToggle setToolTip:@"Show station list"];
+    drawerToggle.paletteLabel = drawerToggle.label = @"Stations";
+  }
+}
+
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
   NSUInteger flags = ([NSEvent modifierFlags] & NSEventModifierFlagDeviceIndependentFlagsMask);
   BOOL isOptionPressed = (flags == NSEventModifierFlagOption);
@@ -196,6 +385,9 @@
   }
   
   window.restorable = NO;
+
+  // Set up modern split view controller
+  [self setupSplitViewController];
 
   [NSApp activateIgnoringOtherApps:YES];
 
@@ -387,14 +579,22 @@
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 - (void) historyShow {
-  [history showDrawer];
+  if (self.splitViewController) {
+    [self.splitViewController showHistorySidebar];
+  } else {
+    [history showDrawer];
+  }
   [drawerToggle setImage:[NSImage imageNamed:@"radio"]];
   [drawerToggle setToolTip: @"Show station list"];
   drawerToggle.paletteLabel = drawerToggle.label = @"Stations";
 }
 
 - (void) stationsShow {
-  [stations showDrawer];
+  if (self.splitViewController) {
+    [self.splitViewController showStationsSidebar];
+  } else {
+    [stations showDrawer];
+  }
   [drawerToggle setImage:[NSImage imageNamed:@"history"]];
   [drawerToggle setToolTip: @"Show song history"];
   drawerToggle.paletteLabel = drawerToggle.label = @"History";
@@ -406,7 +606,11 @@
     return;
   }
   [self historyShow];
-  [stations hideDrawer];
+  if (self.splitViewController) {
+    // Sidebar mode change will handle this
+  } else {
+    [stations hideDrawer];
+  }
   PREF_KEY_SET_INT(OPEN_DRAWER, DRAWER_HISTORY);
 }
 
@@ -415,7 +619,11 @@
     [stations focus];
     return;
   }
-  [history hideDrawer];
+  if (self.splitViewController) {
+    // Sidebar mode change will handle this
+  } else {
+    [history hideDrawer];
+  }
   [self stationsShow];
   PREF_KEY_SET_INT(OPEN_DRAWER, DRAWER_STATIONS);
 }
@@ -447,17 +655,21 @@
       break;
     case DRAWER_HISTORY:
       [self stationsShow];
+      if (!self.splitViewController) {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-      [history hideDrawer];
+        [history hideDrawer];
 #pragma clang diagnostic pop
+      }
       PREF_KEY_SET_INT(OPEN_DRAWER, DRAWER_STATIONS);
       break;
     case DRAWER_STATIONS:
+      if (!self.splitViewController) {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-      [stations hideDrawer];
+        [stations hideDrawer];
 #pragma clang diagnostic pop
+      }
       [self historyShow];
       PREF_KEY_SET_INT(OPEN_DRAWER, DRAWER_HISTORY);
       break;
@@ -465,6 +677,11 @@
 }
 
 - (IBAction) toggleDrawerVisible:(id)sender {
+  if (self.splitViewController) {
+    [self.splitViewController toggleSidebar];
+    return;
+  }
+  
   switch ([PREF_KEY_VALUE(OPEN_DRAWER) intValue]) {
     case DRAWER_NONE_HIST:
       [self historyShow];

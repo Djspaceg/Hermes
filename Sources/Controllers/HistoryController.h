@@ -27,6 +27,7 @@
 
 @property IBOutlet NSMutableArray *songs;
 @property IBOutlet NSArrayController *controller;
+@property (readonly) NSCollectionView *collection;
 
 - (void) showDrawer;
 - (void) hideDrawer;

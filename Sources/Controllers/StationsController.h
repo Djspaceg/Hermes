@@ -45,6 +45,9 @@ NS_ASSUME_NONNULL_BEGIN
   FileReader * _Nullable reader;
 }
 
+@property (readonly, nullable) NSTableView *stationsTable;
+@property (readonly, nullable) NSProgressIndicator *stationsRefreshing;
+
 - (void)showStationsPanel;
 - (void)hideStationsPanel;
 - (void) showDrawer __attribute__((deprecated("Drawers are deprecated on macOS 10.13+. Use -showStationsPanel instead.")));

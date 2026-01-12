@@ -8,6 +8,7 @@
 #import "HistoryController.h"
 #import "FileReader.h"
 #import "FMEngine/NSString+FMEngine.h"
+#import "MainSplitViewController.h"
 #import "PlaybackController.h"
 #import "PreferencesController.h"
 #import "URLConnection.h"
@@ -17,11 +18,11 @@
 
 @implementation HistoryController
 
-@synthesize songs, controller;
+@synthesize songs, controller, collection;
 
 - (void) awakeFromNib {
   [super awakeFromNib];
-  drawer.contentView.window.appearance = [NSAppearance appearanceNamed:NSAppearanceNameAqua];
+  // Let drawer respect system appearance (removed forced Aqua theme)
 }
 
 - (void) loadSavedSongs {
@@ -183,27 +184,49 @@
 }
 
 - (void) showDrawer {
-  NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-  NSSize s;
-  s.height = 100;
-  s.width = [defaults integerForKey:HIST_DRAWER_WIDTH];
-
-  [drawer open];
-  [drawer setContentSize:s];
+  MainSplitViewController *splitVC = [HMSAppDelegate splitViewController];
+  if (splitVC) {
+    [splitVC showHistorySidebar];
+    [self focus];
+  } else {
+    // Fallback to old drawer
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-  [collection setMaxItemSize:NSMakeSize(227, 41)];
-  [collection setMinItemSize:NSMakeSize(40, 41)];
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    NSSize s;
+    s.height = 100;
+    s.width = [defaults integerForKey:HIST_DRAWER_WIDTH];
+
+    [drawer open];
+    [drawer setContentSize:s];
 #pragma clang diagnostic pop
-  [self focus];
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    [collection setMaxItemSize:NSMakeSize(227, 41)];
+    [collection setMinItemSize:NSMakeSize(40, 41)];
+#pragma clang diagnostic pop
+    [self focus];
+  }
 }
 
 - (void) hideDrawer {
-  [drawer close];
+  MainSplitViewController *splitVC = [HMSAppDelegate splitViewController];
+  if (splitVC) {
+    [splitVC toggleSidebar];
+  } else {
+    // Fallback to old drawer
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    [drawer close];
+#pragma clang diagnostic pop
+  }
 }
 
 - (void) focus {
-  [[drawer parentWindow] makeFirstResponder:collection];
+  NSWindow *win = collection.window;
+  if (win) {
+    [win makeFirstResponder:collection];
+  }
 }
 
 - (IBAction) showLyrics:(id)sender {

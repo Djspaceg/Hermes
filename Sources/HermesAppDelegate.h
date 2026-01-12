@@ -18,6 +18,7 @@
 @class SPMediaKeyTap;
 @class NetworkConnection;
 @class PreferencesController;
+@class MainSplitViewController;
 
 @interface HermesAppDelegate : NSObject <NSApplicationDelegate, NSWindowRestoration> {
   /* Generic loading view */
@@ -56,6 +57,7 @@
 @property (readonly) IBOutlet NetworkConnection *networkManager;
 @property (readonly) IBOutlet PreferencesController *preferences;
 @property (readonly) BOOL debugMode;
+@property (nonatomic, strong) MainSplitViewController *splitViewController;
 
 - (void) closeNewStationSheet;
 - (void) showNewStationSheet;

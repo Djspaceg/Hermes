@@ -56,6 +56,7 @@
 		FA2A3F7F132BF97E0089AECC /* StationsController.m in Sources */ = {isa = PBXBuildFile; fileRef = FA2A3F76132BF97E0089AECC /* StationsController.m */; };
 		FA2A3F80132BF97E0089AECC /* Pandora.m in Sources */ = {isa = PBXBuildFile; fileRef = FA2A3F78132BF97E0089AECC /* Pandora.m */; };
 		FA2A3F98132BF9F50089AECC /* Crypt.m in Sources */ = {isa = PBXBuildFile; fileRef = FA2A3F92132BF9F50089AECC /* Crypt.m */; };
+		FAAAA001000000000000001 /* MainSplitViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = FAAAA002000000000000001 /* MainSplitViewController.m */; };
 		FA2A3F99132BF9F50089AECC /* Song.m in Sources */ = {isa = PBXBuildFile; fileRef = FA2A3F95132BF9F50089AECC /* Song.m */; };
 		FA2A3F9A132BF9F50089AECC /* Station.m in Sources */ = {isa = PBXBuildFile; fileRef = FA2A3F97132BF9F50089AECC /* Station.m */; };
 		FA3CFE29132F9D30003554E2 /* missing-album.png in Resources */ = {isa = PBXBuildFile; fileRef = FA3CFE28132F9D30003554E2 /* missing-album.png */; };
@@ -194,6 +195,8 @@
 		FA24435F136B3D6C00E126D3 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = README.md; path = ../README.md; sourceTree = "<group>"; };
 		FA2A3F75132BF97E0089AECC /* StationsController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = StationsController.h; path = Controllers/StationsController.h; sourceTree = "<group>"; };
 		FA2A3F76132BF97E0089AECC /* StationsController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = StationsController.m; path = Controllers/StationsController.m; sourceTree = "<group>"; };
+		FAAAA002000000000000001 /* MainSplitViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = MainSplitViewController.m; path = Controllers/MainSplitViewController.m; sourceTree = "<group>"; };
+		FAAAA003000000000000001 /* MainSplitViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = MainSplitViewController.h; path = Controllers/MainSplitViewController.h; sourceTree = "<group>"; };
 		FA2A3F77132BF97E0089AECC /* Pandora.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Pandora.h; sourceTree = "<group>"; };
 		FA2A3F78132BF97E0089AECC /* Pandora.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Pandora.m; sourceTree = "<group>"; };
 		FA2A3F91132BF9F50089AECC /* Crypt.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Crypt.h; sourceTree = "<group>"; };
@@ -443,6 +446,8 @@
 				FA2442BA136B18DC00E126D3 /* PreferencesController.m */,
 				FA2A3F75132BF97E0089AECC /* StationsController.h */,
 				FA2A3F76132BF97E0089AECC /* StationsController.m */,
+				FAAAA003000000000000001 /* MainSplitViewController.h */,
+				FAAAA002000000000000001 /* MainSplitViewController.m */,
 				FACFACD415673690008A2140 /* StationController.h */,
 				FACFACD515673690008A2140 /* StationController.m */,
 			);
@@ -660,6 +665,7 @@
 				E1200AA41CF2B015000D3215 /* LabelHoverShowFieldCell.m in Sources */,
 				8D11072D0486CEB800E47090 /* main.m in Sources */,
 				FA2A3F7F132BF97E0089AECC /* StationsController.m in Sources */,
+				FAAAA001000000000000001 /* MainSplitViewController.m in Sources */,
 				FA2A3F80132BF97E0089AECC /* Pandora.m in Sources */,
 				FA2A3F98132BF9F50089AECC /* Crypt.m in Sources */,
 				FA2A3F99132BF9F50089AECC /* Song.m in Sources */,
