@@ -85,12 +85,9 @@
                              action:@selector(like:)
                       keyEquivalent:@""];
   [menuItem setTarget:playback];
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   if ([[song nrating] intValue] == 1) {
-    menuItem.state = NSOnState;
+    menuItem.state = NSControlStateValueOn;
   }
-#pragma clang diagnostic pop
   menuItem = [menu addItemWithTitle:@"Dislike"
                              action:@selector(dislike:)
                       keyEquivalent:@""];
@@ -130,8 +127,6 @@
       return;
     }
     [superview replaceSubview:prev_view with:view];
-    // FIXME: This otherwise looks nicer but it causes the toolbar to flash.
-    // [[superview animator] replaceSubview:prev_view with:view];
   } else {
     [superview addSubview:view];
   }
@@ -140,6 +135,7 @@
   NSRect superFrame = [superview frame];
   frame.size.width = superFrame.size.width;
   frame.size.height = superFrame.size.height;
+  
   [view setFrame:frame];
 
   [self updateWindowTitle];
@@ -190,11 +186,8 @@
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-  NSUInteger flags = ([NSEvent modifierFlags] & NSDeviceIndependentModifierFlagsMask);
-  BOOL isOptionPressed = (flags == NSAlternateKeyMask);
-#pragma clang diagnostic pop
+  NSUInteger flags = ([NSEvent modifierFlags] & NSEventModifierFlagDeviceIndependentFlagsMask);
+  BOOL isOptionPressed = (flags == NSEventModifierFlagOption);
   
   if (isOptionPressed && [self configureLogFile]) {
     _debugMode = YES;
@@ -202,8 +195,7 @@
     [self updateWindowTitle];
   }
   
-  window.restorable = YES;
-  window.restorationClass = [self class];
+  window.restorable = NO;
 
   [NSApp activateIgnoringOtherApps:YES];
 
@@ -287,12 +279,11 @@
 
 #pragma mark - NSWindowRestoration
 
-+ (BOOL)restoreWindowWithIdentifier:(NSString *)identifier
++ (void)restoreWindowWithIdentifier:(NSString *)identifier
                               state:(NSCoder *)state
                   completionHandler:(void (^)(NSWindow *, NSError *))done {
   [PlaybackController setPlayOnStart:NO];
   done(nil, nil);
-  return YES;
 }
 
 #pragma mark -
@@ -512,13 +503,12 @@
     if (sender != nil) {
       /* If we're not executing at process launch, then the menu bar will be shown
          but be unusable until we switch to another application and back to Hermes */
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-      [[NSWorkspace sharedWorkspace] launchAppWithBundleIdentifier:@"com.apple.dock"
-                                                           options:NSWorkspaceLaunchDefault
-                                    additionalEventParamDescriptor:nil
-                                                  launchIdentifier:nil];
-#pragma clang diagnostic pop
+      NSURL *dockURL = [[NSWorkspace sharedWorkspace] URLForApplicationWithBundleIdentifier:@"com.apple.dock"];
+      if (dockURL) {
+        [[NSWorkspace sharedWorkspace] openApplicationAtURL:dockURL
+                                              configuration:[NSWorkspaceOpenConfiguration configuration]
+                                          completionHandler:nil];
+      }
       [NSApp activateIgnoringOtherApps:YES];
     }
     [self updateDockIcon:sender];
@@ -580,14 +570,11 @@
     [icon lockFocus];
     CGContextSetShadowWithColor([NSGraphicsContext currentContext].CGContext,
                                 CGSizeMake(0, 0), 120, [NSColor whiteColor].CGColor);
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     [overlay drawInRect:NSMakeRect(playPauseOffset, playPauseOffset,
                                    [overlay size].width, [overlay size].height)
                fromRect:NSZeroRect
-              operation:NSCompositeSourceOver
+              operation:NSCompositingOperationSourceOver
                fraction:1.0];
-#pragma clang diagnostic pop
     [icon unlockFocus];
   }
   
@@ -828,10 +815,7 @@
       return NO;
 
     NSInteger openDrawer = [PREF_KEY_VALUE(OPEN_DRAWER) integerValue];
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-    NSCellStateValue state = NSOffState;
-#pragma clang diagnostic pop
+    NSControlStateValue state = NSControlStateValueOff;
     if (action == @selector(showHistoryDrawer:)) {
       if (openDrawer == DRAWER_NONE_HIST)
         state = NSMixedState;

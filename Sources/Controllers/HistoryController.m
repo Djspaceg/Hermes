@@ -120,21 +120,18 @@
     [self setEnabledState:NO allowRating:NO];
   }
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   if (rating == -1) {
-    [like setState:NSOffState];
-    [dislike setState:NSOnState];
+    [like setState:NSControlStateValueOff];
+    [dislike setState:NSControlStateValueOn];
   }
   else if (rating == 0) {
-    [like setState:NSOffState];
-    [dislike setState:NSOffState];
+    [like setState:NSControlStateValueOff];
+    [dislike setState:NSControlStateValueOff];
   }
   else if (rating == 1) {
-    [like setState:NSOnState];
-    [dislike setState:NSOffState];
+    [like setState:NSControlStateValueOn];
+    [dislike setState:NSControlStateValueOff];
   }
-#pragma clang diagnostic pop
 }
 
 - (IBAction) dislikeSelected:(id)sender {

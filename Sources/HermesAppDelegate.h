@@ -19,7 +19,7 @@
 @class NetworkConnection;
 @class PreferencesController;
 
-@interface HermesAppDelegate : NSObject <NSApplicationDelegate> {
+@interface HermesAppDelegate : NSObject <NSApplicationDelegate, NSWindowRestoration> {
   /* Generic loading view */
   IBOutlet NSView *loadingView;
   IBOutlet NSProgressIndicator *loadingIcon;

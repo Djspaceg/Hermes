@@ -31,24 +31,10 @@
   }
   if (selected) {
     if ([[self window] firstResponder] != [self superview]) {
-      if (@available(macOS 11.0, *)) {
-        [[NSColor unemphasizedSelectedContentBackgroundColor] set];
-      } else {
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-        [[NSColor secondarySelectedControlColor] set];
-#pragma clang diagnostic pop
-      }
+      [[NSColor unemphasizedSelectedContentBackgroundColor] set];
       [self setTextColor:[NSColor controlTextColor]];
     } else {
-      if (@available(macOS 11.0, *)) {
-        [[NSColor selectedContentBackgroundColor] set];
-      } else {
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-        [[NSColor alternateSelectedControlColor] set];
-#pragma clang diagnostic pop
-      }
+      [[NSColor selectedContentBackgroundColor] set];
       [self setTextColor:[NSColor alternateSelectedControlTextColor]];
     }
     NSRectFill([self bounds]);

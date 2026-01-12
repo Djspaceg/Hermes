@@ -302,11 +302,13 @@ BOOL playOnStart = YES;
 
 // nil = no image available
 - (void)setArtImage:(NSImage *)artImage {
-  self->_artImage = artImage;
-  [art setImage:artImage ? artImage : [NSImage imageNamed:@"missing-album"]];
-  [artLoading setHidden:YES];
-  [artLoading stopAnimation:nil];
-  [self updateQuickLookPreviewWithArt:artImage != nil];
+  dispatch_async(dispatch_get_main_queue(), ^{
+    self->_artImage = artImage;
+    [self->art setImage:artImage ? artImage : [NSImage imageNamed:@"missing-album"]];
+    [self->artLoading setHidden:YES];
+    [self->artLoading stopAnimation:nil];
+    [self updateQuickLookPreviewWithArt:artImage != nil];
+  });
 }
 
 - (void)updateQuickLookPreviewWithArt:(BOOL)hasArt {
@@ -673,13 +675,13 @@ BOOL playOnStart = YES;
     if (song && ![playing shared]) {
       NSInteger rating = [[song nrating] integerValue];
       if (action == @selector(like:)) {
-        [menuItem setState:rating == 1 ? NSOnState : NSOffState];
+        [menuItem setState:rating == 1 ? NSControlStateValueOn : NSControlStateValueOff];
       } else {
-        [menuItem setState:rating == -1 ? NSOnState : NSOffState];
+        [menuItem setState:rating == -1 ? NSControlStateValueOn : NSControlStateValueOff];
       }
       return YES;
     } else {
-      [menuItem setState:NSOffState];
+      [menuItem setState:NSControlStateValueOff];
       return NO;
     }
   }

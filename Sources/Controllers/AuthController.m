@@ -52,16 +52,18 @@
 }
 
 - (void) authenticationSucceeded: (NSNotification*) notification {
-  [spinner setHidden:YES];
-  [spinner stopAnimation:nil];
+  dispatch_async(dispatch_get_main_queue(), ^{
+    [self->spinner setHidden:YES];
+    [self->spinner stopAnimation:nil];
 
-  HermesAppDelegate *delegate = HMSAppDelegate;
-  if (![[username stringValue] isEqualToString:@""]) {
-    [delegate saveUsername:[username stringValue] password:[password stringValue]];
-  }
+    HermesAppDelegate *delegate = HMSAppDelegate;
+    if (![[self->username stringValue] isEqualToString:@""]) {
+      [delegate saveUsername:[self->username stringValue] password:[self->password stringValue]];
+    }
 
-  [[delegate stations] show];
-  [PlaybackController setPlayOnStart:YES];
+    [[delegate stations] show];
+    [PlaybackController setPlayOnStart:YES];
+  });
 }
 
 /* Login button in sheet hit, should authenticate */

@@ -12,34 +12,14 @@
 
 - (void)awakeFromNib {
   [super awakeFromNib];
-  [self setupModernAppearance];
-}
-
-- (void)setupModernAppearance {
-  // Enable modern translucent appearance with vibrancy
-  // Using NSVisualEffectView APIs available on macOS 11.0+
-  self.titlebarAppearsTransparent = YES;
-  self.styleMask |= NSWindowStyleMaskFullSizeContentView;
-  
-  // Add translucent background with vibrancy
-  NSVisualEffectView *visualEffectView = [[NSVisualEffectView alloc] initWithFrame:self.contentView.bounds];
-  visualEffectView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
-  visualEffectView.blendingMode = NSVisualEffectBlendingModeBehindWindow;
-  visualEffectView.material = NSVisualEffectMaterialUnderWindowBackground;
-  visualEffectView.state = NSVisualEffectStateFollowsWindowActiveState;
-  
-  // Insert the visual effect view at the bottom of the view hierarchy
-  [self.contentView addSubview:visualEffectView positioned:NSWindowBelow relativeTo:nil];
+  // Use standard window appearance for now
+  // Full-size content view requires proper Auto Layout constraints in XIB
 }
 
 - (void)sendEvent:(NSEvent *)theEvent {
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-  if ([theEvent type] == NSKeyDown) {
-
+  if ([theEvent type] == NSEventTypeKeyDown) {
     // don't ever let space bar get through to the field editor so it can be used for play/pause
-    if ([[theEvent characters] isEqualToString:@" "] && ([theEvent modifierFlags] & NSDeviceIndependentModifierFlagsMask) == 0) {
-#pragma clang diagnostic pop
+    if ([[theEvent characters] isEqualToString:@" "] && ([theEvent modifierFlags] & NSEventModifierFlagDeviceIndependentFlagsMask) == 0) {
       [[NSApp mainMenu] performKeyEquivalent:theEvent];
       return;
     }

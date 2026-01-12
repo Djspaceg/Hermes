@@ -16,15 +16,12 @@
   /* See HermesAppDelegate#updateStatusBarIcon */
   [window setCanHide:NO];
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   if (PREF_KEY_BOOL(STATUS_BAR_ICON_BW))
-    statusItemShowBlackAndWhiteIcon.state = NSOnState;
+    statusItemShowBlackAndWhiteIcon.state = NSControlStateValueOn;
   else if (PREF_KEY_BOOL(STATUS_BAR_ICON_ALBUM))
-    statusItemShowAlbumArt.state = NSOnState;
+    statusItemShowAlbumArt.state = NSControlStateValueOn;
   else
-    statusItemShowColorIcon.state = NSOnState;
-#pragma clang diagnostic pop
+    statusItemShowColorIcon.state = NSControlStateValueOn;
 
   NSString *last = PREF_KEY_VALUE(LAST_PREF_PANE);
   if (NSClassFromString(@"NSUserNotification") != nil) {
