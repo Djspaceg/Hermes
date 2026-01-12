@@ -200,6 +200,9 @@
   window.minSize = NSMakeSize(600, 400);
   window.maxSize = NSMakeSize(FLT_MAX, FLT_MAX);
   
+  // Ensure window respects system appearance (dark mode)
+  window.appearance = nil;  // nil means use system appearance
+  
   // Create split view controller
   self.splitViewController = [[MainSplitViewController alloc] init];
   
