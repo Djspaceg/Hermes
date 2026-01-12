@@ -66,7 +66,7 @@
 
 // colors adapted for modern macOS with system colors
 - (NSColor *)knobColor { return [NSColor labelColor]; }
-- (NSColor *)leftBarColor { return [NSColor secondaryLabelColor]; }
-- (NSColor *)rightBarColor { return [NSColor tertiaryLabelColor]; }
+- (NSColor *)leftBarColor { return [NSColor controlAccentColor]; }
+- (NSColor *)rightBarColor { return [NSColor secondaryLabelColor]; }
 
 @end

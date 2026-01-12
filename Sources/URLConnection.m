@@ -78,7 +78,14 @@ static void URLConnectionStreamCallback(CFReadStreamRef aStream,
   if ([request HTTPBody] != nil) {
     CFHTTPMessageSetBody(message, (__bridge CFDataRef) [request HTTPBody]);
   }
+  
+  // Suppress deprecation warnings for legacy CFReadStreamCreateForHTTPRequest
+  // This API is deprecated in favor of NSURLSession, but the audio streaming
+  // implementation relies on lower-level CFReadStream for real-time processing
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   c->stream = CFReadStreamCreateForHTTPRequest(NULL, message);
+#pragma clang diagnostic pop
   CFRelease(message);
 
   /* Handle SSL connections */
@@ -191,6 +198,11 @@ static void URLConnectionStreamCallback(CFReadStreamRef aStream,
                  host:(NSString*)host
                  port:(NSInteger)port {
   if (![self validProxyHost:&host port:port]) return NO;
+  
+  // Suppress deprecation warnings for legacy proxy configuration APIs
+  // These constants are deprecated in favor of NSURLSession configuration
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   CFDictionaryRef proxySettings = (__bridge CFDictionaryRef)
           [NSDictionary dictionaryWithObjectsAndKeys:
                   host, kCFStreamPropertyHTTPProxyHost,
@@ -199,6 +211,7 @@ static void URLConnectionStreamCallback(CFReadStreamRef aStream,
                   @(port), kCFStreamPropertyHTTPSProxyPort,
                   nil];
   CFReadStreamSetProperty(stream, kCFStreamPropertyHTTPProxy, proxySettings);
+#pragma clang diagnostic pop
   return YES;
 }
 
@@ -216,8 +229,12 @@ static void URLConnectionStreamCallback(CFReadStreamRef aStream,
 }
 
 + (void) setSystemProxy:(CFReadStreamRef)stream {
+  // Suppress deprecation warnings for legacy proxy configuration APIs
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   CFDictionaryRef proxySettings = CFNetworkCopySystemProxySettings();
   CFReadStreamSetProperty(stream, kCFStreamPropertyHTTPProxy, proxySettings);
+#pragma clang diagnostic pop
   CFRelease(proxySettings);
 }
 

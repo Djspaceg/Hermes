@@ -31,7 +31,7 @@
   // This method is called after successful initialization, so self is valid
   self.blendingMode = NSVisualEffectBlendingModeBehindWindow;
   self.material = NSVisualEffectMaterialSidebar;
-  self.state = NSVisualEffectStateActive;
+  self.state = NSVisualEffectStateFollowsWindowActiveState;
 }
 
 @end

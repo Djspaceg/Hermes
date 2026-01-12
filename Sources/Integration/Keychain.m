@@ -7,6 +7,12 @@
 
 #import "Keychain.h"
 
+// Suppress deprecation warnings for legacy Keychain APIs
+// These APIs are deprecated but still functional and widely used
+// Modernizing to the new Keychain API would require significant refactoring
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+
 BOOL KeychainSetItem(NSString* username, NSString* password) {
   SecKeychainItemRef item = nil;
   OSStatus result = SecKeychainFindGenericPassword(
@@ -64,3 +70,5 @@ NSString *KeychainGetPassword(NSString* username) {
 
   return password;
 }
+
+#pragma clang diagnostic pop
