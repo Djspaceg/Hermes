@@ -10,4 +10,6 @@
 
 @interface HermesMainWindow : NSWindow
 
+- (void)setupModernAppearance;
+
 @end

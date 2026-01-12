@@ -10,6 +10,31 @@
 
 @implementation HermesMainWindow
 
+- (void)awakeFromNib {
+  [super awakeFromNib];
+  [self setupModernAppearance];
+}
+
+- (void)setupModernAppearance {
+  // Enable modern Liquid Glass appearance for macOS Tahoe
+  self.titlebarAppearsTransparent = YES;
+  self.styleMask |= NSWindowStyleMaskFullSizeContentView;
+  
+  // Add translucent background with vibrancy
+  NSVisualEffectView *visualEffectView = [[NSVisualEffectView alloc] initWithFrame:self.contentView.bounds];
+  visualEffectView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+  visualEffectView.blendingMode = NSVisualEffectBlendingModeBehindWindow;
+  visualEffectView.material = NSVisualEffectMaterialUnderWindowBackground;
+  visualEffectView.state = NSVisualEffectStateFollowsWindowActiveState;
+  
+  // Insert the visual effect view as the base layer
+  if (self.contentView.subviews.count > 0) {
+    [self.contentView addSubview:visualEffectView positioned:NSWindowBelow relativeTo:self.contentView.subviews[0]];
+  } else {
+    [self.contentView addSubview:visualEffectView];
+  }
+}
+
 - (void)sendEvent:(NSEvent *)theEvent {
   if ([theEvent type] == NSKeyDown) {
 
