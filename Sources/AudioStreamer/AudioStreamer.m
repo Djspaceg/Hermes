@@ -623,6 +623,8 @@ static void ASReadStreamCallBack(CFReadStreamRef aStream, CFStreamEventType even
     seekByteOffset = 0;
   }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   stream = CFReadStreamCreateForHTTPRequest(NULL, message);
   CFRelease(message);
 
@@ -664,6 +666,7 @@ static void ASReadStreamCallBack(CFReadStreamRef aStream, CFStreamEventType even
       break;
     }
   }
+#pragma clang diagnostic pop
 
   /* handle SSL connections */
   if ([[url absoluteString] rangeOfString:@"https"].location == 0) {
@@ -749,8 +752,11 @@ static void ASReadStreamCallBack(CFReadStreamRef aStream, CFStreamEventType even
 
   /* Read off the HTTP headers into our own class if we haven't done so */
   if (!httpHeaders) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     CFTypeRef message =
         CFReadStreamCopyProperty(stream, kCFStreamPropertyHTTPResponseHeader);
+#pragma clang diagnostic pop
     httpHeaders = (__bridge_transfer NSDictionary *)
         CFHTTPMessageCopyAllHeaderFields((CFHTTPMessageRef) message);
     CFRelease(message);

@@ -45,20 +45,25 @@
     [password becomeFirstResponder];
   }
   NSNotification *emptyNotification;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   [self controlTextDidChange:emptyNotification];
+#pragma clang diagnostic pop
 }
 
 - (void) authenticationSucceeded: (NSNotification*) notification {
-  [spinner setHidden:YES];
-  [spinner stopAnimation:nil];
+  dispatch_async(dispatch_get_main_queue(), ^{
+    [self->spinner setHidden:YES];
+    [self->spinner stopAnimation:nil];
 
-  HermesAppDelegate *delegate = HMSAppDelegate;
-  if (![[username stringValue] isEqualToString:@""]) {
-    [delegate saveUsername:[username stringValue] password:[password stringValue]];
-  }
+    HermesAppDelegate *delegate = HMSAppDelegate;
+    if (![[self->username stringValue] isEqualToString:@""]) {
+      [delegate saveUsername:[self->username stringValue] password:[self->password stringValue]];
+    }
 
-  [[delegate stations] show];
-  [PlaybackController setPlayOnStart:YES];
+    [[delegate stations] show];
+    [PlaybackController setPlayOnStart:YES];
+  });
 }
 
 /* Login button in sheet hit, should authenticate */
@@ -80,7 +85,10 @@
   [username becomeFirstResponder];
   
   NSNotification *emptyNotification;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   [self controlTextDidChange:emptyNotification];
+#pragma clang diagnostic pop
 }
 
 /* Log out the current session */
@@ -90,6 +98,8 @@
   [[delegate pandora] logout];
 }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-implementations"
 - (void)controlTextDidChange:(NSNotification *)obj {
   NSPredicate *emailTest = [NSPredicate predicateWithFormat:@"SELF MATCHES %@", ROUGH_EMAIL_REGEX];
   
@@ -98,8 +108,12 @@
    [emailTest evaluateWithObject:[username stringValue]] &&
    ![[password stringValue] isEqualToString:@""]];
 }
+#pragma clang diagnostic pop
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-implementations"
 - (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
+#pragma clang diagnostic pop
   HermesAppDelegate *delegate = HMSAppDelegate;
 
   if (![[delegate pandora] isAuthenticated]) {

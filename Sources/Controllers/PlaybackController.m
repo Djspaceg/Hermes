@@ -256,7 +256,10 @@ BOOL playOnStart = YES;
     return NO;
   }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   return [NSKeyedArchiver archiveRootObject:[self playing] toFile:path];
+#pragma clang diagnostic pop
 }
 
 /* Called whenever the playing stream changes state */
@@ -299,11 +302,13 @@ BOOL playOnStart = YES;
 
 // nil = no image available
 - (void)setArtImage:(NSImage *)artImage {
-  self->_artImage = artImage;
-  [art setImage:artImage ? artImage : [NSImage imageNamed:@"missing-album"]];
-  [artLoading setHidden:YES];
-  [artLoading stopAnimation:nil];
-  [self updateQuickLookPreviewWithArt:artImage != nil];
+  dispatch_async(dispatch_get_main_queue(), ^{
+    self->_artImage = artImage;
+    [self->art setImage:artImage ? artImage : [NSImage imageNamed:@"missing-album"]];
+    [self->artLoading setHidden:YES];
+    [self->artLoading stopAnimation:nil];
+    [self updateQuickLookPreviewWithArt:artImage != nil];
+  });
 }
 
 - (void)updateQuickLookPreviewWithArt:(BOOL)hasArt {
@@ -651,6 +656,9 @@ BOOL playOnStart = YES;
     [previewPanel makeKeyAndOrderFront:nil];
 }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-implementations"
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 - (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
   if (![[self pandora] isAuthenticated]) {
     return NO;
@@ -667,13 +675,13 @@ BOOL playOnStart = YES;
     if (song && ![playing shared]) {
       NSInteger rating = [[song nrating] integerValue];
       if (action == @selector(like:)) {
-        [menuItem setState:rating == 1 ? NSOnState : NSOffState];
+        [menuItem setState:rating == 1 ? NSControlStateValueOn : NSControlStateValueOff];
       } else {
-        [menuItem setState:rating == -1 ? NSOnState : NSOffState];
+        [menuItem setState:rating == -1 ? NSControlStateValueOn : NSControlStateValueOff];
       }
       return YES;
     } else {
-      [menuItem setState:NSOffState];
+      [menuItem setState:NSControlStateValueOff];
       return NO;
     }
   }
@@ -682,6 +690,7 @@ BOOL playOnStart = YES;
 }
 
 - (BOOL)validateToolbarItem:(NSToolbarItem *)toolbarItem {
+#pragma clang diagnostic pop
   if (![[self pandora] isAuthenticated]) {
     return NO;
   }

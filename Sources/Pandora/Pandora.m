@@ -180,9 +180,12 @@ static NSString *hierrs[] = {
 }
 
 - (void)postNotification:(NSString *)notificationName request:(id)request result:(NSDictionary *)result {
-  [[NSNotificationCenter defaultCenter] postNotificationName:notificationName
-                                                      object:request
-                                                    userInfo:result];
+  // Ensure notifications are posted on the main thread since observers often update UI
+  dispatch_async(dispatch_get_main_queue(), ^{
+    [[NSNotificationCenter defaultCenter] postNotificationName:notificationName
+                                                        object:request
+                                                      userInfo:result];
+  });
 }
 
 #pragma mark - Error handling

@@ -8,6 +8,7 @@
 
 #import <Cocoa/Cocoa.h>
 
-@interface HermesBackgroundView : NSView
+// Modern background view with vibrancy for Liquid Glass aesthetic
+@interface HermesBackgroundView : NSVisualEffectView
 
 @end

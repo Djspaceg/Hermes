@@ -18,12 +18,16 @@
   IBOutlet NSButton *lyrics;
   IBOutlet NSButton *like;
   IBOutlet NSButton *dislike;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   IBOutlet NSDrawer *drawer;
+#pragma clang diagnostic pop
   IBOutlet NSProgressIndicator *spinner;
 }
 
 @property IBOutlet NSMutableArray *songs;
 @property IBOutlet NSArrayController *controller;
+@property (readonly) NSCollectionView *collection;
 
 - (void) showDrawer;
 - (void) hideDrawer;

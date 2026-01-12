@@ -8,6 +8,7 @@
 #import "HistoryController.h"
 #import "FileReader.h"
 #import "FMEngine/NSString+FMEngine.h"
+#import "MainSplitViewController.h"
 #import "PlaybackController.h"
 #import "PreferencesController.h"
 #import "URLConnection.h"
@@ -17,11 +18,11 @@
 
 @implementation HistoryController
 
-@synthesize songs, controller;
+@synthesize songs, controller, collection;
 
 - (void) awakeFromNib {
   [super awakeFromNib];
-  drawer.contentView.window.appearance = [NSAppearance appearanceNamed:NSAppearanceNameAqua];
+  // Let drawer respect system appearance (removed forced Aqua theme)
 }
 
 - (void) loadSavedSongs {
@@ -33,7 +34,10 @@
     if (err) return;
     assert(data != nil);
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     NSArray *s = [NSKeyedUnarchiver unarchiveObjectWithData:data];
+#pragma clang diagnostic pop
     for (Song *song in s) {
       if ([self->songs indexOfObject:song] == NSNotFound)
         [self->controller addObject:song];
@@ -76,7 +80,10 @@
     return NO;
   }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   return [NSKeyedArchiver archiveRootObject:songs toFile:path];
+#pragma clang diagnostic pop
 }
 
 - (Song*) selectedItem {
@@ -115,16 +122,16 @@
   }
 
   if (rating == -1) {
-    [like setState:NSOffState];
-    [dislike setState:NSOnState];
+    [like setState:NSControlStateValueOff];
+    [dislike setState:NSControlStateValueOn];
   }
   else if (rating == 0) {
-    [like setState:NSOffState];
-    [dislike setState:NSOffState];
+    [like setState:NSControlStateValueOff];
+    [dislike setState:NSControlStateValueOff];
   }
   else if (rating == 1) {
-    [like setState:NSOnState];
-    [dislike setState:NSOffState];
+    [like setState:NSControlStateValueOn];
+    [dislike setState:NSControlStateValueOff];
   }
 }
 
@@ -161,35 +168,65 @@
   [[NSWorkspace sharedWorkspace] openURL:url];
 }
 
+#pragma mark - NSDrawerDelegate
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 - (NSSize) drawerWillResizeContents:(NSDrawer*) drawer toSize:(NSSize) size {
   NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
   [defaults setInteger:size.width forKey:HIST_DRAWER_WIDTH];
   return size;
 }
+#pragma clang diagnostic pop
 
 - (void)drawerWillClose:(NSNotification *)notification {
   PREF_KEY_SET_INT(OPEN_DRAWER, DRAWER_NONE_HIST);
 }
 
 - (void) showDrawer {
-  NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-  NSSize s;
-  s.height = 100;
-  s.width = [defaults integerForKey:HIST_DRAWER_WIDTH];
+  MainSplitViewController *splitVC = [HMSAppDelegate splitViewController];
+  if (splitVC) {
+    [splitVC showHistorySidebar];
+    [self focus];
+  } else {
+    // Fallback to old drawer
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    NSSize s;
+    s.height = 100;
+    s.width = [defaults integerForKey:HIST_DRAWER_WIDTH];
 
-  [drawer open];
-  [drawer setContentSize:s];
-  [collection setMaxItemSize:NSMakeSize(227, 41)];
-  [collection setMinItemSize:NSMakeSize(40, 41)];
-  [self focus];
+    [drawer open];
+    [drawer setContentSize:s];
+#pragma clang diagnostic pop
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    [collection setMaxItemSize:NSMakeSize(227, 41)];
+    [collection setMinItemSize:NSMakeSize(40, 41)];
+#pragma clang diagnostic pop
+    [self focus];
+  }
 }
 
 - (void) hideDrawer {
-  [drawer close];
+  MainSplitViewController *splitVC = [HMSAppDelegate splitViewController];
+  if (splitVC) {
+    [splitVC toggleSidebar];
+  } else {
+    // Fallback to old drawer
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    [drawer close];
+#pragma clang diagnostic pop
+  }
 }
 
 - (void) focus {
-  [[drawer parentWindow] makeFirstResponder:collection];
+  NSWindow *win = collection.window;
+  if (win) {
+    [win makeFirstResponder:collection];
+  }
 }
 
 - (IBAction) showLyrics:(id)sender {

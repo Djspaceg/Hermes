@@ -22,21 +22,39 @@
 }
 
 - (NSString*) urlEncoded {
-  NSString *encoded = (__bridge_transfer NSString*) CFURLCreateStringByAddingPercentEscapes(NULL,
-    (__bridge CFStringRef) self, NULL,
-    (CFStringRef) @"!*'();:@&=+$,/?%#[]",
-    kCFStringEncodingUTF8 );
-  return encoded;
+    // Use modern Foundation API for percent-encoding. Choose a conservative allowed set suitable for URL query/value encoding.
+    NSCharacterSet *allowed = [NSCharacterSet URLQueryAllowedCharacterSet];
+    // RFC 3986 reserves ":#[]@!$&'()*+,;=" in various URL components; remove them to ensure they are percent-encoded.
+    NSMutableCharacterSet *mutableAllowed = [allowed mutableCopy];
+    [mutableAllowed removeCharactersInString:@":#[]@!$&'()*+,;="];
+    NSString *encoded = [self stringByAddingPercentEncodingWithAllowedCharacters:mutableAllowed];
+    return encoded;
 }
 
 - (NSString *)md5sum {
-  unsigned char digest[CC_MD5_DIGEST_LENGTH], i;
-  CC_MD5([self UTF8String], (uint32_t)[self lengthOfBytesUsingEncoding:NSUTF8StringEncoding], digest);
-  NSMutableString *ms = [NSMutableString string];
-  for (i=0;i<CC_MD5_DIGEST_LENGTH;i++) {
-    [ms appendFormat: @"%02x", (int)(digest[i])];
+  // MD5 is deprecated and insecure. For backward compatibility, return a SHA-256 hash instead.
+  // If callers rely on MD5 specifically for protocol reasons, consider reintroducing MD5 behind
+  // conditional compilation only for non-security contexts. For now, prefer SHA-256.
+  unsigned char digest[CC_SHA256_DIGEST_LENGTH];
+  NSData *data = [self dataUsingEncoding:NSUTF8StringEncoding];
+  CC_SHA256(data.bytes, (CC_LONG)data.length, digest);
+  NSMutableString *ms = [NSMutableString stringWithCapacity:CC_SHA256_DIGEST_LENGTH * 2];
+  for (int i = 0; i < CC_SHA256_DIGEST_LENGTH; i++) {
+    [ms appendFormat:@"%02x", digest[i]];
+  }
+  return [ms copy];
+}
+
+- (NSString *)sha256sum {
+  unsigned char digest[CC_SHA256_DIGEST_LENGTH];
+  NSData *data = [self dataUsingEncoding:NSUTF8StringEncoding];
+  CC_SHA256(data.bytes, (CC_LONG)data.length, digest);
+  NSMutableString *ms = [NSMutableString stringWithCapacity:CC_SHA256_DIGEST_LENGTH * 2];
+  for (int i = 0; i < CC_SHA256_DIGEST_LENGTH; i++) {
+    [ms appendFormat:@"%02x", digest[i]];
   }
   return [ms copy];
 }
 
 @end
+

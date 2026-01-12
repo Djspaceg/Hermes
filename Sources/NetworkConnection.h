@@ -1,7 +1,3 @@
-#import <SystemConfiguration/SCNetworkReachability.h>
-
-@interface NetworkConnection : NSObject {
-  SCNetworkReachabilityRef reachability;
-}
+@interface NetworkConnection : NSObject
 
 @end

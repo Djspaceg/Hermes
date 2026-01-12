@@ -10,13 +10,28 @@
 
 @implementation HermesBackgroundView
 
-- (void)drawRect:(NSRect)dirtyRect {
-  // work around ugly drawer background on 10.10
-  // - doesn't seem to match any of the standard Apple system colors...
-  if (NSAppKitVersionNumber <= NSAppKitVersionNumber10_10_Max) {
-    [[NSColor colorWithGenericGamma22White:241/255. alpha:1] setFill];
-    NSRectFill(dirtyRect);
+- (instancetype)initWithFrame:(NSRect)frameRect {
+  self = [super initWithFrame:frameRect];
+  if (self) {
+    [self setupModernAppearance];
   }
+  return self;
+}
+
+- (instancetype)initWithCoder:(NSCoder *)coder {
+  self = [super initWithCoder:coder];
+  if (self) {
+    [self setupModernAppearance];
+  }
+  return self;
+}
+
+- (void)setupModernAppearance {
+  // Configure translucent appearance with vibrancy using NSVisualEffectView
+  // This method is called after successful initialization, so self is valid
+  self.blendingMode = NSVisualEffectBlendingModeBehindWindow;
+  self.material = NSVisualEffectMaterialSidebar;
+  self.state = NSVisualEffectStateFollowsWindowActiveState;
 }
 
 @end

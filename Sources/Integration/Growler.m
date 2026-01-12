@@ -1,12 +1,10 @@
 /**
  * @file Growler.h
- * @brief Growl integration for the rest of Hermes
+ * @brief Notification integration for Hermes
  *
  * Provides unified access to displaying notifications for different kinds
- * of events without having to deal with Growl directly.
+ * of events using macOS native notifications.
  */
-
-#import <Growl/Growl.h>
 
 #import "Growler.h"
 #import "PreferencesController.h"
@@ -15,11 +13,15 @@
 @implementation Growler
 
 - (id) init {
-  [GrowlApplicationBridge setGrowlDelegate:self];
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   [[NSUserNotificationCenter defaultUserNotificationCenter] setDelegate:self];
+#pragma clang diagnostic pop
   return self;
 }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 - (void) growl:(Song*)song withImage:(NSData*)image isNew:(BOOL)n {
   // Unconditionally remove all notifications from notification center to behave like iTunes
   // notifications and does not fill the notification center with old song details.
@@ -38,100 +40,67 @@
   NSString *description = [NSString stringWithFormat:@"%@\n%@", [song artist],
                                                      [song album]];
 
-  if (PREF_KEY_INT(GROWL_TYPE) == GROWL_TYPE_OSX) {
-    NSUserNotification *not = [[NSUserNotification alloc] init];
-    [not setTitle:title];
-    [not setInformativeText:description];
-    [not setHasActionButton:YES];
-    [not setActionButtonTitle: @"Skip"];
-    
-    // Make skip button visible for banner notifications (like in iTunes)
+  // Use macOS native notifications
+  NSUserNotification *not = [[NSUserNotification alloc] init];
+  [not setTitle:title];
+  [not setInformativeText:description];
+  [not setHasActionButton:YES];
+  [not setActionButtonTitle: @"Skip"];
+  
+  // Make skip button visible for banner notifications (like in iTunes)
+  // - Undocumented API.  Will only work if Apple keeps in NSUserNotification
+  //   class.  Otherwise, skip button will only appear if 'Alert' style
+  //   notifications are used.
+  // - see: https://github.com/indragiek/NSUserNotificationPrivate
+  @try {
+    [not setValue:@YES forKey:@"_showsButtons"];
+  } @catch (NSException *e) {
+    if ([e name] != NSUndefinedKeyException) @throw e;
+  }
+  
+  // Skip action
+  NSUserNotificationAction *skipAction =
+    [NSUserNotificationAction actionWithIdentifier:@"next" title:@"Skip"];
+  
+  // Like/Dislike actions
+  NSString *likeActionTitle =
+    ([[song nrating] intValue] == 1) ? @"Remove Like" : @"Like";
+  
+  NSUserNotificationAction *likeAction =
+    [NSUserNotificationAction actionWithIdentifier:@"like" title:likeActionTitle];
+  NSUserNotificationAction *dislikeAction =
+    [NSUserNotificationAction actionWithIdentifier:@"dislike" title:@"Dislike"];
+  
+  [not setAdditionalActions: @[skipAction,likeAction,dislikeAction]];
+  
+  if ([not respondsToSelector:@selector(setContentImage:)]) {
+    // Set album art where app icon is (like in iTunes)
     // - Undocumented API.  Will only work if Apple keeps in NSUserNotification
     //   class.  Otherwise, skip button will only appear if 'Alert' style
     //   notifications are used.
     // - see: https://github.com/indragiek/NSUserNotificationPrivate
     @try {
-      [not setValue:@YES forKey:@"_showsButtons"];
+      [not setValue:[[NSImage alloc] initWithData:image] forKey:@"_identityImage"];
     } @catch (NSException *e) {
       if ([e name] != NSUndefinedKeyException) @throw e;
+      [not setContentImage:[[NSImage alloc] initWithData:image]];
     }
-    
-    // Skip action
-    NSUserNotificationAction *skipAction =
-      [NSUserNotificationAction actionWithIdentifier:@"next" title:@"Skip"];
-    
-    // Like/Dislike actions
-    NSString *likeActionTitle =
-      ([[song nrating] intValue] == 1) ? @"Remove Like" : @"Like";
-    
-    NSUserNotificationAction *likeAction =
-      [NSUserNotificationAction actionWithIdentifier:@"like" title:likeActionTitle];
-    NSUserNotificationAction *dislikeAction =
-      [NSUserNotificationAction actionWithIdentifier:@"dislike" title:@"Dislike"];
-    
-    [not setAdditionalActions: @[skipAction,likeAction,dislikeAction]];
-    
-    if ([not respondsToSelector:@selector(setContentImage:)]) {
-      // Set album art where app icon is (like in iTunes)
-      // - Undocumented API.  Will only work if Apple keeps in NSUserNotification
-      //   class.  Otherwise, skip button will only appear if 'Alert' style
-      //   notifications are used.
-      // - see: https://github.com/indragiek/NSUserNotificationPrivate
-      @try {
-        [not setValue:[[NSImage alloc] initWithData:image] forKey:@"_identityImage"];
-      } @catch (NSException *e) {
-        if ([e name] != NSUndefinedKeyException) @throw e;
-        [not setContentImage:[[NSImage alloc] initWithData:image]];
-      }
-    }
-    
-    NSUserNotificationCenter *center =
-        [NSUserNotificationCenter defaultUserNotificationCenter];
-    [not setDeliveryDate:[NSDate date]];
-    [center scheduleNotification:not];
-    return;
   }
-
-  /* To deliver the event that a notification was clicked, the click context
-     must be serializable and all that whatnot. Right now, we don't need any
-     state to pass between these two methods, so just make sure that there's
-     something that's plist-encodable */
-  [GrowlApplicationBridge notifyWithTitle:title
-                              description:description
-                         notificationName:n ? @"hermes-song" : @"hermes-play"
-                                 iconData:image
-                                 priority:0
-                                 isSticky:NO
-                             clickContext:@YES
-                               identifier:@"Hermes"];
+  
+  NSUserNotificationCenter *center =
+      [NSUserNotificationCenter defaultUserNotificationCenter];
+  [not setDeliveryDate:[NSDate date]];
+  [center scheduleNotification:not];
 }
-
-/******************************************************************************
- * Implementation of GrowlApplicationDelegate
- ******************************************************************************/
-
-- (NSDictionary*) registrationDictionaryForGrowl {
-  NSArray *notifications = @[@"hermes-song", @"hermes-play"];
-  NSDictionary *human_names = @{
-    @"hermes-song": @"New Songs",
-    @"hermes-play": @"Play/pause Events"
-  };
-  return @{
-    GROWL_NOTIFICATIONS_ALL:                  notifications,
-    GROWL_NOTIFICATIONS_DEFAULT:              notifications,
-    GROWL_NOTIFICATIONS_HUMAN_READABLE_NAMES: human_names
-  };
-}
-
-- (void) growlNotificationWasClicked:(id)clickContext {
-  [[HMSAppDelegate window] orderFront:nil];
-  [NSApp activateIgnoringOtherApps:YES];
-}
+#pragma clang diagnostic pop
 
 /******************************************************************************
  * Implementation of NSUserNotificationCenterDelegate
  ******************************************************************************/
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#pragma clang diagnostic ignored "-Wdeprecated-implementations"
 - (BOOL)userNotificationCenter:(NSUserNotificationCenter *)center
      shouldPresentNotification:(NSUserNotification *)notification {
   /* always show notifications, even if the application is active */
@@ -177,6 +146,7 @@
   // Only way to get this notification to be removed from center
   [center removeAllDeliveredNotifications];
 }
+#pragma clang diagnostic pop
 
 
 

@@ -28,19 +28,21 @@
   [[self controlView] setNeedsDisplay:YES];
   aRect = NSInsetRect([self drawingRectForBounds:controlView.bounds], 3, 0);
   // despite passing smaller rect to super, it ends up too wide the first time unless we set it explicitly
-  NSDisableScreenUpdates(); // to prevent flashing of wider rect
+  [NSAnimationContext beginGrouping];
+  [[NSAnimationContext currentContext] setAllowsImplicitAnimation:NO];
   [super editWithFrame:aRect inView:controlView editor:textObj delegate:anObject event:theEvent];
   [textObj setFrameSize:aRect.size];
-  NSEnableScreenUpdates();
+  [NSAnimationContext endGrouping];
 }
 
 - (void)selectWithFrame:(NSRect)aRect inView:(NSView *)controlView editor:(NSText *)textObj delegate:(nullable id)anObject start:(NSInteger)selStart length:(NSInteger)selLength {
   aRect = NSInsetRect([self drawingRectForBounds:controlView.bounds], 3, 0);
   // despite passing smaller rect to super, it ends up too wide the first time unless we set it explicitly
-  NSDisableScreenUpdates(); // to prevent flashing of wider rect
+  [NSAnimationContext beginGrouping];
+  [[NSAnimationContext currentContext] setAllowsImplicitAnimation:NO];
   [super selectWithFrame:aRect inView:controlView editor:textObj delegate:anObject start:selStart length:selLength];
   [textObj setFrameSize:aRect.size];
-  NSEnableScreenUpdates();
+  [NSAnimationContext endGrouping];
 }
 
 @end
