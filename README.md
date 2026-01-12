@@ -6,6 +6,10 @@ Hermes
 
 A [Pandora](http://www.pandora.com/) client for macOS.
 
+### System Requirements
+
+Hermes requires **macOS 11.0 (Big Sur)** or later. The app has been modernized with the Liquid Glass aesthetic introduced in macOS Tahoe, featuring translucent windows, vibrancy effects, and full dark mode support.
+
 ### THIS PROJECT IS UNMAINTAINED
 
 This means that bugs will not be fixed and features will not be added unless someone else does so.  Unfortunately, the former maintainers no longer have the time and/or resources to work on Hermes further.
