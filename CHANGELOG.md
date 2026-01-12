@@ -2,7 +2,7 @@
 
 [Full changelog](https://github.com/HermesApp/Hermes/compare/v1.3.1...HEAD)
 
-* [changed] Modernized UI for macOS Tahoe with Liquid Glass aesthetic
+* [changed] Modernized UI with translucent glass-like aesthetic inspired by modern macOS design
 * [changed] Updated minimum macOS version to 11.0 (Big Sur)
 * [changed] Added NSVisualEffectView for modern translucent windows and sidebars
 * [changed] Updated colors to use system colors for better dark mode support

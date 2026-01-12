@@ -16,7 +16,8 @@
 }
 
 - (void)setupModernAppearance {
-  // Enable modern Liquid Glass appearance for macOS Tahoe
+  // Enable modern Liquid Glass appearance inspired by macOS Tahoe
+  // Using NSVisualEffectView APIs available since macOS 11.0+
   self.titlebarAppearsTransparent = YES;
   self.styleMask |= NSWindowStyleMaskFullSizeContentView;
   
