@@ -45,7 +45,10 @@
     [password becomeFirstResponder];
   }
   NSNotification *emptyNotification;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   [self controlTextDidChange:emptyNotification];
+#pragma clang diagnostic pop
 }
 
 - (void) authenticationSucceeded: (NSNotification*) notification {
@@ -80,7 +83,10 @@
   [username becomeFirstResponder];
   
   NSNotification *emptyNotification;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   [self controlTextDidChange:emptyNotification];
+#pragma clang diagnostic pop
 }
 
 /* Log out the current session */
@@ -90,6 +96,8 @@
   [[delegate pandora] logout];
 }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-implementations"
 - (void)controlTextDidChange:(NSNotification *)obj {
   NSPredicate *emailTest = [NSPredicate predicateWithFormat:@"SELF MATCHES %@", ROUGH_EMAIL_REGEX];
   
@@ -98,8 +106,12 @@
    [emailTest evaluateWithObject:[username stringValue]] &&
    ![[password stringValue] isEqualToString:@""]];
 }
+#pragma clang diagnostic pop
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-implementations"
 - (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
+#pragma clang diagnostic pop
   HermesAppDelegate *delegate = HMSAppDelegate;
 
   if (![[delegate pandora] isAuthenticated]) {

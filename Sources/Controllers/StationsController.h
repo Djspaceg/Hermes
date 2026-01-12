@@ -1,42 +1,54 @@
 #define LAST_STATION_KEY @"hermes.last-station"
 
+NS_ASSUME_NONNULL_BEGIN
+
 @class FileReader;
 @class Station;
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+@class NSDrawer;
+#pragma clang diagnostic pop
+
 @interface StationsController : NSObject <NSTableViewDataSource, NSOutlineViewDataSource> {
 
-  IBOutlet NSView *chooseStationView;
+  IBOutlet NSView * _Nullable chooseStationView;
 
-  IBOutlet NSDrawer *stations;
-  IBOutlet NSTableView *stationsTable;
-  IBOutlet NSProgressIndicator *stationsRefreshing;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+  IBOutlet NSDrawer * _Nullable stations;
+#pragma clang diagnostic pop
+  IBOutlet NSTableView * _Nullable stationsTable;
+  IBOutlet NSProgressIndicator * _Nullable stationsRefreshing;
 
-  IBOutlet NSButton *playStationButton;
-  IBOutlet NSButton *deleteStationButton;
-  IBOutlet NSButton *editStationButton;
+  IBOutlet NSButton * _Nullable playStationButton;
+  IBOutlet NSButton * _Nullable deleteStationButton;
+  IBOutlet NSButton * _Nullable editStationButton;
 
   /* New station by searching */
-  IBOutlet NSTextField *search;
-  IBOutlet NSOutlineView *results;
-  IBOutlet NSProgressIndicator *searchSpinner;
-  IBOutlet NSImageView *errorIndicator;
+  IBOutlet NSTextField * _Nullable search;
+  IBOutlet NSOutlineView * _Nullable results;
+  IBOutlet NSProgressIndicator * _Nullable searchSpinner;
+  IBOutlet NSImageView * _Nullable errorIndicator;
 
   /* New station by genres */
-  IBOutlet NSOutlineView *genres;
-  IBOutlet NSProgressIndicator *genreSpinner;
+  IBOutlet NSOutlineView * _Nullable genres;
+  IBOutlet NSProgressIndicator * _Nullable genreSpinner;
 
   /* Last known results */
-  NSDictionary *lastResults;
-  NSArray *genreResults;
+  NSDictionary<NSString *, id> *lastResults;
+  NSArray<id> *genreResults;
 
   /* Sorting the station list */
-  IBOutlet NSSegmentedControl *sort;
+  IBOutlet NSSegmentedControl * _Nullable sort;
 
-  FileReader *reader;
+  FileReader * _Nullable reader;
 }
 
-- (void) showDrawer;
-- (void) hideDrawer;
+- (void)showStationsPanel;
+- (void)hideStationsPanel;
+- (void) showDrawer __attribute__((deprecated("Drawers are deprecated on macOS 10.13+. Use -showStationsPanel instead.")));
+- (void) hideDrawer __attribute__((deprecated("Drawers are deprecated on macOS 10.13+. Use -hideStationsPanel instead.")));
 - (void) show;
 - (void) reset;
 - (void) focus;
@@ -57,3 +69,5 @@
 - (int) stationIndex: (Station*) station;
 
 @end
+
+NS_ASSUME_NONNULL_END

@@ -256,7 +256,10 @@ BOOL playOnStart = YES;
     return NO;
   }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   return [NSKeyedArchiver archiveRootObject:[self playing] toFile:path];
+#pragma clang diagnostic pop
 }
 
 /* Called whenever the playing stream changes state */
@@ -651,6 +654,9 @@ BOOL playOnStart = YES;
     [previewPanel makeKeyAndOrderFront:nil];
 }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-implementations"
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 - (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
   if (![[self pandora] isAuthenticated]) {
     return NO;
@@ -682,6 +688,7 @@ BOOL playOnStart = YES;
 }
 
 - (BOOL)validateToolbarItem:(NSToolbarItem *)toolbarItem {
+#pragma clang diagnostic pop
   if (![[self pandora] isAuthenticated]) {
     return NO;
   }

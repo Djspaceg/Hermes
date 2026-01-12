@@ -18,7 +18,10 @@
   IBOutlet NSButton *lyrics;
   IBOutlet NSButton *like;
   IBOutlet NSButton *dislike;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   IBOutlet NSDrawer *drawer;
+#pragma clang diagnostic pop
   IBOutlet NSProgressIndicator *spinner;
 }
 

@@ -57,10 +57,16 @@
 
 - (void) awakeFromNib {
   [super awakeFromNib];
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   stations.contentView.window.appearance = [NSAppearance appearanceNamed:NSAppearanceNameAqua];
+#pragma clang diagnostic pop
 }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-implementations"
 - (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
+#pragma clang diagnostic pop
   if (![[self pandora] isAuthenticated]) {
     return NO;
   }
@@ -94,6 +100,22 @@
   return [[self pandora] stations][row];
 }
 
+- (void)showStationsPanel {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+  [self showDrawer];
+#pragma clang diagnostic pop
+}
+
+- (void)hideStationsPanel {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+  [self hideDrawer];
+#pragma clang diagnostic pop
+}
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 - (void) showDrawer {
   NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
   NSSize s;
@@ -107,6 +129,7 @@
 - (void) hideDrawer {
   [stations close];
 }
+#pragma clang diagnostic pop
 
 - (void) reset {
   [stationsRefreshing setHidden:YES];
@@ -173,7 +196,10 @@
       reader = [FileReader readerForFile:saved_state
                        completionHandler:^(NSData *data, NSError *err) {
         if (err == nil) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
           Station *s = [NSKeyedUnarchiver unarchiveObjectWithFile:saved_state];
+#pragma clang diagnostic pop
           if ([last isEqual:s]) {
             last = s;
             [last setRadio:[self pandora]];
@@ -194,6 +220,9 @@
 
 #pragma mark - NSDrawerDelegate
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#pragma clang diagnostic ignored "-Wdeprecated-implementations"
 - (NSSize) drawerWillResizeContents:(NSDrawer*) drawer toSize:(NSSize) size {
   NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
   [defaults setInteger:size.width forKey:DRAWER_WIDTH];
@@ -203,6 +232,7 @@
 - (void)drawerWillClose:(NSNotification *)notification {
   PREF_KEY_SET_INT(OPEN_DRAWER, DRAWER_NONE_STA);
 }
+#pragma clang diagnostic pop
 
 #pragma mark - NSTableViewDataSource protocol
 
@@ -439,7 +469,10 @@
 /* Called after the user has authenticated */
 - (void) show {
   [HMSAppDelegate showLoader];
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wnonnull"
   [self refreshList:nil];
+#pragma clang diagnostic pop
 }
 
 /* Callback for when the play button is hit for a station */

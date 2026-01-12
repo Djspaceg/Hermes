@@ -85,9 +85,12 @@
                              action:@selector(like:)
                       keyEquivalent:@""];
   [menuItem setTarget:playback];
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   if ([[song nrating] intValue] == 1) {
     menuItem.state = NSOnState;
   }
+#pragma clang diagnostic pop
   menuItem = [menu addItemWithTitle:@"Dislike"
                              action:@selector(dislike:)
                       keyEquivalent:@""];
@@ -187,8 +190,11 @@
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   NSUInteger flags = ([NSEvent modifierFlags] & NSDeviceIndependentModifierFlagsMask);
   BOOL isOptionPressed = (flags == NSAlternateKeyMask);
+#pragma clang diagnostic pop
   
   if (isOptionPressed && [self configureLogFile]) {
     _debugMode = YES;
@@ -387,6 +393,8 @@
 
 #pragma mark - Drawer management
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 - (void) historyShow {
   [history showDrawer];
   [drawerToggle setImage:[NSImage imageNamed:@"radio"]];
@@ -420,6 +428,7 @@
   [self stationsShow];
   PREF_KEY_SET_INT(OPEN_DRAWER, DRAWER_STATIONS);
 }
+#pragma clang diagnostic pop
 
 - (void) handleDrawer {
   switch ([PREF_KEY_VALUE(OPEN_DRAWER) intValue]) {
@@ -447,11 +456,17 @@
       break;
     case DRAWER_HISTORY:
       [self stationsShow];
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
       [history hideDrawer];
+#pragma clang diagnostic pop
       PREF_KEY_SET_INT(OPEN_DRAWER, DRAWER_STATIONS);
       break;
     case DRAWER_STATIONS:
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
       [stations hideDrawer];
+#pragma clang diagnostic pop
       [self historyShow];
       PREF_KEY_SET_INT(OPEN_DRAWER, DRAWER_HISTORY);
       break;
@@ -469,10 +484,16 @@
       PREF_KEY_SET_INT(OPEN_DRAWER, DRAWER_STATIONS);
       break;
     case DRAWER_HISTORY:
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
       [history hideDrawer];
+#pragma clang diagnostic pop
       break;
     case DRAWER_STATIONS:
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
       [stations hideDrawer];
+#pragma clang diagnostic pop
       break;
   }
 }
@@ -491,10 +512,13 @@
     if (sender != nil) {
       /* If we're not executing at process launch, then the menu bar will be shown
          but be unusable until we switch to another application and back to Hermes */
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
       [[NSWorkspace sharedWorkspace] launchAppWithBundleIdentifier:@"com.apple.dock"
                                                            options:NSWorkspaceLaunchDefault
                                     additionalEventParamDescriptor:nil
                                                   launchIdentifier:nil];
+#pragma clang diagnostic pop
       [NSApp activateIgnoringOtherApps:YES];
     }
     [self updateDockIcon:sender];
@@ -556,11 +580,14 @@
     [icon lockFocus];
     CGContextSetShadowWithColor([NSGraphicsContext currentContext].CGContext,
                                 CGSizeMake(0, 0), 120, [NSColor whiteColor].CGColor);
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     [overlay drawInRect:NSMakeRect(playPauseOffset, playPauseOffset,
                                    [overlay size].width, [overlay size].height)
                fromRect:NSZeroRect
               operation:NSCompositeSourceOver
                fraction:1.0];
+#pragma clang diagnostic pop
     [icon unlockFocus];
   }
   
@@ -769,8 +796,11 @@
 - (void) handlePandoraLoggedOut: (NSNotification*) notification {
   [stations reset];
   [playback reset];
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   [stations hideDrawer];
   [history hideDrawer];
+#pragma clang diagnostic pop
   [station editStation:nil];
 
   /* Remove our credentials */
@@ -780,6 +810,8 @@
 
 #pragma mark - User interface validation
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-implementations"
 - (BOOL)validateToolbarItem:(NSToolbarItem *)toolbarItem {
   if (![[self pandora] isAuthenticated]) {
     return NO;
@@ -788,6 +820,7 @@
 }
 
 - (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
+#pragma clang diagnostic pop
   SEL action = [menuItem action];
 
   if (action == @selector(showHistoryDrawer:) || action == @selector(showStationsDrawer:) || action == @selector(toggleDrawerVisible:)) {
@@ -795,7 +828,10 @@
       return NO;
 
     NSInteger openDrawer = [PREF_KEY_VALUE(OPEN_DRAWER) integerValue];
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     NSCellStateValue state = NSOffState;
+#pragma clang diagnostic pop
     if (action == @selector(showHistoryDrawer:)) {
       if (openDrawer == DRAWER_NONE_HIST)
         state = NSMixedState;

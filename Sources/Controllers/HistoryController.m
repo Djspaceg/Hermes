@@ -33,7 +33,10 @@
     if (err) return;
     assert(data != nil);
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     NSArray *s = [NSKeyedUnarchiver unarchiveObjectWithData:data];
+#pragma clang diagnostic pop
     for (Song *song in s) {
       if ([self->songs indexOfObject:song] == NSNotFound)
         [self->controller addObject:song];
@@ -76,7 +79,10 @@
     return NO;
   }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   return [NSKeyedArchiver archiveRootObject:songs toFile:path];
+#pragma clang diagnostic pop
 }
 
 - (Song*) selectedItem {
@@ -114,6 +120,8 @@
     [self setEnabledState:NO allowRating:NO];
   }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   if (rating == -1) {
     [like setState:NSOffState];
     [dislike setState:NSOnState];
@@ -126,6 +134,7 @@
     [like setState:NSOnState];
     [dislike setState:NSOffState];
   }
+#pragma clang diagnostic pop
 }
 
 - (IBAction) dislikeSelected:(id)sender {
@@ -161,11 +170,16 @@
   [[NSWorkspace sharedWorkspace] openURL:url];
 }
 
+#pragma mark - NSDrawerDelegate
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 - (NSSize) drawerWillResizeContents:(NSDrawer*) drawer toSize:(NSSize) size {
   NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
   [defaults setInteger:size.width forKey:HIST_DRAWER_WIDTH];
   return size;
 }
+#pragma clang diagnostic pop
 
 - (void)drawerWillClose:(NSNotification *)notification {
   PREF_KEY_SET_INT(OPEN_DRAWER, DRAWER_NONE_HIST);
@@ -179,8 +193,11 @@
 
   [drawer open];
   [drawer setContentSize:s];
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   [collection setMaxItemSize:NSMakeSize(227, 41)];
   [collection setMinItemSize:NSMakeSize(40, 41)];
+#pragma clang diagnostic pop
   [self focus];
 }
 

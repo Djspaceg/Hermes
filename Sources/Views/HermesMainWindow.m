@@ -33,10 +33,13 @@
 }
 
 - (void)sendEvent:(NSEvent *)theEvent {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   if ([theEvent type] == NSKeyDown) {
 
     // don't ever let space bar get through to the field editor so it can be used for play/pause
     if ([[theEvent characters] isEqualToString:@" "] && ([theEvent modifierFlags] & NSDeviceIndependentModifierFlagsMask) == 0) {
+#pragma clang diagnostic pop
       [[NSApp mainMenu] performKeyEquivalent:theEvent];
       return;
     }

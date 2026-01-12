@@ -6,6 +6,7 @@
 //
 
 #import "Keychain.h"
+#import <Security/Security.h>
 
 // Suppress deprecation warnings for legacy Keychain APIs
 // These APIs are deprecated but still functional and widely used
@@ -14,61 +15,54 @@
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 
 BOOL KeychainSetItem(NSString* username, NSString* password) {
-  SecKeychainItemRef item = nil;
-  OSStatus result = SecKeychainFindGenericPassword(
-    NULL,
-    strlen(KEYCHAIN_SERVICE_NAME),
-    KEYCHAIN_SERVICE_NAME,
-    (UInt32)[username length],
-    [username UTF8String],
-    NULL,
-    NULL,
-    &item);
+  if (!username || !password) { return NO; }
 
-  if (result == noErr) {
-    result = SecKeychainItemModifyContent(item, NULL, (UInt32)[password length],
-                                          [password UTF8String]);
-  } else {
-    result = SecKeychainAddGenericPassword(
-      NULL,
-      strlen(KEYCHAIN_SERVICE_NAME),
-      KEYCHAIN_SERVICE_NAME,
-      (UInt32)[username length],
-      [username UTF8String],
-      (UInt32)[password length],
-      [password UTF8String],
-      NULL);
+  NSData *passwordData = [password dataUsingEncoding:NSUTF8StringEncoding];
+
+  // Query to find existing item
+  NSDictionary *query = @{
+    (__bridge id)kSecClass: (__bridge id)kSecClassGenericPassword,
+    (__bridge id)kSecAttrService: [[NSString alloc] initWithBytes:KEYCHAIN_SERVICE_NAME length:strlen(KEYCHAIN_SERVICE_NAME) encoding:NSUTF8StringEncoding],
+    (__bridge id)kSecAttrAccount: username
+  };
+
+  OSStatus status = SecItemCopyMatching((__bridge CFDictionaryRef)query, NULL);
+  if (status == errSecSuccess) {
+    // Update existing item
+    NSDictionary *attributesToUpdate = @{
+      (__bridge id)kSecValueData: passwordData
+    };
+    status = SecItemUpdate((__bridge CFDictionaryRef)query, (__bridge CFDictionaryRef)attributesToUpdate);
+  } else if (status == errSecItemNotFound) {
+    // Add new item
+    NSMutableDictionary *addQuery = [query mutableCopy];
+    addQuery[(__bridge id)kSecValueData] = passwordData;
+    status = SecItemAdd((__bridge CFDictionaryRef)addQuery, NULL);
   }
 
-  if (item) {
-    CFRelease(item);
-  }
-  return result == noErr;
+  return (status == errSecSuccess);
 }
 
 NSString *KeychainGetPassword(NSString* username) {
-  void *passwordData = NULL;
-  UInt32 length;
-  OSStatus result = SecKeychainFindGenericPassword(
-    NULL,
-    strlen(KEYCHAIN_SERVICE_NAME),
-    KEYCHAIN_SERVICE_NAME,
-    (UInt32)[username length],
-    [username UTF8String],
-    &length,
-    &passwordData,
-    NULL);
+  if (!username) { return nil; }
 
-  if (result != noErr) {
+  NSDictionary *query = @{
+    (__bridge id)kSecClass: (__bridge id)kSecClassGenericPassword,
+    (__bridge id)kSecAttrService: [[NSString alloc] initWithBytes:KEYCHAIN_SERVICE_NAME length:strlen(KEYCHAIN_SERVICE_NAME) encoding:NSUTF8StringEncoding],
+    (__bridge id)kSecAttrAccount: username,
+    (__bridge id)kSecReturnData: @YES,
+    (__bridge id)kSecMatchLimit: (__bridge id)kSecMatchLimitOne
+  };
+
+  CFTypeRef resultData = NULL;
+  OSStatus status = SecItemCopyMatching((__bridge CFDictionaryRef)query, &resultData);
+  if (status != errSecSuccess || !resultData) {
+    if (resultData) CFRelease(resultData);
     return nil;
   }
-  
-  NSString *password = [[NSString alloc] initWithBytes:passwordData
-                                           length:length
-                                         encoding:NSUTF8StringEncoding];
-  SecKeychainItemFreeContent(NULL, passwordData);
 
+  NSData *passwordData = (__bridge_transfer NSData *)resultData;
+  NSString *password = [[NSString alloc] initWithData:passwordData encoding:NSUTF8StringEncoding];
   return password;
 }
 
-#pragma clang diagnostic pop
