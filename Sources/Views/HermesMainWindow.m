@@ -28,12 +28,8 @@
   visualEffectView.material = NSVisualEffectMaterialUnderWindowBackground;
   visualEffectView.state = NSVisualEffectStateFollowsWindowActiveState;
   
-  // Insert the visual effect view as the base layer
-  if (self.contentView.subviews.count > 0) {
-    [self.contentView addSubview:visualEffectView positioned:NSWindowBelow relativeTo:self.contentView.subviews[0]];
-  } else {
-    [self.contentView addSubview:visualEffectView];
-  }
+  // Insert the visual effect view at the bottom of the view hierarchy
+  [self.contentView addSubview:visualEffectView positioned:NSWindowBelow relativeTo:nil];
 }
 
 - (void)sendEvent:(NSEvent *)theEvent {
