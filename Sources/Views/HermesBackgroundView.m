@@ -27,7 +27,7 @@
 }
 
 - (void)setupModernAppearance {
-  // Configure for Liquid Glass appearance
+  // Configure translucent appearance with vibrancy using NSVisualEffectView
   self.blendingMode = NSVisualEffectBlendingModeBehindWindow;
   self.material = NSVisualEffectMaterialSidebar;
   self.state = NSVisualEffectStateActive;
