@@ -22,12 +22,13 @@
   NSRect leftRect = rect;
   leftRect.size.width = leftWidth;
   
+  // Use system colors for modern appearance that adapts to light/dark mode
   NSBezierPath *bar = [NSBezierPath bezierPathWithRoundedRect:rect xRadius:radius yRadius:radius];
-  [[NSColor colorWithGenericGamma22White:171/255. alpha:1] setFill];
+  [[NSColor tertiaryLabelColor] setFill];
   [bar fill];
   
   NSBezierPath *barLeft = [NSBezierPath bezierPathWithRoundedRect: leftRect xRadius:radius yRadius:radius];
-  [[NSColor colorWithGenericGamma22White:103/255. alpha:1] setFill];
+  [[NSColor controlAccentColor] setFill];
   [barLeft fill];
 }
 

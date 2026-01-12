@@ -2,6 +2,11 @@
 
 [Full changelog](https://github.com/HermesApp/Hermes/compare/v1.3.1...HEAD)
 
+* [changed] Modernized UI for macOS Tahoe with Liquid Glass aesthetic
+* [changed] Updated minimum macOS version to 11.0 (Big Sur)
+* [changed] Added NSVisualEffectView for modern translucent windows and sidebars
+* [changed] Updated colors to use system colors for better dark mode support
+* [changed] Removed macOS 10.10 and 10.11 specific workarounds
 * [fixed by @zachhowe] Allow user customized app icons for Hermes to show up in Dock (#304)
 
 # Version 1.3.1 (3/26/17)
