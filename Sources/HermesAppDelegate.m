@@ -195,9 +195,9 @@
 }
 
 - (void)setupSplitViewController {
-  // Enable window resizing
+  // Enable window resizing with smaller minimum size
   window.styleMask |= NSWindowStyleMaskResizable;
-  window.minSize = NSMakeSize(600, 400);
+  window.minSize = NSMakeSize(350, 250);  // Very small minimum
   window.maxSize = NSMakeSize(FLT_MAX, FLT_MAX);
   
   // Ensure window respects system appearance (dark mode)
@@ -208,6 +208,9 @@
   
   // Set the split view as the window's content view controller
   window.contentViewController = self.splitViewController;
+  
+  // Add sidebar toggle button
+  [self addSidebarToggleButton];
   
   // Listen for sidebar mode changes
   [[NSNotificationCenter defaultCenter] addObserver:self
@@ -227,6 +230,23 @@
   dispatch_async(dispatch_get_main_queue(), ^{
     [self populateSplitViewContent];
   });
+}
+
+- (void)addSidebarToggleButton {
+  // Add a button to toggle sidebar visibility
+  // This appears in the top-left of the content area
+  NSButton *toggleButton = [[NSButton alloc] initWithFrame:NSMakeRect(8, window.contentView.bounds.size.height - 36, 28, 28)];
+  [toggleButton setImage:[NSImage imageNamed:NSImageNameTouchBarSidebarTemplate]];
+  [toggleButton setImagePosition:NSImageOnly];
+  [toggleButton setBordered:NO];
+  [toggleButton setBezelStyle:NSBezelStyleShadowlessSquare];
+  [toggleButton setTarget:self];
+  [toggleButton setAction:@selector(toggleDrawerVisible:)];
+  [toggleButton setToolTip:@"Show/Hide Sidebar"];
+  toggleButton.autoresizingMask = NSViewMaxXMargin | NSViewMinYMargin;
+  
+  // Add to window's content view (on top of split view)
+  [window.contentView addSubview:toggleButton positioned:NSWindowAbove relativeTo:nil];
 }
 
 - (void)populateSplitViewContent {

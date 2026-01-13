@@ -164,6 +164,55 @@ BOOL playOnStart = YES;
   }
 #endif
 #endif
+
+  // Set up responsive layout
+  [self setupResponsiveLayout];
+}
+
+- (void)setupResponsiveLayout {
+  // Enable Auto Layout for key views
+  art.translatesAutoresizingMaskIntoConstraints = NO;
+  playbackProgress.translatesAutoresizingMaskIntoConstraints = NO;
+  progressLabel.translatesAutoresizingMaskIntoConstraints = NO;
+  
+  // Album art - centered, scales to fill available space while maintaining aspect ratio
+  [NSLayoutConstraint activateConstraints:@[
+    // Center horizontally and vertically
+    [art.centerXAnchor constraintEqualToAnchor:playbackView.centerXAnchor],
+    [art.centerYAnchor constraintEqualToAnchor:playbackView.centerYAnchor constant:-20],
+    
+    // Maintain aspect ratio (square)
+    [art.widthAnchor constraintEqualToAnchor:art.heightAnchor],
+    
+    // Fill available space with padding
+    [art.leadingAnchor constraintGreaterThanOrEqualToAnchor:playbackView.leadingAnchor constant:40],
+    [art.trailingAnchor constraintLessThanOrEqualToAnchor:playbackView.trailingAnchor constant:-40],
+    [art.topAnchor constraintGreaterThanOrEqualToAnchor:albumLabel.bottomAnchor constant:20],
+    [art.bottomAnchor constraintLessThanOrEqualToAnchor:playbackProgress.topAnchor constant:-20],
+    
+    // Minimum size so it doesn't get too small
+    [art.widthAnchor constraintGreaterThanOrEqualToConstant:150]
+  ]];
+  
+  // Progress bar constraints - full width, anchored to bottom above volume
+  [NSLayoutConstraint activateConstraints:@[
+    [playbackProgress.leadingAnchor constraintEqualToAnchor:playbackView.leadingAnchor constant:20],
+    [playbackProgress.trailingAnchor constraintEqualToAnchor:progressLabel.leadingAnchor constant:-8],
+    [playbackProgress.bottomAnchor constraintEqualToAnchor:volume.topAnchor constant:-20]
+  ]];
+  
+  // Progress label constraints
+  [NSLayoutConstraint activateConstraints:@[
+    [progressLabel.trailingAnchor constraintEqualToAnchor:playbackView.trailingAnchor constant:-20],
+    [progressLabel.centerYAnchor constraintEqualToAnchor:playbackProgress.centerYAnchor],
+    [progressLabel.widthAnchor constraintEqualToConstant:80]
+  ]];
+  
+  // Make art want to be as large as possible
+  [art setContentHuggingPriority:1 forOrientation:NSLayoutConstraintOrientationHorizontal];
+  [art setContentHuggingPriority:1 forOrientation:NSLayoutConstraintOrientationVertical];
+  [art setContentCompressionResistancePriority:NSLayoutPriorityDefaultLow forOrientation:NSLayoutConstraintOrientationHorizontal];
+  [art setContentCompressionResistancePriority:NSLayoutPriorityDefaultLow forOrientation:NSLayoutConstraintOrientationVertical];
 }
 
 - (void)showToolbar {
