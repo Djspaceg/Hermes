@@ -37,7 +37,7 @@
 @implementation HermesAppDelegate
 
 @synthesize stations, auth, playback, pandora, window, history, station,
-            growler, scrobbler, networkManager, preferences;
+            scrobbler, networkManager, preferences;
 
 - (id) init {
   if ((self = [super init])) {
@@ -81,26 +81,26 @@
     title = @"Pause";
   }
   menuItem = [menu addItemWithTitle:title
-                             action:@selector(playpause:)
+                             action:@selector(playpause)
                       keyEquivalent:@""];
   [menuItem setTarget:playback];
   menuItem = [menu addItemWithTitle:@"Like"
-                             action:@selector(like:)
+                             action:@selector(likeCurrent)
                       keyEquivalent:@""];
   [menuItem setTarget:playback];
   if ([[song nrating] intValue] == 1) {
     menuItem.state = NSControlStateValueOn;
   }
   menuItem = [menu addItemWithTitle:@"Dislike"
-                             action:@selector(dislike:)
+                             action:@selector(dislikeCurrent)
                       keyEquivalent:@""];
   [menuItem setTarget:playback];
   menuItem = [menu addItemWithTitle:@"Skip to Next Song"
-                             action:@selector(next:)
+                             action:@selector(next)
                       keyEquivalent:@""];
   [menuItem setTarget:playback];
   menuItem = [menu addItemWithTitle:@"Tired of Song"
-                             action:@selector(tired:)
+                             action:@selector(tiredOfCurrent)
                       keyEquivalent:@""];
   [menuItem setTarget:playback];
   return menu;
@@ -457,6 +457,16 @@
   [notificationCenter addObserver:self selector:@selector(playbackStateChanged:)
                              name:ASStatusChangedNotification object:nil];
 
+  // Preference change notifications from SwiftUI
+  [notificationCenter addObserver:self selector:@selector(updateAlwaysOnTop:)
+                             name:PreferenceAlwaysOnTopChangedNotification object:nil];
+  [notificationCenter addObserver:self selector:@selector(bindMediaChanged:)
+                             name:PreferenceMediaKeysChangedNotification object:nil];
+  [notificationCenter addObserver:self selector:@selector(updateDockIcon:)
+                             name:PreferenceDockIconChangedNotification object:nil];
+  [notificationCenter addObserver:self selector:@selector(updateStatusItemVisibility:)
+                             name:PreferenceStatusBarChangedNotification object:nil];
+
   // See http://developer.apple.com/mac/library/qa/qa2004/qa1340.html
   [[[NSWorkspace sharedWorkspace] notificationCenter] addObserver: self
       selector: @selector(receiveSleepNote:)
@@ -550,13 +560,13 @@
     lastRequest = nil;
     if ([playback playing] && ([[playback playing] isPlaying] ||
                                [[playback playing] isPaused])) {
-      [playback show];
+      // UI is managed by SwiftUI - no need to call show
     } else {
       [self showLoader];
     }
   } else if (lastStationErr != nil) {
     [lastStationErr retry];
-    [playback show];
+    // UI is managed by SwiftUI - no need to call show
     lastStationErr = nil;
   }
 }
@@ -595,6 +605,17 @@
     [[self window] setLevel:NSFloatingWindowLevel];
   } else {
     [[self window] setLevel:NSNormalWindowLevel];
+  }
+}
+
+- (IBAction) bindMediaChanged:(id)sender {
+  SPMediaKeyTap *mediaKeyTap = playback.mediaKeyTap;
+  if (!mediaKeyTap) return;
+  
+  if (PREF_KEY_BOOL(PLEASE_BIND_MEDIA)) {
+    [mediaKeyTap startWatchingMediaKeys];
+  } else {
+    [mediaKeyTap stopWatchingMediaKeys];
   }
 }
 
@@ -1164,22 +1185,6 @@
 #endif
       }
     }
-}
-
-#pragma mark - QLPreviewPanelController
-
-- (BOOL)acceptsPreviewPanelControl:(QLPreviewPanel *)panel {
-  return YES;
-}
-
-- (void)beginPreviewPanelControl:(QLPreviewPanel *)panel {
-  panel.dataSource = playback;
-  panel.delegate = playback;
-}
-
-- (void)endPreviewPanelControl:(QLPreviewPanel *)panel {
-  panel.dataSource = nil;
-  panel.delegate = nil;
 }
 
 @end

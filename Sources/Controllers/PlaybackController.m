@@ -1,833 +1,640 @@
 /**
  * @file PlaybackController.m
- * @brief Implementation of the playback interface for playing/pausing
- *        songs
+ * @brief Implementation of the playback controller
  *
- * Handles all information regarding playing a station, setting ratings for
- * songs, and listening for notifications. Deals with all user input related
- * to these actions as well
+ * Handles all business logic for playing stations, managing playback state,
+ * and coordinating with the Pandora API. UI updates are communicated via
+ * NotificationCenter for SwiftUI to observe.
  */
 
 #import <SPMediaKeyTap/SPMediaKeyTap.h>
 #import <MediaPlayer/MediaPlayer.h>
 
-#import "Integration/Growler.h"
-#import "HistoryController.h"
-#import "ImageLoader.h"
 #import "PlaybackController.h"
-#import "StationsController.h"
+#import "ImageLoader.h"
 #import "PreferencesController.h"
 #import "Notifications.h"
+#import "StationsController.h"
 
-BOOL playOnStart = YES;
+// MARK: - Notification Names
 
-@interface NSToolbarItem ()
-- (void)_setAllPossibleLabelsToFit:(NSArray *)toolbarItemLabels;
+NSString * const PlaybackStateDidChangeNotification = @"PlaybackStateDidChangeNotification";
+NSString * const PlaybackSongDidChangeNotification = @"PlaybackSongDidChangeNotification";
+NSString * const PlaybackProgressDidChangeNotification = @"PlaybackProgressDidChangeNotification";
+NSString * const PlaybackArtDidLoadNotification = @"PlaybackArtDidLoadNotification";
+
+// MARK: - Private
+
+static BOOL playOnStart = YES;
+
+@interface PlaybackController ()
+
+@property (nonatomic, readwrite) Station *playing;
+@property (nonatomic, readwrite) NSData *lastImg;
+@property (nonatomic, readwrite) NSImage *artImage;
+@property (nonatomic, readwrite) MPRemoteCommandCenter *remoteCommandCenter;
+@property (nonatomic, readwrite) SPMediaKeyTap *mediaKeyTap;
+
+@property (nonatomic) NSTimer *progressUpdateTimer;
+@property (nonatomic) BOOL scrobbleSent;
+@property (nonatomic) NSString *lastImgSrc;
+@property (nonatomic) NSInteger internalVolume;
+
 @end
 
 @implementation PlaybackController
 
-@synthesize playing;
-@synthesize lastImg;
-@synthesize remoteCommandCenter, mediaKeyTap;
+// MARK: - Class Methods
 
-+ (void) setPlayOnStart: (BOOL)play {
-  playOnStart = play;
++ (void)setPlayOnStart:(BOOL)play {
+    playOnStart = play;
 }
 
-+ (BOOL) playOnStart {
-  return playOnStart;
++ (BOOL)playOnStart {
+    return playOnStart;
 }
 
-- (void) awakeFromNib {
-  NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
+// MARK: - Lifecycle
 
-  NSWindow *window = [HMSAppDelegate window];
-  [center addObserver:self
-             selector:@selector(stopUpdatingProgress)
-                 name:NSWindowWillCloseNotification
-               object:window];
-  [center addObserver:self
-             selector:@selector(stopUpdatingProgress)
-                 name:NSApplicationDidHideNotification
-               object:NSApp];
-  [center addObserver:self
-             selector:@selector(startUpdatingProgress)
-                 name:NSWindowDidBecomeMainNotification
-               object:window];
-  [center addObserver:self
-             selector:@selector(startUpdatingProgress)
-                 name:NSApplicationDidUnhideNotification
-               object:NSApp];
+- (instancetype)init {
+    if ((self = [super init])) {
+        NSLog(@"PlaybackController: init");
+        _internalVolume = 100;
+    }
+    return self;
+}
 
-  [center
-    addObserver:self
-    selector:@selector(showToolbar)
-    name:PandoraDidAuthenticateNotification
-    object:nil];
+- (void)dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+    [[NSDistributedNotificationCenter defaultCenter] removeObserver:self];
+    [_progressUpdateTimer invalidate];
+}
 
-  [center
-    addObserver:self
-    selector:@selector(hideSpinner)
-    name:PandoraDidRateSongNotification
-    object:nil];
+- (void)setup {
+    NSLog(@"PlaybackController: setup called");
+    
+    NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
+    
+    // Observe audio stream state changes
+    [center addObserver:self
+               selector:@selector(playbackStateChanged:)
+                   name:ASStatusChangedNotification
+                 object:nil];
+    
+    // Observe when a new song starts
+    [center addObserver:self
+               selector:@selector(songPlayed:)
+                   name:StationDidPlaySongNotification
+                 object:nil];
+    
+    // Observe Pandora API responses
+    [center addObserver:self
+               selector:@selector(handlePandoraResponse:)
+                   name:PandoraDidRateSongNotification
+                 object:nil];
+    
+    [center addObserver:self
+               selector:@selector(handlePandoraResponse:)
+                   name:PandoraDidDeleteFeedbackNotification
+                 object:nil];
+    
+    [center addObserver:self
+               selector:@selector(handlePandoraResponse:)
+                   name:PandoraDidTireSongNotification
+                 object:nil];
+    
+    // Observe app lifecycle for progress timer management
+    [center addObserver:self
+               selector:@selector(stopUpdatingProgress)
+                   name:NSApplicationDidHideNotification
+                 object:NSApp];
+    
+    [center addObserver:self
+               selector:@selector(startUpdatingProgress)
+                   name:NSApplicationDidUnhideNotification
+                 object:NSApp];
+    
+    // Screensaver and screen lock notifications
+    NSDistributedNotificationCenter *distCenter = [NSDistributedNotificationCenter defaultCenter];
+    
+    [distCenter addObserver:self
+                   selector:@selector(pauseOnScreensaverStart:)
+                       name:AppleScreensaverDidStartDistributedNotification
+                     object:nil];
+    
+    [distCenter addObserver:self
+                   selector:@selector(playOnScreensaverStop:)
+                       name:AppleScreensaverDidStopDistributedNotification
+                     object:nil];
+    
+    [distCenter addObserver:self
+                   selector:@selector(pauseOnScreenLock:)
+                       name:AppleScreenIsLockedDistributedNotification
+                     object:nil];
+    
+    [distCenter addObserver:self
+                   selector:@selector(playOnScreenUnlock:)
+                       name:AppleScreenIsUnlockedDistributedNotification
+                     object:nil];
+    
+    // Set up media key handling
+    [self setupMediaKeys];
+    
+    NSLog(@"PlaybackController: setup complete");
+}
 
-  [center
-    addObserver:self
-    selector:@selector(hideSpinner)
-    name:PandoraDidDeleteFeedbackNotification
-    object:nil];
-
-  [center
-    addObserver:self
-    selector:@selector(hideSpinner)
-    name:PandoraDidTireSongNotification
-    object:nil];
-
-  [center
-    addObserver:self
-    selector:@selector(playbackStateChanged:)
-    name:ASStatusChangedNotification
-    object:nil];
-
-  [center
-     addObserver:self
-     selector:@selector(songPlayed:)
-     name:StationDidPlaySongNotification
-     object:nil];
-
-  // NSDistributedNotificationCenter is for interprocess communication.
-  [[NSDistributedNotificationCenter defaultCenter] addObserver:self
-                                                      selector:@selector(pauseOnScreensaverStart:)
-                                                          name:AppleScreensaverDidStartDistributedNotification
-                                                        object:nil];
-  [[NSDistributedNotificationCenter defaultCenter] addObserver:self
-                                                      selector:@selector(playOnScreensaverStop:)
-                                                          name:AppleScreensaverDidStopDistributedNotification
-                                                        object:nil];
-  [[NSDistributedNotificationCenter defaultCenter] addObserver:self
-                                                      selector:@selector(pauseOnScreenLock:)
-                                                          name:AppleScreenIsLockedDistributedNotification
-                                                        object:nil];
-  [[NSDistributedNotificationCenter defaultCenter] addObserver:self
-                                                      selector:@selector(playOnScreenUnlock:)
-                                                          name:AppleScreenIsUnlockedDistributedNotification
-                                                        object:nil];
-
-  // This has been SPI forever, but will stop the toolbar icons from sliding around.
-  if ([playpause respondsToSelector:@selector(_setAllPossibleLabelsToFit:)])
-    [playpause _setAllPossibleLabelsToFit:@[@"Play", @"Pause"]];
-  
-  // Set fixed sizes for all toolbar items to prevent huge overflow menu
-  [self configureToolbarItemSizes];
-  
-  // prevent dragging the progress slider
-  [playbackProgress setEnabled:NO];
-
-  // Media keys
-  if ([MPRemoteCommandCenter class] != nil) {
-    remoteCommandCenter = [MPRemoteCommandCenter sharedCommandCenter];
-    // remoteCommandCenter.previousTrackCommand.enabled = NO;
-    [remoteCommandCenter.playCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
-      return [self play] ? MPRemoteCommandHandlerStatusSuccess : MPRemoteCommandHandlerStatusCommandFailed;
-    }];
-    [remoteCommandCenter.pauseCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
-      return [self pause] ? MPRemoteCommandHandlerStatusSuccess : MPRemoteCommandHandlerStatusCommandFailed;
-    }];
-    // XXX Doesn't show up in the Touch Bar as of 10.12.2 unless there is a previousTrackCommand registered
-    [remoteCommandCenter.nextTrackCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
-      [self next:self];
-      return MPRemoteCommandHandlerStatusSuccess;
-    }];
-#ifndef MPREMOTECOMMANDCENTER_MEDIA_KEYS_BROKEN
-    // XXX This gets triggered seemingly at random.
-    [remoteCommandCenter.togglePlayPauseCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
-      [self playpause:self];
-      return MPRemoteCommandHandlerStatusSuccess;
-    }];
-#endif
-    [remoteCommandCenter.likeCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
-      [self like:self];
-      return MPRemoteCommandHandlerStatusSuccess;
-    }];
-    [remoteCommandCenter.dislikeCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
-      [self dislike:self];
-      return MPRemoteCommandHandlerStatusSuccess;
-    }];
-  }
+- (void)setupMediaKeys {
+    // Use MPRemoteCommandCenter for system media controls
+    if ([MPRemoteCommandCenter class] != nil) {
+        _remoteCommandCenter = [MPRemoteCommandCenter sharedCommandCenter];
+        
+        __weak typeof(self) weakSelf = self;
+        
+        [_remoteCommandCenter.playCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *event) {
+            return [weakSelf play] ? MPRemoteCommandHandlerStatusSuccess : MPRemoteCommandHandlerStatusCommandFailed;
+        }];
+        
+        [_remoteCommandCenter.pauseCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *event) {
+            return [weakSelf pause] ? MPRemoteCommandHandlerStatusSuccess : MPRemoteCommandHandlerStatusCommandFailed;
+        }];
+        
+        [_remoteCommandCenter.nextTrackCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *event) {
+            [weakSelf next];
+            return MPRemoteCommandHandlerStatusSuccess;
+        }];
+        
+        [_remoteCommandCenter.togglePlayPauseCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *event) {
+            [weakSelf playpause];
+            return MPRemoteCommandHandlerStatusSuccess;
+        }];
+        
+        [_remoteCommandCenter.likeCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *event) {
+            [weakSelf likeCurrent];
+            return MPRemoteCommandHandlerStatusSuccess;
+        }];
+        
+        [_remoteCommandCenter.dislikeCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *event) {
+            [weakSelf dislikeCurrent];
+            return MPRemoteCommandHandlerStatusSuccess;
+        }];
+    }
+    
 #ifndef DEBUG
-#ifndef MPREMOTECOMMANDCENTER_MEDIA_KEYS_BROKEN
-  else {
-#endif
-   mediaKeyTap = [[SPMediaKeyTap alloc] initWithDelegate:self];
+    // SPMediaKeyTap for keyboard media keys (only in release builds)
+    _mediaKeyTap = [[SPMediaKeyTap alloc] initWithDelegate:self];
     if (PREF_KEY_BOOL(PLEASE_BIND_MEDIA)) {
-      [mediaKeyTap startWatchingMediaKeys];
+        [_mediaKeyTap startWatchingMediaKeys];
     }
-#ifndef MPREMOTECOMMANDCENTER_MEDIA_KEYS_BROKEN
-  }
 #endif
-#endif
-
-  // Set up responsive layout
-  [self setupResponsiveLayout];
 }
 
-- (void)setupResponsiveLayout {
-  // Enable Auto Layout for key views
-  art.translatesAutoresizingMaskIntoConstraints = NO;
-  playbackProgress.translatesAutoresizingMaskIntoConstraints = NO;
-  progressLabel.translatesAutoresizingMaskIntoConstraints = NO;
-  
-  // Album art - centered, scales to fill available space while maintaining aspect ratio
-  [NSLayoutConstraint activateConstraints:@[
-    // Center horizontally and vertically
-    [art.centerXAnchor constraintEqualToAnchor:playbackView.centerXAnchor],
-    [art.centerYAnchor constraintEqualToAnchor:playbackView.centerYAnchor constant:-20],
-    
-    // Maintain aspect ratio (square)
-    [art.widthAnchor constraintEqualToAnchor:art.heightAnchor],
-    
-    // Fill available space with padding
-    [art.leadingAnchor constraintGreaterThanOrEqualToAnchor:playbackView.leadingAnchor constant:40],
-    [art.trailingAnchor constraintLessThanOrEqualToAnchor:playbackView.trailingAnchor constant:-40],
-    [art.topAnchor constraintGreaterThanOrEqualToAnchor:albumLabel.bottomAnchor constant:20],
-    [art.bottomAnchor constraintLessThanOrEqualToAnchor:playbackProgress.topAnchor constant:-20],
-    
-    // Minimum size so it doesn't get too small
-    [art.widthAnchor constraintGreaterThanOrEqualToConstant:150]
-  ]];
-  
-  // Progress bar constraints - full width, anchored to bottom above volume
-  [NSLayoutConstraint activateConstraints:@[
-    [playbackProgress.leadingAnchor constraintEqualToAnchor:playbackView.leadingAnchor constant:20],
-    [playbackProgress.trailingAnchor constraintEqualToAnchor:progressLabel.leadingAnchor constant:-8],
-    [playbackProgress.bottomAnchor constraintEqualToAnchor:volume.topAnchor constant:-20]
-  ]];
-  
-  // Progress label constraints
-  [NSLayoutConstraint activateConstraints:@[
-    [progressLabel.trailingAnchor constraintEqualToAnchor:playbackView.trailingAnchor constant:-20],
-    [progressLabel.centerYAnchor constraintEqualToAnchor:playbackProgress.centerYAnchor],
-    [progressLabel.widthAnchor constraintEqualToConstant:80]
-  ]];
-  
-  // Make art want to be as large as possible
-  [art setContentHuggingPriority:1 forOrientation:NSLayoutConstraintOrientationHorizontal];
-  [art setContentHuggingPriority:1 forOrientation:NSLayoutConstraintOrientationVertical];
-  [art setContentCompressionResistancePriority:NSLayoutPriorityDefaultLow forOrientation:NSLayoutConstraintOrientationHorizontal];
-  [art setContentCompressionResistancePriority:NSLayoutPriorityDefaultLow forOrientation:NSLayoutConstraintOrientationVertical];
-}
-
-- (void)configureToolbarItemSizes {
-  // Resize toolbar item images to be consistently small (32x32)
-  NSSize iconSize = NSMakeSize(32, 32);
-  
-  NSArray *items = @[playpause, nextSong, like, dislike, tiredOfSong];
-  for (NSToolbarItem *item in items) {
-    if (item && item.image) {
-      NSImage *originalImage = item.image;
-      NSImage *resizedImage = [[NSImage alloc] initWithSize:iconSize];
-      
-      [resizedImage lockFocus];
-      [originalImage drawInRect:NSMakeRect(0, 0, iconSize.width, iconSize.height)
-                       fromRect:NSZeroRect
-                      operation:NSCompositingOperationSourceOver
-                       fraction:1.0];
-      [resizedImage unlockFocus];
-      
-      item.image = resizedImage;
+- (void)prepareFirst {
+    NSInteger saved = [[NSUserDefaults standardUserDefaults] integerForKey:@"hermes.volume"];
+    if (saved == 0) {
+        saved = 100;
     }
-  }
+    [self setVolume:saved];
 }
 
-- (void)showToolbar {
-  toolbar.visible = YES;
+// MARK: - Pandora Access
+
+- (Pandora *)pandora {
+    id delegate = [NSApp delegate];
+    if ([delegate respondsToSelector:@selector(pandora)]) {
+        return [delegate pandora];
+    }
+    return nil;
 }
 
-/* Don't run the timer when playback is paused, the window is hidden, etc. */
-- (void) stopUpdatingProgress {
-  [progressUpdateTimer invalidate];
-  progressUpdateTimer = nil;
+// MARK: - State Directory
+
+- (NSString *)stateDirectory:(NSString *)file {
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+    NSString *folder = [@"~/Library/Application Support/Hermes/" stringByExpandingTildeInPath];
+    
+    BOOL isDir;
+    if (![fileManager fileExistsAtPath:folder isDirectory:&isDir]) {
+        [fileManager createDirectoryAtPath:folder
+               withIntermediateDirectories:YES
+                                attributes:nil
+                                     error:nil];
+    }
+    
+    return [folder stringByAppendingPathComponent:file];
 }
 
-- (void) startUpdatingProgress {
-  if (progressUpdateTimer != nil) return;
-  progressUpdateTimer = [NSTimer
-    timerWithTimeInterval:1
-    target:self
-    selector:@selector(updateProgress:)
-    userInfo:nil
-    repeats:YES];
-  [[NSRunLoop currentRunLoop] addTimer:progressUpdateTimer forMode:NSRunLoopCommonModes];
+// MARK: - Station Management
+
+- (void)playStation:(Station *)station {
+    if ([_playing stationId] == [station stationId]) {
+        return;
+    }
+    
+    if (_playing) {
+        [_playing stop];
+        [[ImageLoader loader] cancel:[[_playing playingSong] art]];
+    }
+    
+    _playing = station;
+    
+    if (station == nil) {
+        [[NSUserDefaults standardUserDefaults] removeObjectForKey:LAST_STATION_KEY];
+        _lastImgSrc = nil;
+        [self postStateChange];
+        return;
+    }
+    
+    [[NSUserDefaults standardUserDefaults] setObject:[station stationId]
+                                              forKey:LAST_STATION_KEY];
+    
+    if (playOnStart) {
+        [station play];
+    } else {
+        playOnStart = YES;
+    }
+    
+    [_playing setVolume:_internalVolume / 100.0];
+    [self postStateChange];
 }
 
-/* see https://github.com/nevyn/SPMediaKeyTap */
-- (void) mediaKeyTap:(SPMediaKeyTap*)keyTap
-      receivedMediaKeyEvent:(NSEvent*)event {
-  assert([event type] == NSEventTypeSystemDefined &&
-         [event subtype] == SPSystemDefinedEventMediaKeys);
-
-  int keyCode = (([event data1] & 0xFFFF0000) >> 16);
-  int keyFlags = ([event data1] & 0x0000FFFF);
-  int keyState = (((keyFlags & 0xFF00) >> 8)) == 0xA;
-  if (keyState != 1) return;
-
-  switch (keyCode) {
-
-    case NX_KEYTYPE_PLAY:
-      [self playpause:nil];
-      return;
-
-    case NX_KEYTYPE_FAST:
-    case NX_KEYTYPE_NEXT:
-      [self next:nil];
-      return;
-
-    case NX_KEYTYPE_REWIND:
-    case NX_KEYTYPE_PREVIOUS:
-      [NSApp activateIgnoringOtherApps:NO];
-      return;
-  }
+- (void)reset {
+    [self playStation:nil];
+    
+    NSString *path = [self stateDirectory:@"station.savestate"];
+    [[NSFileManager defaultManager] removeItemAtPath:path error:nil];
 }
 
-- (void) prepareFirst {
-  NSInteger saved = [[NSUserDefaults standardUserDefaults]
-                     integerForKey:@"hermes.volume"];
-  if (saved == 0) {
-    saved = 100;
-  }
-  [self setIntegerVolume:saved];
-}
-
-- (Pandora*) pandora {
-  return [HMSAppDelegate pandora];
-}
-
-- (void) reset {
-  [self playStation:nil];
-
-  NSString *path = [HMSAppDelegate stateDirectory:@"station.savestate"];
-  [[NSFileManager defaultManager] removeItemAtPath:path error:nil];
-}
-
-- (void) show {
-  [HMSAppDelegate setCurrentView:playbackView];
-}
-
-- (void) showSpinner {
-  [songLoadingProgress setHidden:NO];
-  [songLoadingProgress startAnimation:nil];
-}
-
-- (void) hideSpinner {
-  [songLoadingProgress setHidden:YES];
-  [songLoadingProgress stopAnimation:nil];
-}
-
-- (BOOL) saveState {
-  NSString *path = [HMSAppDelegate stateDirectory:@"station.savestate"];
-  if (path == nil) {
-    return NO;
-  }
-
+- (BOOL)saveState {
+    NSString *path = [self stateDirectory:@"station.savestate"];
+    if (path == nil) {
+        return NO;
+    }
+    
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-  return [NSKeyedArchiver archiveRootObject:[self playing] toFile:path];
+    return [NSKeyedArchiver archiveRootObject:_playing toFile:path];
 #pragma clang diagnostic pop
 }
 
-/* Called whenever the playing stream changes state */
-- (void)playbackStateChanged: (NSNotification *)aNotification {
-  if ([playing isPlaying]) {
-    NSLogd(@"Stream playing: %@", playing.playingSong);
-    [playpause setImage:[NSImage imageNamed:@"pause"]];
-    [playpause setLabel:@"Pause"];
-    [self startUpdatingProgress];
-  } else if ([playing isPaused]) {
-    NSLogd(@"Stream paused.");
-    [playpause setImage:[NSImage imageNamed:@"play"]];
-    [playpause setLabel:@"Play"];
-    [self stopUpdatingProgress];
-  }
-}
+// MARK: - Playback Controls
 
-/* Re-draws the timer counting up the time of the played song */
-- (void)updateProgress: (NSTimer *)updatedTimer {
-  double prog, dur;
-
-  if (![playing progress:&prog] || ![playing duration:&dur]) {
-    [progressLabel setStringValue:@"-:--/-:--"];
-    [playbackProgress setDoubleValue:0];
-    return;
-  }
-
-  [progressLabel setStringValue:
-    [NSString stringWithFormat:@"%d:%02d/%d:%02d",
-    (int) (prog / 60), ((int) prog) % 60, (int) (dur / 60), ((int) dur) % 60]];
-  [playbackProgress setDoubleValue:100 * prog / dur];
-
-  /* See http://www.last.fm/api/scrobbling#when-is-a-scrobble-a-scrobble for
-     figuring out when a track should be scrobbled */
-  if (!scrobbleSent && dur > 30 && (prog * 2 > dur || prog > 4 * 60)) {
-    scrobbleSent = YES;
-    [SCROBBLER scrobble:[playing playingSong] state:FinalStatus];
-  }
-}
-
-// nil = no image available
-- (void)setArtImage:(NSImage *)artImage {
-  dispatch_async(dispatch_get_main_queue(), ^{
-    self->_artImage = artImage;
-    [self->art setImage:artImage ? artImage : [NSImage imageNamed:@"missing-album"]];
-    [self->artLoading setHidden:YES];
-    [self->artLoading stopAnimation:nil];
-    [self updateQuickLookPreviewWithArt:artImage != nil];
-  });
-}
-
-- (void)updateQuickLookPreviewWithArt:(BOOL)hasArt {
-  [art setEnabled:hasArt];
-
-  if (![QLPreviewPanel sharedPreviewPanelExists])
-    return;
-
-  QLPreviewPanel *previewPanel = [QLPreviewPanel sharedPreviewPanel];
-  if (previewPanel.currentController != HMSAppDelegate)
-    return;
-
-  if (hasArt)
-    [previewPanel refreshCurrentPreviewItem];
-  else
-    [previewPanel reloadData];
-}
-
-/*
- * Called whenever a song starts playing, updates all fields to reflect that the
- * song is playing
- */
-- (void)songPlayed: (NSNotification *)aNotification {
-  Song *song = [playing playingSong];
-  assert(song != nil);
-
-  song.playDate = [NSDate date];
-
-  /* Prevent a flicker by not loading the same image twice */
-  if ([song art] != lastImgSrc) {
-    if ([song art] == nil || [[song art] isEqual: @""]) {
-      [self setArtImage:nil];
-      if (![self->playing isPaused])
-        [GROWLER growl:song withImage:nil isNew:YES];
-    } else {
-      [artLoading startAnimation:nil];
-      [artLoading setHidden:NO];
-      [art setImage:nil];
-      lastImgSrc = [song art];
-      lastImg = nil;
-      [[ImageLoader loader] loadImageURL:lastImgSrc
-                                callback:^(NSData *data) {
-        NSImage *image = nil;
-        self->lastImg = data;
-        if (data != nil) {
-          image = [[NSImage alloc] initWithData:data];
-        }
-
-        [HMSAppDelegate updateStatusItem:nil];
-
-        if (![self->playing isPaused]) {
-          [GROWLER growl:song withImage:data isNew:YES];
-        }
-        [self setArtImage:image];
-      }];
+- (BOOL)play {
+    if ([_playing isPlaying]) {
+        return NO;
     }
-  } else {
-    NSLogd(@"Skipping loading image");
-  }
-
-  [HMSAppDelegate setCurrentView:playbackView];
-
-  [songLabel setStringValue: [song title]];
-  [songLabel setToolTip:[song title]];
-  [artistLabel setStringValue: [song artist]];
-  [artistLabel setToolTip:[song artist]];
-  [albumLabel setStringValue:[song album]];
-  [albumLabel setToolTip:[song album]];
-  [playbackProgress setDoubleValue: 0];
-  if ([NSFont respondsToSelector:@selector(monospacedDigitSystemFontOfSize:weight:)]) {
-    [progressLabel setFont:[NSFont monospacedDigitSystemFontOfSize:[[progressLabel font] pointSize] weight:NSFontWeightRegular]];
-  }
-  [progressLabel setStringValue: @"0:00/0:00"];
-  scrobbleSent = NO;
-
-  if ([[song nrating] intValue] == 1) {
-    [toolbar setSelectedItemIdentifier:[like itemIdentifier]];
-    if (remoteCommandCenter != nil)
-      remoteCommandCenter.likeCommand.active = true;
-  } else {
-    [toolbar setSelectedItemIdentifier:nil];
-    if (remoteCommandCenter != nil)
-      remoteCommandCenter.likeCommand.active = false;
-  }
-
-  [[HMSAppDelegate history] addSong:song];
-  [self hideSpinner];
-}
-
-/* Plays a new station, or nil to play no station (e.g., if station deleted) */
-- (void) playStation: (Station*) station {
-  if ([playing stationId] == [station stationId]) {
-    return;
-  }
-
-  if (playing) {
-    [playing stop];
-    [[ImageLoader loader] cancel:[[playing playingSong] art]];
-  }
-
-  playing = station;
-
-  if (station == nil) {
-    [[NSUserDefaults standardUserDefaults] removeObjectForKey:LAST_STATION_KEY];
-    lastImgSrc = nil;
-    return;
-  }
-
-  [[NSUserDefaults standardUserDefaults] setObject:[station stationId]
-                                            forKey:LAST_STATION_KEY];
-  
-  [HMSAppDelegate showLoader];
-
-  if (playOnStart) {
-    [station play];
-  } else {
-    playOnStart = YES;
-  }
-  [playing setVolume:[volume intValue]/100.0];
-}
-
-- (BOOL) play {
-  if ([playing isPlaying]) {
-    return NO;
-  } else {
-    [playing play];
-    [GROWLER growl:[playing playingSong] withImage:lastImg isNew:NO];
+    
+    [_playing play];
+    [self postStateChange];
     return YES;
-  }
 }
 
-- (BOOL) pause {
-  if ([playing isPlaying]) {
-    [playing pause];
-    return YES;
-  } else {
+- (BOOL)pause {
+    if ([_playing isPlaying]) {
+        [_playing pause];
+        [self postStateChange];
+        return YES;
+    }
     return NO;
-  }
 }
 
-- (void) stop {
-  [playing stop];
+- (void)stop {
+    [_playing stop];
+    [self postStateChange];
 }
 
-- (void) rate:(Song *)song as:(BOOL)liked {
-  if (!song || [[song station] shared]) return;
-  int rating = liked ? 1 : -1;
-
-  // Should we delete the rating?
-  if ([[song nrating] intValue] == rating) {
-    rating = 0;
-  }
-
-  [self showSpinner];
-  BOOL songIsPlaying = [playing playingSong] == song;
-
-  if (rating == -1) {
-    [[self pandora] rateSong:song as:NO];
-    if (songIsPlaying) {
-      [self next:nil];
-    }
-  }
-  else if (rating == 0) {
-    [[self pandora] deleteRating:song];
-    if (songIsPlaying) {
-      [toolbar setSelectedItemIdentifier:nil];
-    }
-  }
-  else if (rating == 1) {
-    [[self pandora] rateSong:song as:YES];
-    if (songIsPlaying) {
-      [toolbar setSelectedItemIdentifier:[like itemIdentifier]];
-    }
-  }
-
-  if ([[HMSAppDelegate history] selectedItem] == song) {
-    [[HMSAppDelegate history] updateUI];
-  }
-}
-
-/* Toggle between playing and pausing */
-- (IBAction)playpause: (id) sender {
-  if ([playing isPaused]) {
-    [self play];
-  } else {
-    [self pause];
-  }
-}
-
-/* Stop this song and go to the next */
-- (IBAction)next: (id) sender {
-  [art setImage:nil];
-  [self showSpinner];
-  if ([playing playingSong] != nil) {
-    [[ImageLoader loader] cancel:[[playing playingSong] art]];
-  }
-
-  [playing next];
-}
-
-/* Like button was hit */
-- (IBAction)like: (id) sender {
-  Song *song = [playing playingSong];
-  if (!song) return;
-  [self rate:song as:YES];
-}
-
-/* Dislike button was hit */
-- (IBAction)dislike: (id) sender {
-  Song *song = [playing playingSong];
-  if (!song) return;
-
-  /* Remaining songs in the queue are probably related to this one. If we
-     dislike this one, remove all related songs to grab another set */
-  [playing clearSongList];
-  [self rate:song as:NO];
-}
-
-/* We are tired of the currently playing song, play another */
-- (IBAction)tired: (id) sender {
-  if (playing == nil || [playing playingSong] == nil) {
-    return;
-  }
-
-  [[self pandora] tiredOfSong:[playing playingSong]];
-  [self next:sender];
-}
-
-/* Load more songs manually */
-- (IBAction)loadMore: (id)sender {
-  [self showSpinner];
-  [HMSAppDelegate setCurrentView:playbackView];
-
-  if ([playing playingSong] != nil) {
-    [playing retry];
-  } else {
-    [playing play];
-  }
-}
-
-/* Go to the song URL */
-- (IBAction)songURL: (id) sender {
-  if ([playing playingSong] == nil) {
-    return;
-  }
-
-  NSURL *url = [NSURL URLWithString:[[playing playingSong] titleUrl]];
-  [[NSWorkspace sharedWorkspace] openURL:url];
-}
-
-/* Go to the artist URL */
-- (IBAction)artistURL: (id) sender {
-  if ([playing playingSong] == nil) {
-    return;
-  }
-
-  NSURL *url = [NSURL URLWithString:[[playing playingSong] artistUrl]];
-  [[NSWorkspace sharedWorkspace] openURL:url];
-}
-
-/* Go to the album URL */
-- (IBAction)albumURL: (id) sender {
-  if ([playing playingSong] == nil) {
-    return;
-  }
-
-  NSURL *url = [NSURL URLWithString:[[playing playingSong] albumUrl]];
-  [[NSWorkspace sharedWorkspace] openURL:url];
-}
-
-- (void) setIntegerVolume: (NSInteger) vol {
-  if (vol < 0) { vol = 0; }
-  if (vol > 100) { vol = 100; }
-  [volume setIntegerValue:vol];
-  [playing setVolume:vol/100.0];
-  [[NSUserDefaults standardUserDefaults] setInteger:vol
-                                             forKey:@"hermes.volume"];
-}
-
-- (NSInteger) integerVolume {
-  return [volume integerValue];
-}
-
-- (void) pauseOnScreensaverStart:(NSNotification *)aNotification {
-  if (!PREF_KEY_BOOL(PAUSE_ON_SCREENSAVER_START)) {
-    return;
-  }
-  
-  if ([self pause]){
-    self.pausedByScreensaver = YES;
-  }
-}
-
-- (void) playOnScreensaverStop:(NSNotification *)aNotification {
-  if (!PREF_KEY_BOOL(PLAY_ON_SCREENSAVER_STOP)) {
-    return;
-  }
-
-  if (self.pausedByScreensaver) {
-    [self play];
-  }
-  self.pausedByScreensaver = NO;
-}
-
-- (void) pauseOnScreenLock:(NSNotification *)aNotification {
-  if (!PREF_KEY_BOOL(PAUSE_ON_SCREEN_LOCK)) {
-    return;
-  }
-  
-  if ([self pause]){
-    self.pausedByScreenLock = YES;
-  }
-}
-
-- (void) playOnScreenUnlock:(NSNotification *)aNotification {
-  if (!PREF_KEY_BOOL(PLAY_ON_SCREEN_UNLOCK)) {
-    return;
-  }
-  
-  if (self.pausedByScreenLock) {
-    [self play];
-  }
-  self.pausedByScreenLock = NO;
-}
-
-- (IBAction) volumeChanged: (id) sender {
-  if (playing) {
-    [self setIntegerVolume:[volume intValue]];
-  }
-}
-
-- (IBAction)increaseVolume:(id)sender {
-  [self setIntegerVolume:[self integerVolume] + 5];
-}
-
-- (IBAction)decreaseVolume:(id)sender {
-  [self setIntegerVolume:[self integerVolume] - 5];
-}
-
-- (IBAction)quickLookArt:(id)sender {
-  QLPreviewPanel *previewPanel = [QLPreviewPanel sharedPreviewPanel];
-  if ([previewPanel isVisible])
-    [previewPanel orderOut:nil];
-  else
-    [previewPanel makeKeyAndOrderFront:nil];
-}
-
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-implementations"
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-- (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
-  if (![[self pandora] isAuthenticated]) {
-    return NO;
-  }
-
-  SEL action = [menuItem action];
-
-  if (action == @selector(playpause:)) {
-    [menuItem setTitle:[playing isPaused] ? @"Play" : @"Pause"];
-  }
-
-  if (action == @selector(like:) || action == @selector(dislike:)) {
-    Song *song = [playing playingSong];
-    if (song && ![playing shared]) {
-      NSInteger rating = [[song nrating] integerValue];
-      if (action == @selector(like:)) {
-        [menuItem setState:rating == 1 ? NSControlStateValueOn : NSControlStateValueOff];
-      } else {
-        [menuItem setState:rating == -1 ? NSControlStateValueOn : NSControlStateValueOff];
-      }
-      return YES;
+- (void)playpause {
+    if ([_playing isPaused]) {
+        [self play];
     } else {
-      [menuItem setState:NSControlStateValueOff];
-      return NO;
+        [self pause];
     }
-  }
-
-  return YES;
 }
 
-- (BOOL)validateToolbarItem:(NSToolbarItem *)toolbarItem {
-#pragma clang diagnostic pop
-  if (![[self pandora] isAuthenticated]) {
-    return NO;
-  }
-
-  if (toolbarItem == playpause || toolbarItem == nextSong || toolbarItem == tiredOfSong)
-    return (playing != nil);
-
-  if (toolbarItem == like || toolbarItem == dislike) {
-    return [playing playingSong] && ![playing shared];
-  }
-  return YES;
+- (void)next {
+    if ([_playing playingSong] != nil) {
+        [[ImageLoader loader] cancel:[[_playing playingSong] art]];
+    }
+    [_playing next];
 }
 
-#pragma mark QLPreviewPanelDataSource
+// MARK: - Song Rating
 
-- (NSInteger)numberOfPreviewItemsInPreviewPanel:(QLPreviewPanel *)panel {
-  Song *song = [playing playingSong];
-  if (song == nil)
-    return 0;
-
-  if ([song art] == nil || [[song art] isEqual: @""])
-    return 0;
-
-  return 1;
+- (void)rate:(Song *)song as:(BOOL)liked {
+    if (!song || [[song station] shared]) return;
+    
+    int rating = liked ? 1 : -1;
+    
+    // Toggle rating if already set
+    if ([[song nrating] intValue] == rating) {
+        rating = 0;
+    }
+    
+    BOOL songIsPlaying = [_playing playingSong] == song;
+    
+    if (rating == -1) {
+        [[self pandora] rateSong:song as:NO];
+        if (songIsPlaying) {
+            [self next];
+        }
+    } else if (rating == 0) {
+        [[self pandora] deleteRating:song];
+    } else if (rating == 1) {
+        [[self pandora] rateSong:song as:YES];
+    }
+    
+    [self postStateChange];
 }
 
-- (id <QLPreviewItem>)previewPanel:(QLPreviewPanel *)panel previewItemAtIndex:(NSInteger)index {
-  return self;
+- (void)likeCurrent {
+    Song *song = [_playing playingSong];
+    if (song) {
+        [self rate:song as:YES];
+    }
 }
 
-#pragma mark QLPreviewItem
-
-- (NSURL *)previewItemURL {
-  NSURL *artFileURL = [NSURL fileURLWithPath:[NSTemporaryDirectory() stringByAppendingPathComponent:@"Hermes Album Art.tiff"]];
-  [self.artImage.TIFFRepresentation writeToURL:artFileURL atomically:YES];
-
-  return artFileURL;
+- (void)dislikeCurrent {
+    Song *song = [_playing playingSong];
+    if (song) {
+        [_playing clearSongList];
+        [self rate:song as:NO];
+    }
 }
 
-- (NSString *)previewItemTitle {
-  return [[playing playingSong] album];
+- (void)tiredOfCurrent {
+    if (_playing == nil || [_playing playingSong] == nil) {
+        return;
+    }
+    
+    [[self pandora] tiredOfSong:[_playing playingSong]];
+    [self next];
 }
 
-#pragma mark QLPreviewPanelDelegate
+// MARK: - Volume Control
 
-- (NSRect)previewPanel:(QLPreviewPanel *)panel sourceFrameOnScreenForPreviewItem:(id <QLPreviewItem>)item {
-  NSRect frame = [art frame];
-  frame = [[HMSAppDelegate window] convertRectToScreen:frame];
-
-  frame = NSInsetRect(frame, 1, 1); // image doesn't extend into the button border
-
-  NSSize imageSize = self.artImage.size; // correct for aspect ratio
-  if (imageSize.width > imageSize.height)
-    frame = NSInsetRect(frame, 0, ((imageSize.width - imageSize.height) / imageSize.height) / 2. * frame.size.height);
-  else if (imageSize.height > imageSize.width)
-    frame = NSInsetRect(frame, ((imageSize.height - imageSize.width) / imageSize.width) / 2. * frame.size.width, 0);
-
-  return frame;
+- (NSInteger)volume {
+    return _internalVolume;
 }
 
-- (NSImage *)previewPanel:(QLPreviewPanel *)panel transitionImageForPreviewItem:(id <QLPreviewItem>)item contentRect:(NSRect *)contentRect {
+- (void)setVolume:(NSInteger)vol {
+    if (vol < 0) vol = 0;
+    if (vol > 100) vol = 100;
+    
+    _internalVolume = vol;
+    [_playing setVolume:vol / 100.0];
+    
+    [[NSUserDefaults standardUserDefaults] setInteger:vol forKey:@"hermes.volume"];
+    [self postStateChange];
+}
 
-  return self.artImage;
+- (void)increaseVolume {
+    [self setVolume:_internalVolume + 5];
+}
+
+- (void)decreaseVolume {
+    [self setVolume:_internalVolume - 5];
+}
+
+// MARK: - Progress
+
+- (double)currentProgress {
+    double progress = 0;
+    [_playing progress:&progress];
+    return progress;
+}
+
+- (double)currentDuration {
+    double duration = 0;
+    [_playing duration:&duration];
+    return duration;
+}
+
+- (void)startUpdatingProgress {
+    if (_progressUpdateTimer != nil) {
+        return;
+    }
+    
+    _progressUpdateTimer = [NSTimer timerWithTimeInterval:1.0
+                                                   target:self
+                                                 selector:@selector(updateProgress:)
+                                                 userInfo:nil
+                                                  repeats:YES];
+    [[NSRunLoop currentRunLoop] addTimer:_progressUpdateTimer forMode:NSRunLoopCommonModes];
+}
+
+- (void)stopUpdatingProgress {
+    [_progressUpdateTimer invalidate];
+    _progressUpdateTimer = nil;
+}
+
+- (void)updateProgress:(NSTimer *)timer {
+    double prog = self.currentProgress;
+    double dur = self.currentDuration;
+    
+    // Post progress notification
+    [[NSNotificationCenter defaultCenter] postNotificationName:PlaybackProgressDidChangeNotification
+                                                        object:self
+                                                      userInfo:@{
+        @"progress": @(prog),
+        @"duration": @(dur)
+    }];
+    
+    // Handle scrobbling
+    if (!_scrobbleSent && dur > 30 && (prog * 2 > dur || prog > 4 * 60)) {
+        _scrobbleSent = YES;
+        // Scrobbling handled by Scrobbler class observing notifications
+    }
+}
+
+// MARK: - Notification Handlers
+
+- (void)playbackStateChanged:(NSNotification *)notification {
+    NSLog(@"PlaybackController: playbackStateChanged - isPlaying=%d, isPaused=%d",
+          [_playing isPlaying], [_playing isPaused]);
+    
+    if ([_playing isPlaying]) {
+        [self startUpdatingProgress];
+    } else {
+        [self stopUpdatingProgress];
+    }
+    
+    [self postStateChange];
+    [self updateNowPlayingInfo];
+}
+
+- (void)songPlayed:(NSNotification *)notification {
+    Song *song = [_playing playingSong];
+    if (!song) return;
+    
+    NSLog(@"PlaybackController: songPlayed - %@ by %@", song.title, song.artist);
+    
+    song.playDate = [NSDate date];
+    _scrobbleSent = NO;
+    
+    // Load album art
+    [self loadArtForSong:song];
+    
+    // Post song change notification
+    [self postSongChange];
+    [self updateNowPlayingInfo];
+}
+
+- (void)loadArtForSong:(Song *)song {
+    if ([song art] == _lastImgSrc) {
+        return; // Already loaded
+    }
+    
+    _lastImgSrc = [song art];
+    _lastImg = nil;
+    _artImage = nil;
+    
+    if ([song art] == nil || [[song art] isEqual:@""]) {
+        [self postArtLoaded];
+        return;
+    }
+    
+    __weak typeof(self) weakSelf = self;
+    [[ImageLoader loader] loadImageURL:[song art] callback:^(NSData *data) {
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (!strongSelf) return;
+        
+        strongSelf->_lastImg = data;
+        if (data) {
+            strongSelf->_artImage = [[NSImage alloc] initWithData:data];
+        }
+        
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [strongSelf postArtLoaded];
+            [strongSelf updateNowPlayingInfo];
+        });
+    }];
+}
+
+- (void)handlePandoraResponse:(NSNotification *)notification {
+    [self postStateChange];
+}
+
+// MARK: - Screensaver/Lock Handlers
+
+- (void)pauseOnScreensaverStart:(NSNotification *)notification {
+    if (!PREF_KEY_BOOL(PAUSE_ON_SCREENSAVER_START)) return;
+    
+    if ([self pause]) {
+        self.pausedByScreensaver = YES;
+    }
+}
+
+- (void)playOnScreensaverStop:(NSNotification *)notification {
+    if (!PREF_KEY_BOOL(PLAY_ON_SCREENSAVER_STOP)) return;
+    
+    if (self.pausedByScreensaver) {
+        [self play];
+    }
+    self.pausedByScreensaver = NO;
+}
+
+- (void)pauseOnScreenLock:(NSNotification *)notification {
+    if (!PREF_KEY_BOOL(PAUSE_ON_SCREEN_LOCK)) return;
+    
+    if ([self pause]) {
+        self.pausedByScreenLock = YES;
+    }
+}
+
+- (void)playOnScreenUnlock:(NSNotification *)notification {
+    if (!PREF_KEY_BOOL(PLAY_ON_SCREEN_UNLOCK)) return;
+    
+    if (self.pausedByScreenLock) {
+        [self play];
+    }
+    self.pausedByScreenLock = NO;
+}
+
+// MARK: - Media Key Handling
+
+- (void)mediaKeyTap:(SPMediaKeyTap *)keyTap receivedMediaKeyEvent:(NSEvent *)event {
+    if ([event type] != NSEventTypeSystemDefined || [event subtype] != SPSystemDefinedEventMediaKeys) {
+        return;
+    }
+    
+    int keyCode = (([event data1] & 0xFFFF0000) >> 16);
+    int keyFlags = ([event data1] & 0x0000FFFF);
+    int keyState = (((keyFlags & 0xFF00) >> 8)) == 0xA;
+    
+    if (keyState != 1) return;
+    
+    switch (keyCode) {
+        case NX_KEYTYPE_PLAY:
+            [self playpause];
+            break;
+        case NX_KEYTYPE_FAST:
+        case NX_KEYTYPE_NEXT:
+            [self next];
+            break;
+        case NX_KEYTYPE_REWIND:
+        case NX_KEYTYPE_PREVIOUS:
+            // No previous track in Pandora
+            break;
+    }
+}
+
+// MARK: - Now Playing Info
+
+- (void)updateNowPlayingInfo {
+    if (![MPNowPlayingInfoCenter class]) return;
+    
+    Song *song = [_playing playingSong];
+    if (!song) {
+        [[MPNowPlayingInfoCenter defaultCenter] setNowPlayingInfo:nil];
+        return;
+    }
+    
+    NSMutableDictionary *info = [NSMutableDictionary dictionary];
+    
+    info[MPMediaItemPropertyTitle] = song.title ?: @"";
+    info[MPMediaItemPropertyArtist] = song.artist ?: @"";
+    info[MPMediaItemPropertyAlbumTitle] = song.album ?: @"";
+    
+    double duration = self.currentDuration;
+    if (duration > 0) {
+        info[MPMediaItemPropertyPlaybackDuration] = @(duration);
+        info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = @(self.currentProgress);
+    }
+    
+    info[MPNowPlayingInfoPropertyPlaybackRate] = @([_playing isPlaying] ? 1.0 : 0.0);
+    
+    if (_artImage) {
+        MPMediaItemArtwork *artwork = [[MPMediaItemArtwork alloc]
+            initWithBoundsSize:_artImage.size
+            requestHandler:^NSImage *(CGSize size) {
+                return self->_artImage;
+            }];
+        info[MPMediaItemPropertyArtwork] = artwork;
+    }
+    
+    [[MPNowPlayingInfoCenter defaultCenter] setNowPlayingInfo:info];
+}
+
+// MARK: - Notification Posting
+
+- (void)postStateChange {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [[NSNotificationCenter defaultCenter] postNotificationName:PlaybackStateDidChangeNotification
+                                                            object:self];
+    });
+}
+
+- (void)postSongChange {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [[NSNotificationCenter defaultCenter] postNotificationName:PlaybackSongDidChangeNotification
+                                                            object:self];
+    });
+}
+
+- (void)postArtLoaded {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [[NSNotificationCenter defaultCenter] postNotificationName:PlaybackArtDidLoadNotification
+                                                            object:self];
+    });
 }
 
 @end

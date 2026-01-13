@@ -3,7 +3,8 @@
 #import "HermesAppDelegate.h"
 #include <libgen.h>
 
-#define NSLogd(fmt, args...) [(HermesAppDelegate *)HMSAppDelegate logMessage:[NSString stringWithFormat:@"%s:%d %s " fmt, basename(__FILE__), __LINE__, __PRETTY_FUNCTION__, ##args]];
+// Thread-safe logging that doesn't access NSApp delegate
+#define NSLogd(fmt, args...) NSLog(@"%s:%d %s " fmt, basename(__FILE__), __LINE__, __PRETTY_FUNCTION__, ##args)
 #define HMSLog NSLogd
 
 #define HMSAssert(expression, ...) \
@@ -15,4 +16,15 @@
 } while (0)
 #endif
 
-#define HMSAppDelegate ((HermesAppDelegate *)[NSApp delegate])
+// Thread-safe access to app delegate
+#define HMSAppDelegate ((HermesAppDelegate *)({ \
+    __block id delegate = nil; \
+    if ([NSThread isMainThread]) { \
+        delegate = [NSApp delegate]; \
+    } else { \
+        dispatch_sync(dispatch_get_main_queue(), ^{ \
+            delegate = [NSApp delegate]; \
+        }); \
+    } \
+    delegate; \
+}))

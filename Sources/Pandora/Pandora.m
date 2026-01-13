@@ -13,6 +13,7 @@
 #import "URLConnection.h"
 #import "Notifications.h"
 #import "PandoraDevice.h"
+#import "Integration/Keychain.h"
 
 #pragma mark Error Codes
 
@@ -807,8 +808,12 @@ static NSString *hierrs[] = {
   if ([self isAuthenticated]) {
     return [self sendRequest:req];
   }
-  NSString *user = [HMSAppDelegate getSavedUsername];
-  NSString *pass = [HMSAppDelegate getSavedPassword];
+  
+  // Get saved credentials directly from UserDefaults and Keychain
+  // This avoids accessing NSApp delegate on background thread
+  NSString *user = [[NSUserDefaults standardUserDefaults] stringForKey:@"pandora.username"];
+  NSString *pass = user ? KeychainGetPassword(user) : nil;
+  
   return [self authenticate:user password:pass request:req];
 }
 

@@ -28,7 +28,7 @@ NSInteger savedVolume = 0;
 @implementation PlayPauseCommand
 - (id) performDefaultImplementation {
   PlaybackController *playback = [HMSAppDelegate playback];
-  [playback playpause:self];
+  [playback playpause];
   return self;
 }
 @end
@@ -36,71 +36,79 @@ NSInteger savedVolume = 0;
 @implementation SkipCommand
 - (id) performDefaultImplementation {
   PlaybackController *playback = [HMSAppDelegate playback];
-  [playback next:self];
+  [playback next];
   return self;
 }
 @end
+
 @implementation ThumbsUpCommand
 - (id) performDefaultImplementation {
   PlaybackController *playback = [HMSAppDelegate playback];
-  [playback like:self];
+  [playback likeCurrent];
   return self;
 }
 @end
+
 @implementation ThumbsDownCommand
 - (id) performDefaultImplementation {
   PlaybackController *playback = [HMSAppDelegate playback];
-  [playback dislike:self];
+  [playback dislikeCurrent];
   return self;
 }
 @end
+
 @implementation RaiseVolumeCommand
 - (id) performDefaultImplementation {
   PlaybackController *playback = [HMSAppDelegate playback];
-  NSInteger volume = [playback integerVolume];
-  [playback setIntegerVolume:volume + 7];
-  NSLogd(@"Raised volume to: %ld", (long)[playback integerVolume]);
+  NSInteger vol = [playback volume];
+  [playback setVolume:vol + 7];
+  NSLogd(@"Raised volume to: %ld", (long)[playback volume]);
   return self;
 }
 @end
+
 @implementation LowerVolumeCommand
 - (id) performDefaultImplementation {
   PlaybackController *playback = [HMSAppDelegate playback];
-  NSInteger volume = [playback integerVolume];
-  [playback setIntegerVolume:volume - 7];
-  NSLogd(@"Lowered volume to: %ld", (long)[playback integerVolume]);
+  NSInteger vol = [playback volume];
+  [playback setVolume:vol - 7];
+  NSLogd(@"Lowered volume to: %ld", (long)[playback volume]);
   return self;
 }
 @end
+
 @implementation FullVolumeCommand
 - (id) performDefaultImplementation {
   PlaybackController *playback = [HMSAppDelegate playback];
-  [playback setIntegerVolume:100];
-  NSLogd(@"Changed volume to: %ld", (long)[playback integerVolume]);
+  [playback setVolume:100];
+  NSLogd(@"Changed volume to: %ld", (long)[playback volume]);
   return self;
 }
 @end
+
 @implementation MuteCommand
 - (id) performDefaultImplementation {
   PlaybackController *playback = [HMSAppDelegate playback];
-  savedVolume = [playback integerVolume];
-  [playback setIntegerVolume:0];
-  NSLogd(@"Changed volume to: %ld", (long)[playback integerVolume]);
+  savedVolume = [playback volume];
+  [playback setVolume:0];
+  NSLogd(@"Changed volume to: %ld", (long)[playback volume]);
   return self;
 }
 @end
+
 @implementation UnmuteCommand
 - (id) performDefaultImplementation {
   PlaybackController *playback = [HMSAppDelegate playback];
-  [playback setIntegerVolume:savedVolume];
-  NSLogd(@"Changed volume to: %ld", (long)[playback integerVolume]);
+  [playback setVolume:savedVolume];
+  NSLogd(@"Changed volume to: %ld", (long)[playback volume]);
   return self;
 }
 @end
+
 @implementation TiredCommand
 - (id) performDefaultImplementation {
   PlaybackController *playback = [HMSAppDelegate playback];
-  [playback tired:self];
+  [playback tiredOfCurrent];
   return self;
 }
 @end
@@ -109,12 +117,12 @@ NSInteger savedVolume = 0;
 
 - (NSNumber*) volume {
   PlaybackController *playback = [HMSAppDelegate playback];
-  return @([playback integerVolume]);
+  return @([playback volume]);
 }
 
 - (void) setVolume: (NSNumber*) vol {
   PlaybackController *playback = [HMSAppDelegate playback];
-  [playback setIntegerVolume:[vol intValue]];
+  [playback setVolume:[vol integerValue]];
 }
 
 - (int) playbackState {

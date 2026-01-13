@@ -25,6 +25,7 @@
    Alex Crichton for the Hermes project */
 
 #import "AudioStreamer.h"
+#import <CoreAudio/CoreAudio.h>
 
 #define BitRateEstimationMinPackets 50
 
@@ -115,7 +116,10 @@ static void MyPacketsProc(void *inClientData, UInt32 inNumberBytes, UInt32
 static void MyAudioQueueOutputCallback(void *inClientData, AudioQueueRef inAQ,
                                 AudioQueueBufferRef inBuffer) {
   AudioStreamer* streamer = (__bridge AudioStreamer*)inClientData;
-  [streamer handleBufferCompleteForQueue:inAQ buffer:inBuffer];
+  // Dispatch to main thread for thread safety
+  dispatch_async(dispatch_get_main_queue(), ^{
+    [streamer handleBufferCompleteForQueue:inAQ buffer:inBuffer];
+  });
 }
 
 /* AudioQueue callback that a property has changed, invoked on AudioQueue's own
@@ -123,7 +127,10 @@ static void MyAudioQueueOutputCallback(void *inClientData, AudioQueueRef inAQ,
 static void MyAudioQueueIsRunningCallback(void *inUserData, AudioQueueRef inAQ,
                                    AudioQueuePropertyID inID) {
   AudioStreamer* streamer = (__bridge AudioStreamer *)inUserData;
-  [streamer handlePropertyChangeForQueue:inAQ propertyID:inID];
+  // Dispatch to main thread for thread safety
+  dispatch_async(dispatch_get_main_queue(), ^{
+    [streamer handlePropertyChangeForQueue:inAQ propertyID:inID];
+  });
 }
 
 /* CFReadStream callback when an event has occurred */
@@ -228,7 +235,9 @@ static void ASReadStreamCallBack(CFReadStreamRef aStream, CFStreamEventType even
 }
 
 - (BOOL)isPlaying {
-  return state_ == AS_PLAYING;
+  BOOL result = (state_ == AS_PLAYING);
+  NSLog(@"AudioStreamer: isPlaying called, state=%d, returning %d", state_, result);
+  return result;
 }
 
 - (BOOL)isPaused {
@@ -260,15 +269,21 @@ static void ASReadStreamCallBack(CFReadStreamRef aStream, CFStreamEventType even
 }
 
 - (BOOL) start {
-  if (stream != NULL) return NO;
+  NSLog(@"AudioStreamer: start called, stream=%p, audioQueue=%p, state=%d", stream, audioQueue, state_);
+  if (stream != NULL) {
+    NSLog(@"AudioStreamer: start returning NO - stream already exists");
+    return NO;
+  }
   assert(audioQueue == NULL);
   assert(state_ == AS_INITIALIZED);
+  NSLog(@"AudioStreamer: Opening read stream...");
   [self openReadStream];
   timeout = [NSTimer scheduledTimerWithTimeInterval:timeoutInterval
                                              target:self
                                            selector:@selector(checkTimeout)
                                            userInfo:nil
                                             repeats:YES];
+  NSLog(@"AudioStreamer: start completed, timeout timer scheduled");
   return YES;
 }
 
@@ -474,10 +489,16 @@ static void ASReadStreamCallBack(CFReadStreamRef aStream, CFStreamEventType even
 }
 
 - (void)setState:(AudioStreamerState)aStatus {
+  NSLog(@"AudioStreamer: setState called - old state=%d, new state=%d", state_, aStatus);
   LOG(@"transitioning to state:%d", aStatus);
 
-  if (state_ == aStatus) return;
+  if (state_ == aStatus) {
+    NSLog(@"AudioStreamer: setState - state unchanged, returning");
+    return;
+  }
   state_ = aStatus;
+  
+  NSLog(@"AudioStreamer: setState - posting ASStatusChangedNotification");
 
   [[NSNotificationCenter defaultCenter]
         postNotificationName:ASStatusChangedNotification
@@ -842,6 +863,7 @@ static void ASReadStreamCallBack(CFReadStreamRef aStream, CFStreamEventType even
   err = AudioQueueEnqueueBuffer(audioQueue, fillBuf, packetsFilled,
                                 packetDescs);
   if (err) {
+    NSLog(@"AudioStreamer: AudioQueueEnqueueBuffer failed with error: %d", (int)err);
     [self failWithErrorCode:AS_AUDIO_QUEUE_ENQUEUE_FAILED];
     return -1;
   }
@@ -851,11 +873,15 @@ static void ASReadStreamCallBack(CFReadStreamRef aStream, CFStreamEventType even
     /* Once we have a small amount of queued data, then we can go ahead and
      * start the audio queue and the file stream should remain ahead of it */
     if (bufferCnt < 3 || buffersUsed > 2) {
+      NSLog(@"AudioStreamer: Starting AudioQueue (bufferCnt=%u, buffersUsed=%u)", 
+            (unsigned int)bufferCnt, (unsigned int)buffersUsed);
       err = AudioQueueStart(audioQueue, NULL);
       if (err) {
+        NSLog(@"AudioStreamer: AudioQueueStart failed with error: %d", (int)err);
         [self failWithErrorCode:AS_AUDIO_QUEUE_START_FAILED];
         return -1;
       }
+      NSLog(@"AudioStreamer: AudioQueueStart succeeded, transitioning to WAITING_FOR_QUEUE_TO_START");
       [self setState:AS_WAITING_FOR_QUEUE_TO_START];
     }
   }
@@ -905,18 +931,59 @@ static void ASReadStreamCallBack(CFReadStreamRef aStream, CFStreamEventType even
 - (void)createQueue {
   assert(audioQueue == NULL);
 
-  // create the audio queue
-  err = AudioQueueNewOutput(&asbd, MyAudioQueueOutputCallback,
-                            (__bridge void*) self, CFRunLoopGetCurrent(), NULL,
-                            0, &audioQueue);
-  CHECK_ERR(err, AS_AUDIO_QUEUE_CREATION_FAILED);
+  NSLog(@"AudioStreamer: createQueue - Creating AudioQueue with sample rate: %.0f, channels: %d, format: %u",
+        asbd.mSampleRate, asbd.mChannelsPerFrame, (unsigned int)asbd.mFormatID);
 
-  // start the queue if it has not been started already
+  // create the audio queue - use NULL for run loop to let AudioQueue manage its own threads
+  // This is more reliable on modern macOS than specifying CFRunLoopGetCurrent()
+  err = AudioQueueNewOutput(&asbd, MyAudioQueueOutputCallback,
+                            (__bridge void*) self, NULL, kCFRunLoopCommonModes,
+                            0, &audioQueue);
+  if (err) {
+    NSLog(@"AudioStreamer: AudioQueueNewOutput failed with error: %d", (int)err);
+  }
+  CHECK_ERR(err, AS_AUDIO_QUEUE_CREATION_FAILED);
+  
+  NSLog(@"AudioStreamer: AudioQueue created successfully: %p", audioQueue);
+
+  // Set the default output device explicitly - required on modern macOS
+  // when not running from a XIB-based app with proper audio session
+  AudioObjectPropertyAddress propertyAddress = {
+    kAudioHardwarePropertyDefaultOutputDevice,
+    kAudioObjectPropertyScopeGlobal,
+    kAudioObjectPropertyElementMain
+  };
+  
+  AudioDeviceID outputDevice = 0;
+  UInt32 propertySize = sizeof(outputDevice);
+  OSStatus deviceErr = AudioObjectGetPropertyData(kAudioObjectSystemObject,
+                                                   &propertyAddress,
+                                                   0, NULL,
+                                                   &propertySize,
+                                                   &outputDevice);
+  
+  if (deviceErr == noErr && outputDevice != 0) {
+    NSLog(@"AudioStreamer: Setting output device to default: %u", (unsigned int)outputDevice);
+    err = AudioQueueSetProperty(audioQueue,
+                                kAudioQueueProperty_CurrentDevice,
+                                &outputDevice,
+                                sizeof(outputDevice));
+    if (err) {
+      NSLog(@"AudioStreamer: Warning - Failed to set output device: %d (continuing anyway)", (int)err);
+      // Don't fail here - the queue might still work with default device
+      err = noErr;
+    }
+  } else {
+    NSLog(@"AudioStreamer: Warning - Could not get default output device: %d", (int)deviceErr);
+  }
+
   // listen to the "isRunning" property
   err = AudioQueueAddPropertyListener(audioQueue, kAudioQueueProperty_IsRunning,
                                       MyAudioQueueIsRunningCallback,
                                       (__bridge void*) self);
   CHECK_ERR(err, AS_AUDIO_QUEUE_ADD_LISTENER_FAILED);
+  
+  NSLog(@"AudioStreamer: AudioQueue property listener added");
 
   /* Try to determine the packet size, eventually falling back to some
      reasonable default of a size */
@@ -1227,8 +1294,10 @@ static void ASReadStreamCallBack(CFReadStreamRef aStream, CFStreamEventType even
 //
 - (void)handleBufferCompleteForQueue:(AudioQueueRef)inAQ
                               buffer:(AudioQueueBufferRef)inBuffer {
-  /* we're only registered for one audio queue... */
-  assert(inAQ == audioQueue);
+  /* If the audio queue has been disposed, ignore this callback */
+  if (audioQueue == nil || inAQ != audioQueue) {
+    return;
+  }
   /* Sanity check to make sure we're on the right thread */
   assert([NSThread currentThread] == [NSThread mainThread]);
 
@@ -1279,22 +1348,33 @@ static void ASReadStreamCallBack(CFReadStreamRef aStream, CFStreamEventType even
 //
 - (void)handlePropertyChangeForQueue:(AudioQueueRef)inAQ
                           propertyID:(AudioQueuePropertyID)inID {
+  NSLog(@"AudioStreamer: handlePropertyChangeForQueue called, state=%d", state_);
   /* Sanity check to make sure we're on the expected thread */
   assert([NSThread currentThread] == [NSThread mainThread]);
   /* We only asked for one property, so the audio queue had better damn well
      only tell us about this property */
   assert(inID == kAudioQueueProperty_IsRunning);
 
+  // Always check the actual running state
+  UInt32 running = 0;
+  UInt32 output = sizeof(running);
+  err = AudioQueueGetProperty(audioQueue, kAudioQueueProperty_IsRunning,
+                              &running, &output);
+  NSLog(@"AudioStreamer: AudioQueue running=%d, state=%d, seeking=%d, err=%d", running, state_, seeking, err);
+
   if (state_ == AS_WAITING_FOR_QUEUE_TO_START) {
-    [self setState:AS_PLAYING];
-  } else {
-    UInt32 running;
-    UInt32 output = sizeof(running);
-    err = AudioQueueGetProperty(audioQueue, kAudioQueueProperty_IsRunning,
-                                &running, &output);
-    if (!err && !running && !seeking) {
-      [self setState:AS_DONE];
+    // Only transition to PLAYING if the queue is actually running
+    if (!err && running) {
+      NSLog(@"AudioStreamer: State is WAITING_FOR_QUEUE_TO_START and queue is running, transitioning to PLAYING");
+      [self setState:AS_PLAYING];
+    } else {
+      NSLog(@"AudioStreamer: State is WAITING_FOR_QUEUE_TO_START but queue is NOT running (running=%d, err=%d)", running, err);
+      // Queue failed to start - this is the bug we're fixing
+      // Don't transition to DONE yet, let it retry or fail properly
     }
+  } else if (!err && !running && !seeking) {
+    NSLog(@"AudioStreamer: AudioQueue stopped, setting state to DONE");
+    [self setState:AS_DONE];
   }
 }
 

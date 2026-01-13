@@ -36,3 +36,10 @@ NSString * const PandoraDidLoadSearchResultsNotification             = @"Pandora
 NSString * const PandoraDidLoadGenreStationsNotification             = @"PandoraDidLoadGenreStationsNotification";
 
 NSString * const StationDidPlaySongNotification                      = @"StationDidPlaySongNotification";
+
+#pragma mark - Preference Change Notifications
+
+NSString * const PreferenceAlwaysOnTopChangedNotification            = @"PreferenceAlwaysOnTopChangedNotification";
+NSString * const PreferenceMediaKeysChangedNotification              = @"PreferenceMediaKeysChangedNotification";
+NSString * const PreferenceDockIconChangedNotification               = @"PreferenceDockIconChangedNotification";
+NSString * const PreferenceStatusBarChangedNotification              = @"PreferenceStatusBarChangedNotification";

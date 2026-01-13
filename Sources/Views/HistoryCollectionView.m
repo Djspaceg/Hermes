@@ -13,7 +13,7 @@
 
 - (void)keyDown:(NSEvent *)theEvent {
   if ([[theEvent characters] isEqualToString:@" "]) {
-    [[HMSAppDelegate playback] playpause:nil];
+    [[HMSAppDelegate playback] playpause];
   } else {
     [super keyDown:theEvent];
   }

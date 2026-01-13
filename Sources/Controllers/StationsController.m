@@ -283,7 +283,7 @@
 
 - (BOOL)tableView:(NSTableView *)tableView shouldTypeSelectForEvent:(NSEvent *)event withCurrentSearchString:(NSString *)searchString {
   if (searchString == nil && [[event characters] isEqualToString:@" "]) {
-    [[HMSAppDelegate playback] playpause:nil];
+    [[HMSAppDelegate playback] playpause];
   }
   
   return YES;
@@ -312,14 +312,16 @@
   if (item == nil) {
     return genreResults[index];
   }
-  return item[@"stations"][index];
+  NSDictionary *dict = (NSDictionary *)item;
+  return [dict objectForKey:@"stations"][index];
 }
 
 - (BOOL)outlineView:(NSOutlineView *)outlineView isItemExpandable:(id)item {
   if (outlineView == results) {
     return lastResults[item] != nil;
   } else {
-    return item[@"categoryName"] != nil;
+    NSDictionary *dict = (NSDictionary *)item;
+    return [dict objectForKey:@"categoryName"] != nil;
   }
 }
 
@@ -335,7 +337,8 @@
   if (item == nil) {
     return [genreResults count];
   }
-  return [item[@"stations"] count];
+  NSDictionary *itemDict = (NSDictionary *)item;
+  return [[itemDict objectForKey:@"stations"] count];
 }
 
 - (id)outlineView:(NSOutlineView *)outlineView
@@ -348,17 +351,22 @@
     return [s name];
   }
 
-  NSString *str = item[@"categoryName"];
+  NSDictionary *dict = (NSDictionary *)item;
+  NSString *str = [dict objectForKey:@"categoryName"];
   if (str != nil) return str;
-  return item[@"stationName"];
+  return [dict objectForKey:@"stationName"];
 }
 
 #pragma mark - NSOutlineViewDelegate
 - (BOOL)outlineView:(NSOutlineView *)outlineView isGroupItem:(id)item {
   if (outlineView == results)
     return [item isKindOfClass:[NSString class]];
-  else if (outlineView == genres)
-    return [item isKindOfClass:[NSDictionary class]] && item[@"categoryName"] != nil;
+  else if (outlineView == genres) {
+    if ([item isKindOfClass:[NSDictionary class]]) {
+      NSDictionary *dict = (NSDictionary *)item;
+      return [dict objectForKey:@"categoryName"] != nil;
+    }
+  }
   return NO;
 }
 
@@ -415,11 +423,12 @@
   [stationsRefreshing setHidden:YES];
   [stationsRefreshing stopAnimation:nil];
 
-  if ([self playingStation] == nil && ![self playSavedStation]) {
-    [HMSAppDelegate setCurrentView:chooseStationView];
-    [HMSAppDelegate showStationsDrawer:nil];
-  }
-  [HMSAppDelegate handleDrawer];
+  // DISABLED: SwiftUI handles UI now
+  // if ([self playingStation] == nil && ![self playSavedStation]) {
+  //   [HMSAppDelegate setCurrentView:chooseStationView];
+  //   [HMSAppDelegate showStationsDrawer:nil];
+  // }
+  // [HMSAppDelegate handleDrawer];
 
   BOOL isAscending = YES;
   NSInteger otherSegment = SORT_DATE;
@@ -469,8 +478,9 @@
   NSMutableArray *mutableCategories = [[NSMutableArray alloc] initWithCapacity:[categories count]];
   for (NSDictionary *category in categories) {
     NSMutableDictionary *mutableCategory = [category mutableCopy];
-    mutableCategory[@"stations"] = [category[@"stations"] sortedArrayUsingComparator:^NSComparisonResult(id  _Nonnull s1, id  _Nonnull s2) {
-      return [s1[@"stationName"] localizedStandardCompare:s2[@"stationName"]];
+    NSArray *stations = [category objectForKey:@"stations"];
+    mutableCategory[@"stations"] = [stations sortedArrayUsingComparator:^NSComparisonResult(NSDictionary *s1, NSDictionary *s2) {
+      return [[s1 objectForKey:@"stationName"] localizedStandardCompare:[s2 objectForKey:@"stationName"]];
     }];
     [mutableCategories addObject:[mutableCategory copy]];
   }
@@ -485,10 +495,7 @@
 /* Called after the user has authenticated */
 - (void) show {
   [HMSAppDelegate showLoader];
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wnonnull"
-  [self refreshList:nil];
-#pragma clang diagnostic pop
+  [self refreshList:self];
 }
 
 /* Callback for when the play button is hit for a station */
@@ -557,8 +564,8 @@
 
 /* Callback for creating a station by genre */
 - (IBAction) createStationGenre:(id)sender {
-  id item = [genres itemAtRow:[genres selectedRow]];
-  NSString *token = item[@"stationToken"];
+  NSDictionary *item = (NSDictionary *)[genres itemAtRow:[genres selectedRow]];
+  NSString *token = [item objectForKey:@"stationToken"];
   if (token == nil) return;
 
   [genreSpinner setHidden:NO];

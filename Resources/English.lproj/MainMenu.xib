@@ -297,7 +297,7 @@
             </items>
             <point key="canvasLocation" x="-6" y="154"/>
         </menu>
-        <window title="Hermes" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" releasedWhenClosed="NO"  frameAutosaveName="Preferences" animationBehavior="default" titlebarAppearsTransparent="YES" id="371" userLabel="Main Window" customClass="HermesMainWindow">
+        <window title="Hermes" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" releasedWhenClosed="NO" frameAutosaveName="Preferences" animationBehavior="default" titlebarAppearsTransparent="YES" id="371" userLabel="Main Window" customClass="HermesMainWindow">
             <windowStyleMask key="styleMask" titled="YES" closable="YES" miniaturizable="YES"/>
             <rect key="contentRect" x="300" y="434" width="240" height="294"/>
             <rect key="screenRect" x="0.0" y="0.0" width="2560" height="1410"/>
@@ -314,7 +314,7 @@ Lm9iamVjdHOiGhuABYAGgAfSHh8gIVokY2xhc3NuYW1lWCRjbGFzc2VzV05TQXJyYXmiICJYTlNPYmpl
 Y3TSHh8kJVxDQVRyYW5zaXRpb26jJiciXENBVHJhbnNpdGlvbltDQUFuaW1hdGlvbgAIABEAGgAkACkA
 MgA3AEkATABRAFMAXQBjAGwAcwB4AIAAlQCXAJkAmwCdAKcArACxALwAvwDBAMMAxQDKANUA3gDmAOkA
 8gD3AQQBCAEVAAAAAAAAAgEAAAAAAAAAKAAAAAAAAAAAAAAAAAAAASE
-</mutableData>
+                        </mutableData>
                     </caTransition>
                 </animations>
             </view>
@@ -380,7 +380,7 @@ MgA3AEkATABRAFMAXQBjAGwAcwB4AIAAlQCXAJkAmwCdAKcArACxALwAvwDBAMMAxQDKANUA3gDmAOkA
             <point key="canvasLocation" x="39" y="-308"/>
         </window>
         <customObject id="420" customClass="NSFontManager"/>
-        <customView  id="701" userLabel="Stations Drawer" customClass="HermesBackgroundView">
+        <customView id="701" userLabel="Stations Drawer" customClass="HermesBackgroundView">
             <rect key="frame" x="0.0" y="0.0" width="303" height="297"/>
             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
             <subviews>
@@ -428,7 +428,7 @@ MgA3AEkATABRAFMAXQBjAGwAcwB4AIAAlQCXAJkAmwCdAKcArACxALwAvwDBAMMAxQDKANUA3gDmAOkA
                         <font key="font" metaFont="smallSystem"/>
                         <string key="keyEquivalent" base64-UTF8="YES">
 DQ
-</string>
+                        </string>
                     </buttonCell>
                     <connections>
                         <action selector="playSelected:" target="537" id="941"/>
@@ -522,7 +522,7 @@ DQ
             </subviews>
             <point key="canvasLocation" x="69" y="46"/>
         </customView>
-        <customView  id="2155" userLabel="History Drawer" customClass="HermesBackgroundView">
+        <customView id="2155" userLabel="History Drawer" customClass="HermesBackgroundView">
             <rect key="frame" x="0.0" y="0.0" width="297" height="280"/>
             <autoresizingMask key="autoresizingMask"/>
             <subviews>
@@ -759,7 +759,7 @@ DQ
                                                 <font key="font" metaFont="system"/>
                                                 <string key="keyEquivalent" base64-UTF8="YES">
 Gw
-</string>
+                                                </string>
                                             </buttonCell>
                                             <connections>
                                                 <action selector="cancelCreateStation:" target="537" id="929"/>
@@ -781,7 +781,7 @@ Gw
                                                 <font key="font" metaFont="system"/>
                                                 <string key="keyEquivalent" base64-UTF8="YES">
 Gw
-</string>
+                                                </string>
                                             </buttonCell>
                                             <connections>
                                                 <action selector="cancelCreateStation:" target="537" id="2244"/>
@@ -856,7 +856,7 @@ Gw
             <point key="canvasLocation" x="244" y="255.5"/>
         </window>
         <userDefaultsController representsSharedInstance="YES" id="979"/>
-        <window title="Preferences" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" releasedWhenClosed="NO" visibleAtLaunch="NO"  frameAutosaveName="Hermes Preferences" animationBehavior="default" id="1112" userLabel="Preferences Window">
+        <window title="Preferences" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" releasedWhenClosed="NO" visibleAtLaunch="NO" frameAutosaveName="Hermes Preferences" animationBehavior="default" id="1112" userLabel="Preferences Window">
             <windowStyleMask key="styleMask" titled="YES" closable="YES" miniaturizable="YES"/>
             <rect key="contentRect" x="0.0" y="0.0" width="362" height="451"/>
             <rect key="screenRect" x="0.0" y="0.0" width="2560" height="1410"/>
@@ -907,7 +907,6 @@ Gw
                 <outlet property="errorButton" destination="1807" id="1809"/>
                 <outlet property="errorLabel" destination="1263" id="1266"/>
                 <outlet property="errorView" destination="1251" id="1265"/>
-                <outlet property="growler" destination="1980" id="1981"/>
                 <outlet property="history" destination="1331" id="1507"/>
                 <outlet property="loadingIcon" destination="1231" id="1233"/>
                 <outlet property="loadingView" destination="1230" id="1232"/>
@@ -1023,7 +1022,6 @@ Gw
                 <outlet property="window" destination="1641" id="1753"/>
             </connections>
         </customObject>
-        <customObject id="1980" customClass="Growler"/>
         <customObject id="2007" customClass="Scrobbler"/>
         <customObject id="2136" customClass="NetworkConnection"/>
         <view id="1202" userLabel="Auth View">
@@ -1066,7 +1064,7 @@ Gw
                         <font key="font" metaFont="system"/>
                         <string key="keyEquivalent" base64-UTF8="YES">
 DQ
-</string>
+                        </string>
                     </buttonCell>
                     <connections>
                         <action selector="authenticate:" target="659" id="1220"/>

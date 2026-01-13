@@ -38,4 +38,11 @@ extern NSString * const PandoraDidLoadGenreStationsNotification; // userInfo: re
 
 extern NSString * const StationDidPlaySongNotification;
 
+#pragma mark Preference Change Notifications
+
+extern NSString * const PreferenceAlwaysOnTopChangedNotification;
+extern NSString * const PreferenceMediaKeysChangedNotification;
+extern NSString * const PreferenceDockIconChangedNotification;
+extern NSString * const PreferenceStatusBarChangedNotification;
+
 #endif

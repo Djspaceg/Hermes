@@ -1,88 +1,124 @@
-#import <Cocoa/Cocoa.h>
-#import <Quartz/Quartz.h>
+/**
+ * @file PlaybackController.h
+ * @brief Playback controller for managing audio playback
+ *
+ * This controller handles the business logic for playing stations,
+ * managing playback state, and coordinating with the Pandora API.
+ * UI is handled separately by SwiftUI views.
+ */
+
+#import <Foundation/Foundation.h>
+#import <MediaPlayer/MediaPlayer.h>
 
 #import "Pandora/Station.h"
-#import "Integration/Scrobbler.h"
 
 @class Song;
-@class MPRemoteCommandCenter;
+@class SPMediaKeyTap;
 
-// XXX macOS 10.12.2 exposes media keys; 10.12.3 doesn't
-#define MPREMOTECOMMANDCENTER_MEDIA_KEYS_BROKEN 1
+/// Notification posted when playback state changes (playing/paused/stopped)
+extern NSString * const PlaybackStateDidChangeNotification;
 
-@interface PlaybackController : NSObject <QLPreviewPanelDataSource, QLPreviewPanelDelegate, QLPreviewItem> {
-  IBOutlet NSProgressIndicator *songLoadingProgress;
+/// Notification posted when a new song starts playing
+extern NSString * const PlaybackSongDidChangeNotification;
 
-  IBOutlet NSView *playbackView;
+/// Notification posted when song progress updates
+extern NSString * const PlaybackProgressDidChangeNotification;
 
-  // Song view items
-  IBOutlet NSTextField *songLabel;
-  IBOutlet NSTextField *artistLabel;
-  IBOutlet NSTextField *albumLabel;
-  IBOutlet NSTextField *progressLabel;
-  IBOutlet NSButton *art;
-  IBOutlet NSSlider *playbackProgress;
-  IBOutlet NSProgressIndicator *artLoading;
+/// Notification posted when album art is loaded
+extern NSString * const PlaybackArtDidLoadNotification;
 
-  // Playback related items
-  IBOutlet NSToolbarItem *like;
-  IBOutlet NSToolbarItem *dislike;
-  IBOutlet NSToolbarItem *playpause;
-  IBOutlet NSToolbarItem *nextSong;
-  IBOutlet NSToolbarItem *tiredOfSong;
-  IBOutlet NSSlider *volume;
-  IBOutlet NSToolbar *toolbar;
+@interface PlaybackController : NSObject
 
-  NSTimer *progressUpdateTimer;
-  BOOL scrobbleSent;
-  NSString *lastImgSrc;
-  NSData *lastImg;
-}
+// MARK: - Properties
 
-@property (readonly) Station *playing;
-@property (readonly) NSData *lastImg;
-@property (nonatomic, retain) NSImage *artImage;
-@property BOOL pausedByScreensaver;
-@property BOOL pausedByScreenLock;
+/// The currently playing station
+@property (nonatomic, readonly) Station *playing;
 
-@property (readonly) MPRemoteCommandCenter *remoteCommandCenter;
-@property (readonly) SPMediaKeyTap *mediaKeyTap;
+/// The current song's album art image data
+@property (nonatomic, readonly) NSData *lastImg;
 
-+ (void) setPlayOnStart: (BOOL)play;
-+ (BOOL) playOnStart;
+/// The current song's album art as NSImage
+@property (nonatomic, readonly) NSImage *artImage;
 
-//- (void) applicationOpened;
+/// Whether playback was paused by screensaver
+@property (nonatomic) BOOL pausedByScreensaver;
 
-- (void) reset;
-- (void) playStation: (Station*) station;
-- (BOOL) saveState;
-- (void) show;
-- (void) prepareFirst;
+/// Whether playback was paused by screen lock
+@property (nonatomic) BOOL pausedByScreenLock;
 
-- (BOOL) play;
-- (BOOL) pause;
-- (void) stop;
-- (void) setIntegerVolume: (NSInteger) volume;
-- (NSInteger) integerVolume;
-- (void) pauseOnScreensaverStart: (NSNotification *) aNotification;
-- (void) playOnScreensaverStop: (NSNotification *) aNotification;
-- (void) pauseOnScreenLock: (NSNotification *) aNotification;
-- (void) playOnScreenUnlock: (NSNotification *) aNotification;
+/// Media remote command center for system media controls
+@property (nonatomic, readonly) MPRemoteCommandCenter *remoteCommandCenter;
 
-- (void) rate:(Song *)song as:(BOOL)liked;
+/// Media key tap for keyboard media keys (debug builds)
+@property (nonatomic, readonly) SPMediaKeyTap *mediaKeyTap;
 
-- (IBAction)playpause: (id) sender;
-- (IBAction)next: (id) sender;
-- (IBAction)like: (id) sender;
-- (IBAction)dislike: (id) sender;
-- (IBAction)tired: (id) sender;
-- (IBAction)loadMore: (id)sender;
-- (IBAction)songURL: (id)sender;
-- (IBAction)artistURL: (id)sender;
-- (IBAction)albumURL: (id)sender;
-- (IBAction)volumeChanged: (id)sender;
-- (IBAction)increaseVolume:(id)sender;
-- (IBAction)decreaseVolume:(id)sender;
-- (IBAction)quickLookArt:(id)sender;
+/// Current playback progress in seconds
+@property (nonatomic, readonly) double currentProgress;
+
+/// Current song duration in seconds
+@property (nonatomic, readonly) double currentDuration;
+
+/// Current volume (0-100)
+@property (nonatomic) NSInteger volume;
+
+// MARK: - Class Methods
+
++ (void)setPlayOnStart:(BOOL)play;
++ (BOOL)playOnStart;
+
+// MARK: - Lifecycle
+
+/// Initialize the controller and set up notification observers
+- (void)setup;
+
+/// Prepare for first use (load saved volume, etc.)
+- (void)prepareFirst;
+
+// MARK: - Station Management
+
+/// Play a station (or nil to stop)
+- (void)playStation:(Station *)station;
+
+/// Reset playback state and clear saved station
+- (void)reset;
+
+/// Save current playback state
+- (BOOL)saveState;
+
+// MARK: - Playback Controls
+
+/// Start or resume playback
+- (BOOL)play;
+
+/// Pause playback
+- (BOOL)pause;
+
+/// Stop playback
+- (void)stop;
+
+/// Toggle play/pause
+- (void)playpause;
+
+/// Skip to next song
+- (void)next;
+
+// MARK: - Song Rating
+
+/// Rate a song (like or dislike)
+- (void)rate:(Song *)song as:(BOOL)liked;
+
+/// Like the current song
+- (void)likeCurrent;
+
+/// Dislike the current song
+- (void)dislikeCurrent;
+
+/// Mark current song as "tired of"
+- (void)tiredOfCurrent;
+
+// MARK: - Volume Control
+
+- (void)increaseVolume;
+- (void)decreaseVolume;
 
 @end
