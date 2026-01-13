@@ -118,6 +118,9 @@ BOOL playOnStart = YES;
   if ([playpause respondsToSelector:@selector(_setAllPossibleLabelsToFit:)])
     [playpause _setAllPossibleLabelsToFit:@[@"Play", @"Pause"]];
   
+  // Set fixed sizes for all toolbar items to prevent huge overflow menu
+  [self configureToolbarItemSizes];
+  
   // prevent dragging the progress slider
   [playbackProgress setEnabled:NO];
 
@@ -213,6 +216,28 @@ BOOL playOnStart = YES;
   [art setContentHuggingPriority:1 forOrientation:NSLayoutConstraintOrientationVertical];
   [art setContentCompressionResistancePriority:NSLayoutPriorityDefaultLow forOrientation:NSLayoutConstraintOrientationHorizontal];
   [art setContentCompressionResistancePriority:NSLayoutPriorityDefaultLow forOrientation:NSLayoutConstraintOrientationVertical];
+}
+
+- (void)configureToolbarItemSizes {
+  // Resize toolbar item images to be consistently small (32x32)
+  NSSize iconSize = NSMakeSize(32, 32);
+  
+  NSArray *items = @[playpause, nextSong, like, dislike, tiredOfSong];
+  for (NSToolbarItem *item in items) {
+    if (item && item.image) {
+      NSImage *originalImage = item.image;
+      NSImage *resizedImage = [[NSImage alloc] initWithSize:iconSize];
+      
+      [resizedImage lockFocus];
+      [originalImage drawInRect:NSMakeRect(0, 0, iconSize.width, iconSize.height)
+                       fromRect:NSZeroRect
+                      operation:NSCompositingOperationSourceOver
+                       fraction:1.0];
+      [resizedImage unlockFocus];
+      
+      item.image = resizedImage;
+    }
+  }
 }
 
 - (void)showToolbar {

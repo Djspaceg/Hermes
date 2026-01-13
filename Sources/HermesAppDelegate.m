@@ -195,6 +195,15 @@
 }
 
 - (void)setupSplitViewController {
+  // Configure toolbar for compact display
+  if (window.toolbar) {
+    window.toolbar.displayMode = NSToolbarDisplayModeIconOnly;
+    window.toolbar.sizeMode = NSToolbarSizeModeSmall;
+    
+    // Resize drawer toggle icon
+    [self resizeDrawerToggleIcon];
+  }
+  
   // Enable window resizing with smaller minimum size
   window.styleMask |= NSWindowStyleMaskResizable;
   window.minSize = NSMakeSize(350, 250);  // Very small minimum
@@ -247,6 +256,23 @@
   
   // Add to window's content view (on top of split view)
   [window.contentView addSubview:toggleButton positioned:NSWindowAbove relativeTo:nil];
+}
+
+- (NSImage *)resizeImage:(NSImage *)image toSize:(NSSize)newSize {
+  NSImage *resizedImage = [[NSImage alloc] initWithSize:newSize];
+  [resizedImage lockFocus];
+  [image drawInRect:NSMakeRect(0, 0, newSize.width, newSize.height)
+           fromRect:NSZeroRect
+          operation:NSCompositingOperationSourceOver
+           fraction:1.0];
+  [resizedImage unlockFocus];
+  return resizedImage;
+}
+
+- (void)resizeDrawerToggleIcon {
+  if (drawerToggle && drawerToggle.image) {
+    drawerToggle.image = [self resizeImage:drawerToggle.image toSize:NSMakeSize(32, 32)];
+  }
 }
 
 - (void)populateSplitViewContent {
@@ -385,13 +411,13 @@
   if (self.splitViewController.sidebarMode == SidebarModeStations) {
     NSView *stationsContainer = [self createStationsContainerView];
     [self.splitViewController setSidebarContentView:stationsContainer];
-    [drawerToggle setImage:[NSImage imageNamed:@"history"]];
+    [drawerToggle setImage:[self resizeImage:[NSImage imageNamed:@"history"] toSize:NSMakeSize(32, 32)]];
     [drawerToggle setToolTip:@"Show song history"];
     drawerToggle.paletteLabel = drawerToggle.label = @"History";
   } else {
     NSView *historyContainer = [self createHistoryContainerView];
     [self.splitViewController setSidebarContentView:historyContainer];
-    [drawerToggle setImage:[NSImage imageNamed:@"radio"]];
+    [drawerToggle setImage:[self resizeImage:[NSImage imageNamed:@"radio"] toSize:NSMakeSize(32, 32)]];
     [drawerToggle setToolTip:@"Show station list"];
     drawerToggle.paletteLabel = drawerToggle.label = @"Stations";
   }
@@ -607,7 +633,7 @@
   } else {
     [history showDrawer];
   }
-  [drawerToggle setImage:[NSImage imageNamed:@"radio"]];
+  [drawerToggle setImage:[self resizeImage:[NSImage imageNamed:@"radio"] toSize:NSMakeSize(32, 32)]];
   [drawerToggle setToolTip: @"Show station list"];
   drawerToggle.paletteLabel = drawerToggle.label = @"Stations";
 }
@@ -618,7 +644,7 @@
   } else {
     [stations showDrawer];
   }
-  [drawerToggle setImage:[NSImage imageNamed:@"history"]];
+  [drawerToggle setImage:[self resizeImage:[NSImage imageNamed:@"history"] toSize:NSMakeSize(32, 32)]];
   [drawerToggle setToolTip: @"Show song history"];
   drawerToggle.paletteLabel = drawerToggle.label = @"History";
 }
