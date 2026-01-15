@@ -1,4 +1,4 @@
-#import "PreferencesController.h"
+#import "HermesConstants.h"
 #import "URLConnection.h"
 
 NSString * const URLConnectionProxyValidityChangedNotification = @"URLConnectionProxyValidityChangedNotification";

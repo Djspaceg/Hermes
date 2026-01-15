@@ -6,10 +6,11 @@
  * documented here: http://6xq.net/playground/pandora-apidoc/json/
  */
 
+#import "Pandora/Pandora.h"
 #import "FMEngine/NSString+FMEngine.h"
 #import "Pandora/Crypt.h"
 #import "Pandora/Station.h"
-#import "PreferencesController.h"
+#import "HermesConstants.h"
 #import "URLConnection.h"
 #import "Notifications.h"
 #import "PandoraDevice.h"

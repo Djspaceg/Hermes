@@ -7,27 +7,35 @@
 
 #import "AppleScript.h"
 #import "PlaybackController.h"
-#import "StationsController.h"
+#import "Pandora/Pandora.h"
+#import "Hermes-Swift.h" // For MinimalAppDelegate
+// #import "StationsController.h" // TODO: Update AppleScript for SwiftUI architecture
 
 NSInteger savedVolume = 0;
 
+// Helper to get PlaybackController from MinimalAppDelegate
+static PlaybackController* GetPlaybackController(void) {
+    MinimalAppDelegate *delegate = [MinimalAppDelegate shared];
+    return [delegate playbackController];
+}
+
 @implementation PlayCommand
 - (id) performDefaultImplementation {
-  PlaybackController *playback = [HMSAppDelegate playback];
+  PlaybackController *playback = GetPlaybackController();
   return @([playback play]);
 }
 @end
 
 @implementation PauseCommand
 - (id) performDefaultImplementation {
-  PlaybackController *playback = [HMSAppDelegate playback];
+  PlaybackController *playback = GetPlaybackController();
   return @([playback pause]);
 }
 @end
 
 @implementation PlayPauseCommand
 - (id) performDefaultImplementation {
-  PlaybackController *playback = [HMSAppDelegate playback];
+  PlaybackController *playback = GetPlaybackController();
   [playback playpause];
   return self;
 }
@@ -35,7 +43,7 @@ NSInteger savedVolume = 0;
 
 @implementation SkipCommand
 - (id) performDefaultImplementation {
-  PlaybackController *playback = [HMSAppDelegate playback];
+  PlaybackController *playback = GetPlaybackController();
   [playback next];
   return self;
 }
@@ -43,7 +51,7 @@ NSInteger savedVolume = 0;
 
 @implementation ThumbsUpCommand
 - (id) performDefaultImplementation {
-  PlaybackController *playback = [HMSAppDelegate playback];
+  PlaybackController *playback = GetPlaybackController();
   [playback likeCurrent];
   return self;
 }
@@ -51,7 +59,7 @@ NSInteger savedVolume = 0;
 
 @implementation ThumbsDownCommand
 - (id) performDefaultImplementation {
-  PlaybackController *playback = [HMSAppDelegate playback];
+  PlaybackController *playback = GetPlaybackController();
   [playback dislikeCurrent];
   return self;
 }
@@ -59,7 +67,7 @@ NSInteger savedVolume = 0;
 
 @implementation RaiseVolumeCommand
 - (id) performDefaultImplementation {
-  PlaybackController *playback = [HMSAppDelegate playback];
+  PlaybackController *playback = GetPlaybackController();
   NSInteger vol = [playback volume];
   [playback setVolume:vol + 7];
   NSLogd(@"Raised volume to: %ld", (long)[playback volume]);
@@ -69,7 +77,7 @@ NSInteger savedVolume = 0;
 
 @implementation LowerVolumeCommand
 - (id) performDefaultImplementation {
-  PlaybackController *playback = [HMSAppDelegate playback];
+  PlaybackController *playback = GetPlaybackController();
   NSInteger vol = [playback volume];
   [playback setVolume:vol - 7];
   NSLogd(@"Lowered volume to: %ld", (long)[playback volume]);
@@ -79,7 +87,7 @@ NSInteger savedVolume = 0;
 
 @implementation FullVolumeCommand
 - (id) performDefaultImplementation {
-  PlaybackController *playback = [HMSAppDelegate playback];
+  PlaybackController *playback = GetPlaybackController();
   [playback setVolume:100];
   NSLogd(@"Changed volume to: %ld", (long)[playback volume]);
   return self;
@@ -88,7 +96,7 @@ NSInteger savedVolume = 0;
 
 @implementation MuteCommand
 - (id) performDefaultImplementation {
-  PlaybackController *playback = [HMSAppDelegate playback];
+  PlaybackController *playback = GetPlaybackController();
   savedVolume = [playback volume];
   [playback setVolume:0];
   NSLogd(@"Changed volume to: %ld", (long)[playback volume]);
@@ -98,7 +106,7 @@ NSInteger savedVolume = 0;
 
 @implementation UnmuteCommand
 - (id) performDefaultImplementation {
-  PlaybackController *playback = [HMSAppDelegate playback];
+  PlaybackController *playback = GetPlaybackController();
   [playback setVolume:savedVolume];
   NSLogd(@"Changed volume to: %ld", (long)[playback volume]);
   return self;
@@ -107,7 +115,7 @@ NSInteger savedVolume = 0;
 
 @implementation TiredCommand
 - (id) performDefaultImplementation {
-  PlaybackController *playback = [HMSAppDelegate playback];
+  PlaybackController *playback = GetPlaybackController();
   [playback tiredOfCurrent];
   return self;
 }
@@ -116,17 +124,17 @@ NSInteger savedVolume = 0;
 @implementation NSApplication (HermesScripting)
 
 - (NSNumber*) volume {
-  PlaybackController *playback = [HMSAppDelegate playback];
+  PlaybackController *playback = GetPlaybackController();
   return @([playback volume]);
 }
 
 - (void) setVolume: (NSNumber*) vol {
-  PlaybackController *playback = [HMSAppDelegate playback];
+  PlaybackController *playback = GetPlaybackController();
   [playback setVolume:[vol integerValue]];
 }
 
 - (int) playbackState {
-  PlaybackController *playback = [HMSAppDelegate playback];
+  PlaybackController *playback = GetPlaybackController();
   Station *playing = [playback playing];
   if (playing == nil) {
     return PlaybackStateStopped;
@@ -138,20 +146,20 @@ NSInteger savedVolume = 0;
 
 - (NSNumber *) playbackPosition {
   double progress;
-  PlaybackController *playback = [HMSAppDelegate playback];
+  PlaybackController *playback = GetPlaybackController();
   [[playback playing] progress:&progress];
   return @(progress);
 }
 
 - (NSNumber *) currentSongDuration {
   double duration;
-  PlaybackController *playback = [HMSAppDelegate playback];
+  PlaybackController *playback = GetPlaybackController();
   [[playback playing] duration:&duration];
   return @(duration);
 }
 
 - (void) setPlaybackState: (int) state {
-  PlaybackController *playback = [HMSAppDelegate playback];
+  PlaybackController *playback = GetPlaybackController();
   switch (state) {
     case PlaybackStateStopped:
     case PlaybackStatePaused:
@@ -168,25 +176,36 @@ NSInteger savedVolume = 0;
 }
 
 - (Station*) currentStation {
-  PlaybackController *playback = [HMSAppDelegate playback];
+  PlaybackController *playback = GetPlaybackController();
   return [playback playing];
 }
 
 - (void) setCurrentStation:(Station *)station {
+  // TODO: Update AppleScript support for SwiftUI architecture
+  // This requires accessing PlaybackController through MinimalAppDelegate
+  // and refreshing stations through AppState
+  
+  /* Original code - requires HMSAppDelegate and StationsController
   HermesAppDelegate *delegate = HMSAppDelegate;
   PlaybackController *playback = [delegate playback];
   [playback playStation:station];
   StationsController *stations = [delegate stations];
   [stations refreshList:self];
+  */
 }
 
 - (NSArray*) stations {
-  HermesAppDelegate *delegate = HMSAppDelegate;
-  return [[delegate pandora] stations];
+  // Access stations directly from Pandora
+  id delegate = [NSApp delegate];
+  if ([delegate respondsToSelector:@selector(pandora)]) {
+    Pandora *pandora = [delegate performSelector:@selector(pandora)];
+    return [pandora stations];
+  }
+  return @[];
 }
 
 - (Song*) currentSong {
-  PlaybackController *playback = [HMSAppDelegate playback];
+  PlaybackController *playback = GetPlaybackController();
   return [[playback playing] playingSong];
 }
 

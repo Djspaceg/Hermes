@@ -1,9 +1,9 @@
 #ifdef __OBJC__
 #import <Cocoa/Cocoa.h>
-#import "HermesAppDelegate.h"
+#import <UserNotifications/UserNotifications.h>
 #include <libgen.h>
 
-// Thread-safe logging that doesn't access NSApp delegate
+// Thread-safe logging
 #define NSLogd(fmt, args...) NSLog(@"%s:%d %s " fmt, basename(__FILE__), __LINE__, __PRETTY_FUNCTION__, ##args)
 #define HMSLog NSLogd
 
@@ -16,15 +16,3 @@
 } while (0)
 #endif
 
-// Thread-safe access to app delegate
-#define HMSAppDelegate ((HermesAppDelegate *)({ \
-    __block id delegate = nil; \
-    if ([NSThread isMainThread]) { \
-        delegate = [NSApp delegate]; \
-    } else { \
-        dispatch_sync(dispatch_get_main_queue(), ^{ \
-            delegate = [NSApp delegate]; \
-        }); \
-    } \
-    delegate; \
-}))

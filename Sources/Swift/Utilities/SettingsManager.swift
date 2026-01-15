@@ -35,6 +35,7 @@ final class SettingsManager: NSObject, ObservableObject {
     @AppStorage("playOnScreensaverStop") var playOnScreensaverStop = false
     @AppStorage("pauseOnScreenLock") var pauseOnLock = true
     @AppStorage("playOnScreenUnlock") var playOnUnlock = false
+    @AppStorage("playAutomaticallyOnLaunch") var playAutomaticallyOnLaunch = true
     
     // MARK: - Network Settings
     @AppStorage("enabledProxy") var proxyType = 0

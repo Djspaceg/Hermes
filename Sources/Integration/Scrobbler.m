@@ -8,7 +8,7 @@
  */
 
 #import "Keychain.h"
-#import "PreferencesController.h"
+#import "HermesConstants.h"
 #import "Scrobbler.h"
 #import "Pandora/Station.h"
 #import "Notifications.h"
@@ -122,10 +122,10 @@ typedef void(^ScrobblerCallback)(NSDictionary*);
  */
 - (void) error: (NSString*) message {
   NSAlert *alert = [NSAlert new];
-  alert.messageText = @"Last.fm returned an error";
+  alert.messageText = NSLocalizedString(@"Last.fm returned an error", @"Last.fm error alert title");
   alert.informativeText = message;
-  [alert addButtonWithTitle:@"OK"];
-  [alert beginSheetModalForWindow:[HMSAppDelegate window] completionHandler:nil];
+  [alert addButtonWithTitle:NSLocalizedString(@"OK", @"OK button")];
+  [alert beginSheetModalForWindow:NSApp.keyWindow completionHandler:nil];
 }
 
 /**
@@ -218,11 +218,11 @@ typedef void(^ScrobblerCallback)(NSDictionary*);
  */
 - (void) requestAuthorization {
   NSAlert *alert = [NSAlert new];
-  alert.messageText = @"Allow Hermes to scrobble on Last.fm";
+  alert.messageText = NSLocalizedString(@"Allow Hermes to scrobble on Last.fm", @"Last.fm authorization alert title");
   alert.informativeText = @"Click “Authorize” to give Hermes permission to access your Last.fm account.\n\nHermes will not try to use Last.fm for at least 30 seconds to give you time to grant permission.\n\nClick “Don’t Scrobbleʺ to stop Hermes from trying to use Last.fm.";
-  [alert addButtonWithTitle:@"Authorize"];
-  [alert addButtonWithTitle:@"Don’t Scrobble"];
-  [alert beginSheetModalForWindow:[HMSAppDelegate window] completionHandler:^(NSModalResponse returnCode) {
+  [alert addButtonWithTitle:NSLocalizedString(@"Authorize", @"Authorize button")];
+  [alert addButtonWithTitle:NSLocalizedString(@"Don’t Scrobble", @"Don’t Scrobble button")];
+  [alert beginSheetModalForWindow:NSApp.keyWindow completionHandler:^(NSModalResponse returnCode) {
     if (returnCode != NSAlertFirstButtonReturn) {
       PREF_KEY_SET_BOOL(PLEASE_SCROBBLE, NO);
       self->inAuthorization = NO;

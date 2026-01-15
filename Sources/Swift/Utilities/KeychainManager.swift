@@ -8,13 +8,29 @@
 import Foundation
 import Security
 
+// MARK: - Keychain Protocol
+
+/// Protocol for keychain operations - allows mocking in tests
+protocol KeychainProtocol {
+    func saveCredentials(username: String, password: String) throws
+    func retrievePassword(username: String) throws -> String?
+    func deleteCredentials(username: String) throws
+    func deleteAllCredentials() throws
+    func hasCredentials(username: String) -> Bool
+}
+
 /// Modern keychain manager for secure credential storage
-@MainActor
-final class KeychainManager {
+final class KeychainManager: KeychainProtocol {
     
     // MARK: - Singleton
     
-    static let shared = KeychainManager()
+    static let shared: KeychainProtocol = {
+        // Use mock keychain during unit tests
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+            return MockKeychainManager()
+        }
+        return KeychainManager()
+    }()
     
     private init() {}
     
@@ -170,5 +186,49 @@ enum KeychainError: LocalizedError {
             }
             return "Keychain error: \(status)"
         }
+    }
+}
+
+
+// MARK: - Mock Keychain Manager (for testing)
+
+/// Mock keychain manager that stores credentials in memory during tests
+final class MockKeychainManager: KeychainProtocol {
+    
+    private var storage: [String: String] = [:]
+    
+    func saveCredentials(username: String, password: String) throws {
+        guard !username.isEmpty, !password.isEmpty else {
+            throw KeychainError.invalidInput
+        }
+        storage[username] = password
+        print("MockKeychainManager: Saved credentials for user: \(username)")
+    }
+    
+    func retrievePassword(username: String) throws -> String? {
+        guard !username.isEmpty else {
+            throw KeychainError.invalidInput
+        }
+        let password = storage[username]
+        print("MockKeychainManager: Retrieved password for user: \(username) - found: \(password != nil)")
+        return password
+    }
+    
+    func deleteCredentials(username: String) throws {
+        guard !username.isEmpty else {
+            throw KeychainError.invalidInput
+        }
+        storage.removeValue(forKey: username)
+        print("MockKeychainManager: Deleted credentials for user: \(username)")
+    }
+    
+    func deleteAllCredentials() throws {
+        storage.removeAll()
+        print("MockKeychainManager: Deleted all credentials")
+    }
+    
+    func hasCredentials(username: String) -> Bool {
+        guard !username.isEmpty else { return false }
+        return storage[username] != nil
     }
 }

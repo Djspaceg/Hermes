@@ -7,9 +7,9 @@
 
 #import <Foundation/Foundation.h>
 #import <Cocoa/Cocoa.h>
+#import <UserNotifications/UserNotifications.h>
 
 #import "SPMediaKeyTap/SPMediaKeyTap.h"
-#import "HermesAppDelegate.h"
 #import "Pandora/Pandora.h"
 #import "Pandora/Station.h"
 #import "Pandora/Song.h"

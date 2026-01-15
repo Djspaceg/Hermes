@@ -1,7 +1,9 @@
 
 #import "Pandora/Station.h"
-#import "PreferencesController.h"
-#import "StationsController.h"
+#import "Pandora/Pandora.h"
+#import "Pandora/Song.h"
+#import "HermesConstants.h"
+// #import "StationsController.h" // TODO: Update AppleScript support for SwiftUI
 #import "Notifications.h"
 
 @implementation Station
@@ -193,6 +195,11 @@
 }
 
 - (NSScriptObjectSpecifier *) objectSpecifier {
+  // TODO: Update AppleScript support for SwiftUI architecture
+  // This requires accessing stations from AppState instead of StationsController
+  return nil;
+  
+  /* Original code - requires StationsController
   HermesAppDelegate *delegate = HMSAppDelegate;
   StationsController *stationsc = [delegate stations];
   int index = [stationsc stationIndex:self];
@@ -203,6 +210,7 @@
   return [[NSIndexSpecifier alloc]
            initWithContainerClassDescription:containerClassDesc
            containerSpecifier:nil key:@"stations" index:index];
+  */
 }
 
 - (void) clearSongList {

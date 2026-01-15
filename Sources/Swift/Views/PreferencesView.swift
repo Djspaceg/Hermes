@@ -269,6 +269,8 @@ struct PlaybackPreferencesView: View {
             // Playback Behavior
             GroupBox("Playback Behavior") {
                 VStack(alignment: .leading, spacing: 8) {
+                    Toggle("Play automatically after launching", isOn: $settings.playAutomaticallyOnLaunch)
+                        .help("Start playback automatically when the app launches")
                     Toggle("Pause when screen saver starts", isOn: $settings.pauseOnScreensaver)
                     Toggle("Play when screen saver stops", isOn: $settings.playOnScreensaverStop)
                     Toggle("Pause when screen locks", isOn: $settings.pauseOnLock)

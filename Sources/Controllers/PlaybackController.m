@@ -12,9 +12,11 @@
 
 #import "PlaybackController.h"
 #import "ImageLoader.h"
-#import "PreferencesController.h"
+#import "HermesConstants.h"
 #import "Notifications.h"
-#import "StationsController.h"
+#import "Pandora/Song.h"
+#import "Pandora/Pandora.h"
+// #import "StationsController.h" // Not needed - removed
 
 // MARK: - Notification Names
 

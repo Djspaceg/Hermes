@@ -9,7 +9,7 @@ import Foundation
 import Combine
 
 /// UserDefaults key for last played station (matches Objective-C LAST_STATION_KEY)
-private let lastStationKey = "hermes.last-station"
+private let lastStationKey = "lastStation"
 
 @MainActor
 final class StationsViewModel: ObservableObject {
@@ -83,12 +83,13 @@ final class StationsViewModel: ObservableObject {
         // Select the station in the list
         selectedStationId = station.id
         
-        // Auto-play if PlaybackController.playOnStart is true (default)
-        if PlaybackController.playOnStart() {
-            print("StationsViewModel: Auto-playing last station")
+        // Auto-play if user preference is enabled (default: true)
+        let shouldAutoPlay = SettingsManager.shared.playAutomaticallyOnLaunch
+        if shouldAutoPlay {
+            print("StationsViewModel: Auto-playing last station (user preference enabled)")
             playStation(station)
         } else {
-            print("StationsViewModel: Not auto-playing (playOnStart is false)")
+            print("StationsViewModel: Not auto-playing (user preference disabled)")
             // Just highlight it
             playingStationId = station.id
         }

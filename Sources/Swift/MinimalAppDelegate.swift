@@ -19,15 +19,15 @@ extension Notification.Name {
 
 /// Minimal AppDelegate for Objective-C business logic integration
 /// UI is completely managed by SwiftUI
-class MinimalAppDelegate: NSObject, NSApplicationDelegate {
+@objc class MinimalAppDelegate: NSObject, NSApplicationDelegate {
     
     // MARK: - Properties
     
     private var cancellables = Set<AnyCancellable>()
     
-    // Expose controllers for Swift access
-    static var shared: MinimalAppDelegate?
-    private(set) var playbackController: PlaybackController?
+    // Expose controllers for Swift and Objective-C access
+    @objc static var shared: MinimalAppDelegate?
+    @objc private(set) var playbackController: PlaybackController?
     
     // MARK: - Application Lifecycle
     
