@@ -20,6 +20,11 @@ struct SongModel: Identifiable, Hashable {
     }
     var rating: Int { objcSong.nrating?.intValue ?? 0 }
     
+    // Pandora web URLs
+    var titleUrl: String? { objcSong.titleUrl }
+    var artistUrl: String? { objcSong.artistUrl }
+    var albumUrl: String? { objcSong.albumUrl }
+    
     init(song: Song) {
         self.objcSong = song
     }

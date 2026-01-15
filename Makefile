@@ -41,8 +41,14 @@ upload-release: CONFIGURATION = Release
 upload-release: SCHEME = 'Upload Hermes Release'
 upload-release: hermes
 
+test:
+	$(XCB) $(COMMON_OPTS) -scheme HermesTests test
+
+test-verbose:
+	$(XCB) $(COMMON_OPTS) -scheme HermesTests test | xcpretty
+
 clean:
 	$(XCB) $(COMMON_OPTS) -scheme $(SCHEME) clean
 	rm -rf build
 
-.PHONY: all hermes travis run dbg archive clean install archive upload-release
+.PHONY: all hermes travis run dbg archive clean install archive upload-release test test-verbose
