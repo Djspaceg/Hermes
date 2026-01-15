@@ -11,10 +11,8 @@
 #import "Pandora/Crypt.h"
 #import "Pandora/Station.h"
 #import "HermesConstants.h"
-#import "URLConnection.h"
-#import "Notifications.h"
 #import "PandoraDevice.h"
-#import "Integration/Keychain.h"
+#import "Hermes-Swift.h"
 
 #pragma mark Error Codes
 
@@ -217,9 +215,9 @@ static NSString *hierrs[] = {
              password:(NSString*)pass
               request:(PandoraRequest*)req {
   return [self doUserLogin:user password:pass callback:^(NSDictionary *dict) {
-    // Only send the PandoraDidAuthenticateNotification if there is no request to retry.
+    // Only send the pandoraDidAuthenticate notification if there is no request to retry.
     if (req == nil) {
-      [self postNotification:PandoraDidAuthenticateNotification];
+      [self postNotification:@"PandoraDidAuthenticateNotification"];
     } else {
       NSLogd(@"Retrying request...");
       PandoraRequest *newreq = [req copy];
@@ -322,7 +320,7 @@ static NSString *hierrs[] = {
   for (Station *s in stations)
     [Station removeStation:s];
   [stations removeAllObjects];
-  [self postNotification:PandoraDidLogOutNotification];
+  [self postNotification:@"PandoraDidLogOutNotification"];
   // Always assume non-subscriber until API says otherwise.
   self.cachedSubscriberStatus = nil;
   self.device = [PandoraDevice android];
@@ -356,7 +354,7 @@ static NSString *hierrs[] = {
     dict[@"station"] = s;
     [self->stations addObject:s];
     [Station addStation:s];
-    [self postNotification:PandoraDidCreateStationNotification result:dict];
+    [self postNotification:@"PandoraDidCreateStationNotification" result:dict];
   }];
   return [self sendAuthenticatedRequest:req];
 }
@@ -384,7 +382,7 @@ static NSString *hierrs[] = {
       Station *stationToRemove = self->stations[i];
       [Station removeStation:stationToRemove];
       [self->stations removeObjectAtIndex:i];
-      [self postNotification:PandoraDidDeleteStationNotification request:stationToRemove];
+      [self postNotification:@"PandoraDidDeleteStationNotification" request:stationToRemove];
     }
     
   }];
@@ -400,7 +398,7 @@ static NSString *hierrs[] = {
   [req setRequest:d];
   [req setTls:FALSE];
   [req setCallback:^(NSDictionary* d) {
-    [self postNotification:PandoraDidRenameStationNotification];
+    [self postNotification:@"PandoraDidRenameStationNotification"];
   }];
   return [self sendAuthenticatedRequest:req];
 }
@@ -425,7 +423,7 @@ static NSString *hierrs[] = {
       }
     };
     
-    [self postNotification:PandoraDidLoadStationsNotification];
+    [self postNotification:@"PandoraDidLoadStationsNotification"];
   }];
   
   return [self sendAuthenticatedRequest:r];
@@ -543,7 +541,7 @@ static NSString *hierrs[] = {
   [req setRequest:d];
   [req setTls:FALSE];
   [req setCallback:^(NSDictionary* d) {
-    [self postNotification:PandoraDidLoadGenreStationsNotification result:d[@"result"]];
+    [self postNotification:@"PandoraDidLoadGenreStationsNotification" result:d[@"result"]];
   }];
   return [self sendAuthenticatedRequest:req];
 }
@@ -589,7 +587,7 @@ static NSString *hierrs[] = {
     info[@"likes"] = feedback[@"thumbsUp"];
     info[@"dislikes"] = feedback[@"thumbsDown"];
     
-    [self postNotification:PandoraDidLoadStationInfoNotification result:info];
+    [self postNotification:@"PandoraDidLoadStationInfoNotification" result:info];
   }];
   return [self sendAuthenticatedRequest:req];
 }
@@ -605,7 +603,7 @@ static NSString *hierrs[] = {
   [req setRequest:d];
   [req setTls:FALSE];
   [req setCallback:^(NSDictionary* d) {
-    [self postNotification:PandoraDidDeleteFeedbackNotification request:feedbackId];
+    [self postNotification:@"PandoraDidDeleteFeedbackNotification" request:feedbackId];
   }];
   return [self sendAuthenticatedRequest:req];
 }
@@ -619,7 +617,7 @@ static NSString *hierrs[] = {
   [req setRequest:d];
   [req setTls:FALSE];
   [req setCallback:^(NSDictionary* d) {
-    [self postNotification:PandoraDidAddSeedNotification result:d[@"result"]];
+    [self postNotification:@"PandoraDidAddSeedNotification" result:d[@"result"]];
   }];
   return [self sendAuthenticatedRequest:req];
 }
@@ -632,7 +630,7 @@ static NSString *hierrs[] = {
   [req setRequest:d];
   [req setTls:FALSE];
   [req setCallback:^(NSDictionary* d) {
-    [self postNotification:PandoraDidDeleteSeedNotification];
+    [self postNotification:@"PandoraDidDeleteSeedNotification"];
   }];
   return [self sendAuthenticatedRequest:req];
 }
@@ -679,7 +677,7 @@ static NSString *hierrs[] = {
   [req setRequest:d];
   [req setTls:FALSE];
   [req setCallback:^(NSDictionary* _) {
-    [self postNotification:PandoraDidRateSongNotification request:song];
+    [self postNotification:@"PandoraDidRateSongNotification" request:song];
   }];
   return [self sendAuthenticatedRequest:req];
 }
@@ -718,7 +716,7 @@ static NSString *hierrs[] = {
   [req setRequest:d];
   [req setTls:FALSE];
   [req setCallback:^(NSDictionary* _) {
-    [self postNotification:PandoraDidTireSongNotification request:song];
+    [self postNotification:@"PandoraDidTireSongNotification" request:song];
   }];
   
   return [self sendAuthenticatedRequest:req];
@@ -741,7 +739,7 @@ static NSString *hierrs[] = {
 
   search = [search stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
   if ([search length] == 0) {
-    [self postNotification:PandoraDidLoadSearchResultsNotification request:search result:@{}];
+    [self postNotification:@"PandoraDidLoadSearchResultsNotification" request:search result:@{}];
     return YES;
   }
 
@@ -779,7 +777,7 @@ static NSString *hierrs[] = {
     NSDictionary *searchResults = @{@"Songs": search_songs,
                                     @"Artists": search_artists};
 
-    [self postNotification:PandoraDidLoadSearchResultsNotification request:search result:searchResults];
+    [self postNotification:@"PandoraDidLoadSearchResultsNotification" request:search result:searchResults];
   }];
 
   return [self sendAuthenticatedRequest:req];
@@ -813,7 +811,7 @@ static NSString *hierrs[] = {
   // Get saved credentials directly from UserDefaults and Keychain
   // This avoids accessing NSApp delegate on background thread
   NSString *user = [[NSUserDefaults standardUserDefaults] stringForKey:@"pandora.username"];
-  NSString *pass = user ? KeychainGetPassword(user) : nil;
+  NSString *pass = user ? [[KeychainManager objcShared] getPassword:user] : nil;
   
   return [self authenticate:user password:pass request:req];
 }
@@ -842,10 +840,9 @@ static NSString *hierrs[] = {
   if ([request encrypted]) { data = [self encryptData:data]; }
   [nsrequest setHTTPBody: data];
   
-  /* Create the connection with necessary callback for when done */
-  URLConnection *c =
-  [URLConnection connectionForRequest:nsrequest
-                    completionHandler:^(NSData *d, NSError *e) {
+  /* Create the HTTP client and perform the request */
+  (void)[HTTPClient performRequest:nsrequest
+                        completion:^(NSData *d, NSError *e) {
                       NSDictionary *dict = nil;
                       /* Parse the JSON if we don't have an error */
                       if (!e) {
@@ -878,11 +875,10 @@ static NSString *hierrs[] = {
                       } else if (dict) {
                         info[@"code"] = dict[@"code"]; /* This is a Pandora error code. */
                       }
-                      [[NSNotificationCenter defaultCenter] postNotificationName:PandoraDidErrorNotification
+                      [[NSNotificationCenter defaultCenter] postNotificationName:@"PandoraDidErrorNotification"
                                                                           object:self
                                                                         userInfo:info];
                     }];
-  [c start];
   return TRUE;
 }
 

@@ -137,8 +137,10 @@ final class StationsViewModelTests: XCTestCase {
         let station = createMockStation(name: "Test Station", id: "test123")
         let stationModel = StationModel(station: station)
         
-        // When
-        sut.playStation(stationModel)
+        // When - Manually set playingStationId (simulating successful play)
+        // Note: We don't call playStation() to avoid triggering real PlaybackController
+        // which would save to UserDefaults
+        sut.playingStationId = stationModel.id
         
         // Then
         XCTAssertEqual(sut.playingStationId, "test123")

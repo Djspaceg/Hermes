@@ -19,7 +19,11 @@ struct StationsListView: View {
                 isPlaying: station.id == viewModel.playingStationId
             )
             .tag(station)
-            .contextMenu {
+        }
+        .listStyle(.sidebar)
+        .contextMenu(forSelectionType: StationModel.self) { stations in
+            // Context menu items for right-click
+            if let station = stations.first {
                 Button("Play") {
                     viewModel.playStation(station)
                 }
@@ -34,11 +38,12 @@ struct StationsListView: View {
                     viewModel.confirmDeleteStation(station)
                 }
             }
-            .onDoubleClick {
+        } primaryAction: { stations in
+            // Double-click action
+            if let station = stations.first {
                 viewModel.playStation(station)
             }
         }
-        .listStyle(.sidebar)
         .refreshable {
             await viewModel.refreshStations()
         }
@@ -136,7 +141,6 @@ struct RenameStationSheet: View {
 // MARK: - Preview
 
 #Preview {
-    // Create a wrapper that doesn't use real view models
     StationsListPreview()
         .frame(width: 250, height: 400)
 }

@@ -51,7 +51,9 @@ struct StationAddView<ViewModel: StationAddViewModelProtocol>: View {
         }
         .onChange(of: viewModel.stationCreated) { _, created in
             if created {
-                dismiss()
+                Task { @MainActor in
+                    dismiss()
+                }
             }
         }
     }

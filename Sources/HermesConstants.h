@@ -4,6 +4,20 @@
 //
 //  Shared constants and macros for Hermes app
 //
+//  NOTE: This file provides constants for Objective-C code.
+//  Swift code should use Sources/Swift/Utilities/Constants.swift instead,
+//  which provides type-safe enums and structs with the same values.
+//
+//  The Swift Constants.swift file includes:
+//  - ProxyType enum (system, http, socks)
+//  - AudioQuality enum (high, medium, low)
+//  - StationSortOrder enum (dateAscending, dateDescending, nameAscending, nameDescending)
+//  - UserDefaultsKeys struct with all key strings
+//  - HermesSwiftConstants @objc class for Objective-C interop if needed
+//
+//  Full migration of Objective-C files to use Swift constants is planned
+//  for future work when those files are migrated to Swift.
+//
 
 #import <Foundation/Foundation.h>
 

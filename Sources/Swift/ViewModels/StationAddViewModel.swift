@@ -61,7 +61,9 @@ final class StationAddViewModel: ObservableObject, StationAddViewModelProtocol {
         NotificationCenter.default.publisher(for: Notification.Name("PandoraDidLoadSearchResultsNotification"))
             .receive(on: DispatchQueue.main)
             .sink { [weak self] notification in
-                self?.handleSearchResults(notification)
+                Task { @MainActor in
+                    self?.handleSearchResults(notification)
+                }
             }
             .store(in: &cancellables)
         
@@ -69,7 +71,9 @@ final class StationAddViewModel: ObservableObject, StationAddViewModelProtocol {
         NotificationCenter.default.publisher(for: Notification.Name("PandoraDidLoadGenreStationsNotification"))
             .receive(on: DispatchQueue.main)
             .sink { [weak self] notification in
-                self?.handleGenreStations(notification)
+                Task { @MainActor in
+                    self?.handleGenreStations(notification)
+                }
             }
             .store(in: &cancellables)
         
@@ -77,7 +81,9 @@ final class StationAddViewModel: ObservableObject, StationAddViewModelProtocol {
         NotificationCenter.default.publisher(for: Notification.Name("PandoraDidCreateStationNotification"))
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                self?.handleStationCreated()
+                Task { @MainActor in
+                    self?.handleStationCreated()
+                }
             }
             .store(in: &cancellables)
         
@@ -85,7 +91,9 @@ final class StationAddViewModel: ObservableObject, StationAddViewModelProtocol {
         NotificationCenter.default.publisher(for: Notification.Name("PandoraDidErrorNotification"))
             .receive(on: DispatchQueue.main)
             .sink { [weak self] notification in
-                self?.handleError(notification)
+                Task { @MainActor in
+                    self?.handleError(notification)
+                }
             }
             .store(in: &cancellables)
     }

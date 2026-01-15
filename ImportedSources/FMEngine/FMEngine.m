@@ -7,7 +7,7 @@
 //
 
 #import "FMEngine.h"
-#import "URLConnection.h"
+#import "Hermes-Swift.h"
 
 @implementation FMEngine
 
@@ -60,9 +60,8 @@ static NSInteger sortAlpha(NSString *n1, NSString *n2, void *context) {
         forHTTPHeaderField:@"Content-Type"];
   }
 
-  URLConnection *connection = [URLConnection connectionForRequest:request
-                                                completionHandler:callback];
-  [connection start];
+  (void)[HTTPClient performRequest:request
+                        completion:callback];
 }
 
 - (NSString *)generatePOSTBodyFromDictionary:(NSDictionary *)dict {

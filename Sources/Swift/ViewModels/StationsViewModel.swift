@@ -8,9 +8,6 @@
 import Foundation
 import Combine
 
-/// UserDefaults key for last played station (matches Objective-C LAST_STATION_KEY)
-private let lastStationKey = "lastStation"
-
 @MainActor
 final class StationsViewModel: ObservableObject {
     @Published var stations: [StationModel] = []
@@ -56,6 +53,16 @@ final class StationsViewModel: ObservableObject {
                 // Song playing notification received - stations don't need to update
             }
             .store(in: &cancellables)
+        
+        // Station created - reload stations list
+        NotificationCenter.default.publisher(for: .pandoraDidCreateStation)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                Task { @MainActor in
+                    self?.loadStations()
+                }
+            }
+            .store(in: &cancellables)
     }
     
     private func loadStations() {
@@ -68,7 +75,7 @@ final class StationsViewModel: ObservableObject {
         guard !hasRestoredLastStation else { return }
         hasRestoredLastStation = true
         
-        guard let lastStationId = UserDefaults.standard.string(forKey: lastStationKey) else {
+        guard let lastStationId = UserDefaults.standard.string(forKey: UserDefaultsKeys.lastStation) else {
             print("StationsViewModel: No last station saved")
             return
         }

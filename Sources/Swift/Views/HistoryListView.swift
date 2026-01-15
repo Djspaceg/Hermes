@@ -15,41 +15,46 @@ struct HistoryListView: View {
         List(viewModel.historyItems, id: \.id, selection: $selectedItem) { song in
             HistoryRow(song: song)
                 .tag(song)
-                .contextMenu {
-                    Button("Like") {
-                        viewModel.likeSong(song)
-                    }
-                    Button("Dislike", role: .destructive) {
-                        viewModel.dislikeSong(song)
-                    }
-                    
-                    Divider()
-                    
-                    Button("Open Artist in Pandora") {
-                        selectedItem = song
-                        viewModel.openArtistOnPandora()
-                    }
-                    Button("Open Song in Pandora") {
-                        selectedItem = song
-                        viewModel.openSongOnPandora()
-                    }
-                    Button("Open Album in Pandora") {
-                        selectedItem = song
-                        viewModel.openAlbumOnPandora()
-                    }
-                    
-                    Divider()
-                    
-                    Button("Search Lyrics...") {
-                        selectedItem = song
-                        viewModel.showLyrics()
-                    }
-                }
-                .onDoubleClick {
-                    viewModel.playSong(song)
-                }
         }
         .listStyle(.sidebar)
+        .contextMenu(forSelectionType: SongModel.self) { songs in
+            // Context menu items for right-click
+            if let song = songs.first {
+                Button("Like") {
+                    viewModel.likeSong(song)
+                }
+                Button("Dislike", role: .destructive) {
+                    viewModel.dislikeSong(song)
+                }
+                
+                Divider()
+                
+                Button("Open Artist in Pandora") {
+                    selectedItem = song
+                    viewModel.openArtistOnPandora()
+                }
+                Button("Open Song in Pandora") {
+                    selectedItem = song
+                    viewModel.openSongOnPandora()
+                }
+                Button("Open Album in Pandora") {
+                    selectedItem = song
+                    viewModel.openAlbumOnPandora()
+                }
+                
+                Divider()
+                
+                Button("Search Lyrics...") {
+                    selectedItem = song
+                    viewModel.showLyrics()
+                }
+            }
+        } primaryAction: { songs in
+            // Double-click action - play the song
+            if let song = songs.first {
+                viewModel.playSong(song)
+            }
+        }
     }
 }
 
@@ -96,6 +101,10 @@ struct HistoryRow: View {
                 Image(systemName: "hand.thumbsup.fill")
                     .foregroundColor(.green)
                     .font(.caption)
+            } else if song.rating == -1 {
+                Image(systemName: "hand.thumbsdown.fill")
+                    .foregroundColor(.red)
+                    .font(.caption)
             }
         }
         .contentShape(Rectangle())
@@ -106,7 +115,6 @@ struct HistoryRow: View {
 // MARK: - Preview
 
 #Preview {
-    // Create a wrapper that doesn't use real view models
     HistoryListPreview()
         .frame(width: 250, height: 400)
 }

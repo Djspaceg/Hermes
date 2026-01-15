@@ -31,40 +31,51 @@ protocol PlayerViewModelProtocol: ObservableObject {
 
 struct PlayerView<ViewModel: PlayerViewModelProtocol>: View {
     @ObservedObject var viewModel: ViewModel
+    @State private var isHovering = false
     
     var body: some View {
-      ZStack(alignment: .bottom) {
-        if let song = viewModel.currentSong {
-          // Album art - fills available space
-          GeometryReader { geometry in
-            AlbumArtView(
-              song: song,
-              artworkImage: viewModel.artworkImage,
-              availableSize: geometry.size,
-              onTap: { viewModel.toggleArtworkPreview() }
-            )
-          }
+        ZStack(alignment: .bottom) {
+            if let song = viewModel.currentSong {
+                // Album art - extends to bottom of player area
+                GeometryReader { geometry in
+                    AlbumArtView(
+                        song: song,
+                        artworkImage: viewModel.artworkImage,
+                        availableSize: geometry.size,
+                        onTap: { viewModel.toggleArtworkPreview() }
+                    )
+                }
+                
+                // Overlay controls - fade in/out based on hover
+                VStack(spacing: 0) {
+                    Spacer()
+                    
+                    // Song info
+                    SongInfoView(song: song)
+                        .padding(.vertical, 16)
+                        .frame(maxWidth: .infinity)
+                        .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+                    
+                    // Bottom controls
+                    PlaybackControlsView(
+                        playbackPosition: viewModel.playbackPosition,
+                        duration: viewModel.duration,
+                        volume: $viewModel.volume,
+                        onVolumeChange: { viewModel.setVolume($0) }
+                    )
+                }
+                .opacity(isHovering ? 1 : 0)
+                .animation(
+                    isHovering 
+                        ? .easeIn(duration: 0.1)  // Fast fade in
+                        : .easeOut(duration: 2), // Slow fade out
+                    value: isHovering
+                )
+            } else {
+                EmptyPlayerStateView()
+            }
         }
-
-        VStack(spacing: 0) {
-          if let song = viewModel.currentSong {
-            // Song info - anchored above bottom controls
-            SongInfoView(song: song)
-              .padding(.vertical, 16)
-              .frame(maxWidth: .infinity)
-              .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-
-            // Bottom controls - anchored to bottom
-            PlaybackControlsView(
-              playbackPosition: viewModel.playbackPosition,
-              duration: viewModel.duration,
-              volume: $viewModel.volume,
-              onVolumeChange: { viewModel.setVolume($0) }
-            )
-          } else {
-            EmptyPlayerStateView()
-          }
-        }}
+        .background(WindowHoverTracker(isHovering: $isHovering))
         .sheet(isPresented: $viewModel.showingArtworkPreview) {
             AlbumArtPreviewView(
                 song: viewModel.currentSong,
@@ -78,6 +89,82 @@ struct PlayerView<ViewModel: PlayerViewModelProtocol>: View {
             .onDisappear {
                 WindowTracker.shared.windowClosed("artworkPreview")
             }
+        }
+    }
+}
+
+// MARK: - Window Hover Tracker
+
+struct WindowHoverTracker: NSViewRepresentable {
+    @Binding var isHovering: Bool
+    
+    func makeNSView(context: Context) -> WindowHoverView {
+        let view = WindowHoverView()
+        view.onHoverChanged = { hovering in
+            DispatchQueue.main.async {
+                isHovering = hovering
+            }
+        }
+        return view
+    }
+    
+    func updateNSView(_ nsView: WindowHoverView, context: Context) {}
+}
+
+class WindowHoverView: NSView {
+    var onHoverChanged: ((Bool) -> Void)?
+    private var windowObserver: NSObjectProtocol?
+    private var trackingArea: NSTrackingArea?
+    
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        setupWindowTracking()
+    }
+    
+    private func setupWindowTracking() {
+        guard let window = window, let contentView = window.contentView else { return }
+        
+        // Remove any existing tracking area
+        if let existing = trackingArea {
+            contentView.removeTrackingArea(existing)
+        }
+        
+        // Create tracking area on the window's content view
+        let options: NSTrackingArea.Options = [
+            .mouseEnteredAndExited,
+            .activeAlways,
+            .inVisibleRect
+        ]
+        
+        trackingArea = NSTrackingArea(
+            rect: .zero, // inVisibleRect handles the rect
+            options: options,
+            owner: self,
+            userInfo: nil
+        )
+        
+        if let area = trackingArea {
+            contentView.addTrackingArea(area)
+        }
+        
+        // Check initial mouse position
+        let mouseLocation = window.mouseLocationOutsideOfEventStream
+        let isInWindow = contentView.bounds.contains(contentView.convert(mouseLocation, from: nil))
+        onHoverChanged?(isInWindow)
+    }
+    
+    override func mouseEntered(with event: NSEvent) {
+        onHoverChanged?(true)
+    }
+    
+    override func mouseExited(with event: NSEvent) {
+        onHoverChanged?(false)
+    }
+    
+    deinit {
+        // Clean up tracking area from window's content view
+        if let area = trackingArea, let contentView = window?.contentView {
+            contentView.removeTrackingArea(area)
         }
     }
 }

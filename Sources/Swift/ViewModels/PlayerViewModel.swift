@@ -66,8 +66,8 @@ final class PlayerViewModel: ObservableObject, PlayerViewModelProtocol {
         
         let center = NotificationCenter.default
         
-        // New song started - use the new notification
-        center.publisher(for: Notification.Name("PlaybackSongDidChangeNotification"))
+        // New song started
+        center.publisher(for: Notification.Name("StationDidPlaySongNotification"))
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.updateCurrentSong()

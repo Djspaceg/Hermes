@@ -4,7 +4,6 @@
 #import "Pandora/Song.h"
 #import "HermesConstants.h"
 // #import "StationsController.h" // TODO: Update AppleScript support for SwiftUI
-#import "Notifications.h"
 
 @implementation Station
 
@@ -182,7 +181,7 @@
 - (void) newSongPlaying:(NSNotification*) notification {
   assert([songs count] == [urls count]);
   [[NSNotificationCenter defaultCenter]
-        postNotificationName:StationDidPlaySongNotification
+        postNotificationName:@"StationDidPlaySongNotification"
                       object:self
                     userInfo:nil];
 }

@@ -9,14 +9,6 @@
 import Cocoa
 import Combine
 
-// Import notification names from PreferencesView
-extension Notification.Name {
-    static let preferenceAlwaysOnTopChanged = Notification.Name("PreferenceAlwaysOnTopChangedNotification")
-    static let preferenceMediaKeysChanged = Notification.Name("PreferenceMediaKeysChangedNotification")
-    static let preferenceDockIconChanged = Notification.Name("PreferenceDockIconChangedNotification")
-    static let preferenceStatusBarChanged = Notification.Name("PreferenceStatusBarChangedNotification")
-}
-
 /// Minimal AppDelegate for Objective-C business logic integration
 /// UI is completely managed by SwiftUI
 @objc class MinimalAppDelegate: NSObject, NSApplicationDelegate {
@@ -83,15 +75,7 @@ extension Notification.Name {
         center.addObserver(
             self,
             selector: #selector(handlePandoraError(_:)),
-            name: Notification.Name("hermes.pandora.error"),
-            object: nil
-        )
-        
-        // Observe stream errors
-        center.addObserver(
-            self,
-            selector: #selector(handleStreamError(_:)),
-            name: Notification.Name("hermes.stream.error"),
+            name: Notification.Name("PandoraDidErrorNotification"),
             object: nil
         )
         
@@ -99,7 +83,7 @@ extension Notification.Name {
         center.addObserver(
             self,
             selector: #selector(handleLogout(_:)),
-            name: Notification.Name("hermes.pandora.logout"),
+            name: Notification.Name("PandoraDidLogOutNotification"),
             object: nil
         )
         
@@ -115,28 +99,28 @@ extension Notification.Name {
         center.addObserver(
             self,
             selector: #selector(handleAlwaysOnTopChanged(_:)),
-            name: .preferenceAlwaysOnTopChanged,
+            name: Notification.Name("PreferenceAlwaysOnTopChangedNotification"),
             object: nil
         )
         
         center.addObserver(
             self,
             selector: #selector(handleMediaKeysChanged(_:)),
-            name: .preferenceMediaKeysChanged,
+            name: Notification.Name("PreferenceMediaKeysChangedNotification"),
             object: nil
         )
         
         center.addObserver(
             self,
             selector: #selector(handleDockIconChanged(_:)),
-            name: .preferenceDockIconChanged,
+            name: Notification.Name("PreferenceDockIconChangedNotification"),
             object: nil
         )
         
         center.addObserver(
             self,
             selector: #selector(handleStatusBarChanged(_:)),
-            name: .preferenceStatusBarChanged,
+            name: Notification.Name("PreferenceStatusBarChangedNotification"),
             object: nil
         )
     }
@@ -166,7 +150,7 @@ extension Notification.Name {
     // MARK: - Preference Change Handlers
     
     @objc private func handleAlwaysOnTopChanged(_ notification: Notification) {
-        let alwaysOnTop = UserDefaults.standard.bool(forKey: "alwaysOnTop")
+        let alwaysOnTop = UserDefaults.standard.bool(forKey: UserDefaultsKeys.alwaysOnTop)
         
         // Find the main window and set its level
         if let window = NSApp.windows.first(where: { $0.isKeyWindow || $0.isMainWindow }) {
@@ -175,7 +159,7 @@ extension Notification.Name {
     }
     
     @objc private func handleMediaKeysChanged(_ notification: Notification) {
-        let bindMediaKeys = UserDefaults.standard.bool(forKey: "pleaseBindMedia")
+        let bindMediaKeys = UserDefaults.standard.bool(forKey: UserDefaultsKeys.pleaseBindMedia)
         
         // Toggle media key handling via PlaybackController
         if let mediaKeyTap = playbackController?.mediaKeyTap {
@@ -188,7 +172,7 @@ extension Notification.Name {
     }
     
     @objc private func handleDockIconChanged(_ notification: Notification) {
-        let showAlbumArt = UserDefaults.standard.bool(forKey: "dockIconAlbumArt")
+        let showAlbumArt = UserDefaults.standard.bool(forKey: UserDefaultsKeys.dockIconAlbumArt)
         
         if showAlbumArt {
             // Get current album art from playback and set as dock icon

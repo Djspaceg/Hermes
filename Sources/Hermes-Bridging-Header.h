@@ -10,9 +10,8 @@
 #import <UserNotifications/UserNotifications.h>
 
 #import "SPMediaKeyTap/SPMediaKeyTap.h"
+#import "FMEngine/NSString+FMEngine.h"
 #import "Pandora/Pandora.h"
 #import "Pandora/Station.h"
 #import "Pandora/Song.h"
 #import "Controllers/PlaybackController.h"
-#import "Integration/Keychain.h"
-#import "Integration/Scrobbler.h"

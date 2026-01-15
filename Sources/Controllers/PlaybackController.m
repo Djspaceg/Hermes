@@ -11,9 +11,8 @@
 #import <MediaPlayer/MediaPlayer.h>
 
 #import "PlaybackController.h"
-#import "ImageLoader.h"
+#import "Hermes-Swift.h"
 #import "HermesConstants.h"
-#import "Notifications.h"
 #import "Pandora/Song.h"
 #import "Pandora/Pandora.h"
 // #import "StationsController.h" // Not needed - removed
@@ -86,23 +85,23 @@ static BOOL playOnStart = YES;
     // Observe when a new song starts
     [center addObserver:self
                selector:@selector(songPlayed:)
-                   name:StationDidPlaySongNotification
+                   name:@"StationDidPlaySongNotification"
                  object:nil];
     
     // Observe Pandora API responses
     [center addObserver:self
                selector:@selector(handlePandoraResponse:)
-                   name:PandoraDidRateSongNotification
+                   name:@"PandoraDidRateSongNotification"
                  object:nil];
     
     [center addObserver:self
                selector:@selector(handlePandoraResponse:)
-                   name:PandoraDidDeleteFeedbackNotification
+                   name:@"PandoraDidDeleteFeedbackNotification"
                  object:nil];
     
     [center addObserver:self
                selector:@selector(handlePandoraResponse:)
-                   name:PandoraDidTireSongNotification
+                   name:@"PandoraDidTireSongNotification"
                  object:nil];
     
     // Observe app lifecycle for progress timer management
@@ -121,22 +120,22 @@ static BOOL playOnStart = YES;
     
     [distCenter addObserver:self
                    selector:@selector(pauseOnScreensaverStart:)
-                       name:AppleScreensaverDidStartDistributedNotification
+                       name:@"com.apple.screensaver.didstart"
                      object:nil];
     
     [distCenter addObserver:self
                    selector:@selector(playOnScreensaverStop:)
-                       name:AppleScreensaverDidStopDistributedNotification
+                       name:@"com.apple.screensaver.didstop"
                      object:nil];
     
     [distCenter addObserver:self
                    selector:@selector(pauseOnScreenLock:)
-                       name:AppleScreenIsLockedDistributedNotification
+                       name:@"com.apple.screenIsLocked"
                      object:nil];
     
     [distCenter addObserver:self
                    selector:@selector(playOnScreenUnlock:)
-                       name:AppleScreenIsUnlockedDistributedNotification
+                       name:@"com.apple.screenIsUnlocked"
                      object:nil];
     
     // Set up media key handling
@@ -234,7 +233,7 @@ static BOOL playOnStart = YES;
     
     if (_playing) {
         [_playing stop];
-        [[ImageLoader loader] cancel:[[_playing playingSong] art]];
+        [[ImageCache shared] cancel:[[_playing playingSong] art]];
     }
     
     _playing = station;
@@ -314,7 +313,7 @@ static BOOL playOnStart = YES;
 
 - (void)next {
     if ([_playing playingSong] != nil) {
-        [[ImageLoader loader] cancel:[[_playing playingSong] art]];
+        [[ImageCache shared] cancel:[[_playing playingSong] art]];
     }
     [_playing next];
 }
@@ -495,7 +494,7 @@ static BOOL playOnStart = YES;
     }
     
     __weak typeof(self) weakSelf = self;
-    [[ImageLoader loader] loadImageURL:[song art] callback:^(NSData *data) {
+    [[ImageCache shared] loadImageURL:[song art] callback:^(NSData *data) {
         __strong typeof(weakSelf) strongSelf = weakSelf;
         if (!strongSelf) return;
         

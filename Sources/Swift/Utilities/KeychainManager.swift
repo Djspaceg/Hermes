@@ -20,19 +20,30 @@ protocol KeychainProtocol {
 }
 
 /// Modern keychain manager for secure credential storage
-final class KeychainManager: KeychainProtocol {
+@objc(KeychainManager)
+@objcMembers
+final class KeychainManager: NSObject, KeychainProtocol {
     
     // MARK: - Singleton
     
     static let shared: KeychainProtocol = {
         // Use mock keychain during unit tests
-        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+        // Check multiple indicators that we're running in a test environment
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil ||
+           ProcessInfo.processInfo.environment["XCTestSessionIdentifier"] != nil ||
+           NSClassFromString("XCTest") != nil {
+            print("KeychainManager: Using MockKeychainManager for tests")
             return MockKeychainManager()
         }
         return KeychainManager()
     }()
     
-    private init() {}
+    /// Shared instance for Objective-C access (always returns real KeychainManager)
+    @objc static let objcShared = KeychainManager()
+    
+    private override init() {
+        super.init()
+    }
     
     // MARK: - Constants
     
@@ -161,6 +172,35 @@ final class KeychainManager: KeychainProtocol {
         
         let status = SecItemCopyMatching(query as CFDictionary, nil)
         return status == errSecSuccess
+    }
+    
+    // MARK: - Objective-C Compatibility
+    
+    /// Save credentials to keychain (Objective-C compatible)
+    /// - Parameters:
+    ///   - username: The account name
+    ///   - password: The password to store
+    /// - Returns: YES if successful, NO otherwise
+    @objc func setItem(_ username: String, password: String) -> Bool {
+        do {
+            try saveCredentials(username: username, password: password)
+            return true
+        } catch {
+            print("KeychainManager: Failed to save credentials: \(error)")
+            return false
+        }
+    }
+    
+    /// Retrieve password from keychain (Objective-C compatible)
+    /// - Parameter username: The account name
+    /// - Returns: The password if found, nil otherwise
+    @objc func getPassword(_ username: String) -> String? {
+        do {
+            return try retrievePassword(username: username)
+        } catch {
+            print("KeychainManager: Failed to retrieve password: \(error)")
+            return nil
+        }
     }
 }
 

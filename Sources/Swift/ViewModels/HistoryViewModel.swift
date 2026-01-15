@@ -36,6 +36,27 @@ final class HistoryViewModel: ObservableObject {
                 self?.addToHistory(SongModel(song: song))
             }
             .store(in: &cancellables)
+        
+        // Listen for song rating changes
+        NotificationCenter.default.publisher(for: .pandoraDidRateSong)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] notification in
+                Task { @MainActor in
+                    self?.handleSongRated(notification)
+                }
+            }
+            .store(in: &cancellables)
+    }
+    
+    private func handleSongRated(_ notification: Notification) {
+        guard let ratedSong = notification.object as? Song else { return }
+        
+        // Find and update the song in history
+        if let index = historyItems.firstIndex(where: { $0.objcSong === ratedSong }) {
+            // Replace with updated model to trigger view refresh
+            historyItems[index] = SongModel(song: ratedSong)
+            _ = saveHistory()
+        }
     }
     
     // MARK: - Persistence
