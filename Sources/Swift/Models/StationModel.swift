@@ -2,46 +2,65 @@
 //  StationModel.swift
 //  Hermes
 //
-//  Swift wrapper for Objective-C Station class
+//  SwiftUI-friendly wrapper for Station
 //
 
 import Foundation
+import Combine
 
 final class StationModel: ObservableObject, Identifiable, Hashable {
-    let objcStation: Station
+    let station: Station
     
-    var id: String { objcStation.stationId }
+    // Published properties that can change
     @Published var name: String
-    var isQuickMix: Bool { objcStation.isQuickMix }
-    var created: Date { Date(timeIntervalSince1970: TimeInterval(objcStation.created)) }
+    @Published var isPlaying: Bool = false
+    
+    var id: String { station.stationId }
+    var token: String { station.token }
+    var stationId: String { station.stationId }
+    var created: Date { Date(timeIntervalSince1970: TimeInterval(station.created)) }
+    var shared: Bool { station.shared }
+    var allowRename: Bool { station.allowRename }
+    var allowAddMusic: Bool { station.allowAddMusic }
+    var isQuickMix: Bool { station.isQuickMix }
+    var playingSong: Song? { station.playingSong }
+    
+    private var cancellables = Set<AnyCancellable>()
     
     init(station: Station) {
-        self.objcStation = station
+        self.station = station
         self.name = station.name
+        setupObservers()
     }
     
-    static func == (lhs: StationModel, rhs: StationModel) -> Bool {
-        lhs.id == rhs.id
+    private func setupObservers() {
+        // Observe station name changes
+        // Note: If Station properties become observable in the future, add observers here
     }
     
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
+    // MARK: - Hashable
+    
+    nonisolated static func == (lhs: StationModel, rhs: StationModel) -> Bool {
+        lhs.station === rhs.station
+    }
+    
+    nonisolated func hash(into hasher: inout Hasher) {
+        hasher.combine(ObjectIdentifier(station))
     }
 }
 
 // MARK: - Preview Helpers
 
 extension StationModel {
-    /// Creates a mock StationModel for SwiftUI previews
     static func mock(
-        name: String = "Rock Classics",
-        stationId: String = UUID().uuidString,
-        isQuickMix: Bool = false
+        name: String = "Today's Hits",
+        token: String = "mock-token",
+        stationId: String = "mock-id"
     ) -> StationModel {
         let station = Station()
-        station.stationId = stationId
         station.name = name
-        station.isQuickMix = isQuickMix
+        station.token = token
+        station.stationId = stationId
         station.created = UInt64(Date().timeIntervalSince1970)
         return StationModel(station: station)
     }

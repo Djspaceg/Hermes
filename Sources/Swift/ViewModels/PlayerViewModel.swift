@@ -101,7 +101,7 @@ final class PlayerViewModel: ObservableObject, PlayerViewModelProtocol {
         // Legacy song playing notification (from Station)
         center.songPlayingPublisher
             .sink { [weak self] song in
-                print("PlayerViewModel: Received legacy song notification - \(song.title ?? "Unknown")")
+                print("PlayerViewModel: Received legacy song notification - \(song.title)")
                 self?.currentSong = SongModel(song: song)
                 self?.isLiked = (song.nrating?.intValue ?? 0) == 1
             }
@@ -142,7 +142,7 @@ final class PlayerViewModel: ObservableObject, PlayerViewModelProtocol {
             return
         }
         
-        print("PlayerViewModel: Song changed - \(song.title ?? "Unknown") by \(song.artist ?? "Unknown")")
+        print("PlayerViewModel: Song changed - \(song.title) by \(song.artist)")
         let previousSong = currentSong
         currentSong = SongModel(song: song)
         isLiked = (song.nrating?.intValue ?? 0) == 1

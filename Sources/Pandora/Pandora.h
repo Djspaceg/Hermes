@@ -1,6 +1,5 @@
 @class Station;
-
-#import "Pandora/Song.h"
+@class Song;
 
 
 #define PANDORA_API_PATH @"/services/json/"

@@ -1,8 +1,8 @@
 
 #import "Pandora/Station.h"
 #import "Pandora/Pandora.h"
-#import "Pandora/Song.h"
 #import "HermesConstants.h"
+#import "Hermes-Swift.h"
 // #import "StationsController.h" // TODO: Update AppleScript support for SwiftUI
 
 @implementation Station

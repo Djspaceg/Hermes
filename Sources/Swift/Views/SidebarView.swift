@@ -40,7 +40,7 @@ struct SidebarView: View {
         .sheet(item: $stationsViewModel.stationToEdit) { station in
             StationEditView(
                 viewModel: StationEditViewModel(
-                    station: station.objcStation,
+                    station: station.station,
                     pandora: stationsViewModel.pandora
                 )
             )

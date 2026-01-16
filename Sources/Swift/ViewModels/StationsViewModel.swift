@@ -55,7 +55,7 @@ final class StationsViewModel: ObservableObject {
             .store(in: &cancellables)
         
         // Station created - reload stations list
-        NotificationCenter.default.publisher(for: .pandoraDidCreateStation)
+        NotificationCenter.default.publisher(for: Notification.Name("PandoraDidCreateStationNotification"))
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 Task { @MainActor in
@@ -148,7 +148,7 @@ final class StationsViewModel: ObservableObject {
         }
         
         print("StationsViewModel: Calling controller.play() with station")
-        controller.play(station.objcStation)
+        controller.play(station.station)
         playingStationId = station.id
         print("StationsViewModel: Set playingStationId to \(station.id)")
     }
@@ -160,18 +160,18 @@ final class StationsViewModel: ObservableObject {
     
     func performDeleteStation() {
         guard let station = stationToDelete else { return }
-        _ = pandora.removeStation(station.objcStation.token)
+        _ = pandora.removeStation(station.station.token)
         stations.removeAll { $0.id == station.id }
         stationToDelete = nil
     }
     
     func deleteStation(_ station: StationModel) {
-        _ = pandora.removeStation(station.objcStation.token)
+        _ = pandora.removeStation(station.station.token)
         stations.removeAll { $0.id == station.id }
     }
     
     func renameStation(_ station: StationModel, to name: String) {
-        _ = pandora.renameStation(station.objcStation.token, to: name)
+        _ = pandora.renameStation(station.station.token, to: name)
         station.name = name
     }
     

@@ -400,14 +400,23 @@ enum LastFMError: Error, LocalizedError {
 
 // MARK: - String Extensions
 
+import CommonCrypto
+
 extension String {
     func md5sum() -> String {
-        // Use FMEngine's existing MD5 implementation
-        return (self as NSString).md5sum()
+        let data = Data(self.utf8)
+        var digest = [UInt8](repeating: 0, count: Int(CC_MD5_DIGEST_LENGTH))
+        
+        data.withUnsafeBytes { buffer in
+            _ = CC_MD5(buffer.baseAddress, CC_LONG(buffer.count), &digest)
+        }
+        
+        return digest.map { String(format: "%02hhx", $0) }.joined()
     }
     
     func urlEncoded() -> String {
-        // Use FMEngine's existing URL encoding implementation
-        return (self as NSString).urlEncoded()
+        var allowedCharacters = CharacterSet.alphanumerics
+        allowedCharacters.insert(charactersIn: "-._~")
+        return self.addingPercentEncoding(withAllowedCharacters: allowedCharacters) ?? self
     }
 }

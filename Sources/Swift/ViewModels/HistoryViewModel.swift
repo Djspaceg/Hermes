@@ -36,27 +36,6 @@ final class HistoryViewModel: ObservableObject {
                 self?.addToHistory(SongModel(song: song))
             }
             .store(in: &cancellables)
-        
-        // Listen for song rating changes
-        NotificationCenter.default.publisher(for: .pandoraDidRateSong)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] notification in
-                Task { @MainActor in
-                    self?.handleSongRated(notification)
-                }
-            }
-            .store(in: &cancellables)
-    }
-    
-    private func handleSongRated(_ notification: Notification) {
-        guard let ratedSong = notification.object as? Song else { return }
-        
-        // Find and update the song in history
-        if let index = historyItems.firstIndex(where: { $0.objcSong === ratedSong }) {
-            // Replace with updated model to trigger view refresh
-            historyItems[index] = SongModel(song: ratedSong)
-            _ = saveHistory()
-        }
     }
     
     // MARK: - Persistence
@@ -80,7 +59,7 @@ final class HistoryViewModel: ObservableObject {
     
     func saveHistory() -> Bool {
         // Convert SongModel back to Song objects for NSKeyedArchiver
-        let songs = historyItems.map { $0.objcSong }
+        let songs = historyItems.map { $0.song }
         
         do {
             let data = try NSKeyedArchiver.archivedData(withRootObject: songs, requiringSecureCoding: false)
@@ -120,13 +99,13 @@ final class HistoryViewModel: ObservableObject {
             "artist": song.artist,
             "title": song.title,
             "album": song.album,
-            "art": song.artworkURL?.absoluteString ?? "",
-            "stationId": song.objcSong.stationId ?? "",
-            "nrating": song.objcSong.nrating ?? NSNumber(value: 0),
-            "albumUrl": song.objcSong.albumUrl ?? "",
-            "artistUrl": song.objcSong.artistUrl ?? "",
-            "titleUrl": song.objcSong.titleUrl ?? "",
-            "token": song.objcSong.token ?? ""
+            "art": song.song.art ?? "",
+            "stationId": song.song.stationId ?? "",
+            "nrating": song.song.nrating ?? NSNumber(value: 0),
+            "albumUrl": song.song.albumUrl ?? "",
+            "artistUrl": song.song.artistUrl ?? "",
+            "titleUrl": song.song.titleUrl ?? "",
+            "token": song.song.token ?? ""
         ]
         
         DistributedNotificationCenter.default().postNotificationName(
@@ -146,7 +125,7 @@ final class HistoryViewModel: ObservableObject {
     
     func openSongOnPandora() {
         guard let song = selectedItem else { return }
-        if let urlString = song.objcSong.titleUrl,
+        if let urlString = song.song.titleUrl,
            !urlString.isEmpty,
            let url = URL(string: urlString) {
             NSWorkspace.shared.open(url)
@@ -155,7 +134,7 @@ final class HistoryViewModel: ObservableObject {
     
     func openArtistOnPandora() {
         guard let song = selectedItem else { return }
-        if let urlString = song.objcSong.artistUrl,
+        if let urlString = song.song.artistUrl,
            !urlString.isEmpty,
            let url = URL(string: urlString) {
             NSWorkspace.shared.open(url)
@@ -164,7 +143,7 @@ final class HistoryViewModel: ObservableObject {
     
     func openAlbumOnPandora() {
         guard let song = selectedItem else { return }
-        if let urlString = song.objcSong.albumUrl,
+        if let urlString = song.song.albumUrl,
            !urlString.isEmpty,
            let url = URL(string: urlString) {
             NSWorkspace.shared.open(url)
@@ -182,12 +161,12 @@ final class HistoryViewModel: ObservableObject {
     
     func likeSelected() {
         guard let song = selectedItem else { return }
-        MinimalAppDelegate.shared?.playbackController?.rate(song.objcSong, as: true)
+        MinimalAppDelegate.shared?.playbackController?.rate(song.song, as: true)
     }
     
     func dislikeSelected() {
         guard let song = selectedItem else { return }
-        MinimalAppDelegate.shared?.playbackController?.rate(song.objcSong, as: false)
+        MinimalAppDelegate.shared?.playbackController?.rate(song.song, as: false)
     }
     
     // MARK: - Song Actions (for context menu and double-click)
@@ -201,10 +180,10 @@ final class HistoryViewModel: ObservableObject {
     }
     
     func likeSong(_ song: SongModel) {
-        MinimalAppDelegate.shared?.playbackController?.rate(song.objcSong, as: true)
+        MinimalAppDelegate.shared?.playbackController?.rate(song.song, as: true)
     }
     
     func dislikeSong(_ song: SongModel) {
-        MinimalAppDelegate.shared?.playbackController?.rate(song.objcSong, as: false)
+        MinimalAppDelegate.shared?.playbackController?.rate(song.song, as: false)
     }
 }

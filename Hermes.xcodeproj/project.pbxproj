@@ -45,6 +45,8 @@
 		634D8E982F1720000069FD8F /* KeychainManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634D8E972F1720000069FD8F /* KeychainManager.swift */; };
 		634D90EA2F19AD5E0069FD8F /* AppleScriptSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634D90E72F19AD5E0069FD8F /* AppleScriptSupport.swift */; };
 		634D90EB2F19AD5E0069FD8F /* LastFMService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634D90E82F19AD5E0069FD8F /* LastFMService.swift */; };
+		634D910C2F19BCB10069FD8F /* Song.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634D910B2F19BCB10069FD8F /* Song.swift */; };
+		634D910D2F19BCB10069FD8F /* PandoraDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634D910A2F19BCB10069FD8F /* PandoraDevice.swift */; };
 		8D11072B0486CEB800E47090 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 089C165CFE840E0CC02AAC07 /* InfoPlist.strings */; };
 		96BB97EF20A84DC8857739DC /* HTTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83CE1A66FC3E4E83B90BC42F /* HTTPClient.swift */; };
 		97177194159EAA7D00EE3355 /* cd.png in Resources */ = {isa = PBXBuildFile; fileRef = 97177193159EAA7D00EE3355 /* cd.png */; };
@@ -60,7 +62,6 @@
 		FA229D6514429E48008AB9FE /* history.png in Resources */ = {isa = PBXBuildFile; fileRef = FA229D6414429E48008AB9FE /* history.png */; };
 		FA2A3F80132BF97E0089AECC /* Pandora.m in Sources */ = {isa = PBXBuildFile; fileRef = FA2A3F78132BF97E0089AECC /* Pandora.m */; };
 		FA2A3F98132BF9F50089AECC /* Crypt.m in Sources */ = {isa = PBXBuildFile; fileRef = FA2A3F92132BF9F50089AECC /* Crypt.m */; };
-		FA2A3F99132BF9F50089AECC /* Song.m in Sources */ = {isa = PBXBuildFile; fileRef = FA2A3F95132BF9F50089AECC /* Song.m */; };
 		FA2A3F9A132BF9F50089AECC /* Station.m in Sources */ = {isa = PBXBuildFile; fileRef = FA2A3F97132BF9F50089AECC /* Station.m */; };
 		FA3CFE29132F9D30003554E2 /* missing-album.png in Resources */ = {isa = PBXBuildFile; fileRef = FA3CFE28132F9D30003554E2 /* missing-album.png */; };
 		FA3CFF44132FC4CF003554E2 /* PlaybackController.m in Sources */ = {isa = PBXBuildFile; fileRef = FA3CFF43132FC4CF003554E2 /* PlaybackController.m */; };
@@ -157,6 +158,8 @@
 		634D8E972F187B0D0069FD8F /* HermesTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HermesTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		634D90E72F19AD5E0069FD8F /* AppleScriptSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleScriptSupport.swift; sourceTree = "<group>"; };
 		634D90E82F19AD5E0069FD8F /* LastFMService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastFMService.swift; sourceTree = "<group>"; };
+		634D910A2F19BCB10069FD8F /* PandoraDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PandoraDevice.swift; sourceTree = "<group>"; };
+		634D910B2F19BCB10069FD8F /* Song.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Song.swift; sourceTree = "<group>"; };
 		83CE1A66FC3E4E83B90BC42F /* HTTPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HTTPClient.swift; path = Sources/Swift/Utilities/HTTPClient.swift; sourceTree = SOURCE_ROOT; };
 		843B578919660680000898F2 /* NSObject+SPInvocationGrabbing.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSObject+SPInvocationGrabbing.h"; sourceTree = "<group>"; };
 		843B578A19660680000898F2 /* NSObject+SPInvocationGrabbing.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSObject+SPInvocationGrabbing.m"; sourceTree = "<group>"; };
@@ -181,8 +184,6 @@
 		FA2A3F78132BF97E0089AECC /* Pandora.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Pandora.m; sourceTree = "<group>"; };
 		FA2A3F91132BF9F50089AECC /* Crypt.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Crypt.h; sourceTree = "<group>"; };
 		FA2A3F92132BF9F50089AECC /* Crypt.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Crypt.m; sourceTree = "<group>"; };
-		FA2A3F94132BF9F50089AECC /* Song.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Song.h; sourceTree = "<group>"; };
-		FA2A3F95132BF9F50089AECC /* Song.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Song.m; sourceTree = "<group>"; };
 		FA2A3F96132BF9F50089AECC /* Station.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Station.h; sourceTree = "<group>"; };
 		FA2A3F97132BF9F50089AECC /* Station.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Station.m; sourceTree = "<group>"; };
 		FA3CFE28132F9D30003554E2 /* missing-album.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "missing-album.png"; sourceTree = "<group>"; };
@@ -307,6 +308,8 @@
 		634D8E5A2F16EE7A0069FD8F /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				634D910A2F19BCB10069FD8F /* PandoraDevice.swift */,
+				634D910B2F19BCB10069FD8F /* Song.swift */,
 				634D8E582F16EE7A0069FD8F /* SongModel.swift */,
 				634D8E592F16EE7A0069FD8F /* StationModel.swift */,
 			);
@@ -413,8 +416,6 @@
 				FA2A3F78132BF97E0089AECC /* Pandora.m */,
 				FA2A3F91132BF9F50089AECC /* Crypt.h */,
 				FA2A3F92132BF9F50089AECC /* Crypt.m */,
-				FA2A3F94132BF9F50089AECC /* Song.h */,
-				FA2A3F95132BF9F50089AECC /* Song.m */,
 				FA2A3F96132BF9F50089AECC /* Station.h */,
 				FA2A3F97132BF9F50089AECC /* Station.m */,
 				44411DA5190166FB00EC4E05 /* PandoraDevice.h */,
@@ -647,7 +648,6 @@
 				441C9F0E1CC80AA0000A0302 /* ASPlaylist.m in Sources */,
 				FA2A3F80132BF97E0089AECC /* Pandora.m in Sources */,
 				FA2A3F98132BF9F50089AECC /* Crypt.m in Sources */,
-				FA2A3F99132BF9F50089AECC /* Song.m in Sources */,
 				FA2A3F9A132BF9F50089AECC /* Station.m in Sources */,
 				634D8E722F16EE7A0069FD8F /* PlayerView.swift in Sources */,
 				634D8E732F16EE7A0069FD8F /* PlayerViewModel.swift in Sources */,
@@ -658,6 +658,8 @@
 				634D8E782F16EE7A0069FD8F /* ErrorView.swift in Sources */,
 				634D8E792F16EE7A0069FD8F /* HermesApp.swift in Sources */,
 				634D8E7A2F16EE7A0069FD8F /* LoginViewModel.swift in Sources */,
+				634D910C2F19BCB10069FD8F /* Song.swift in Sources */,
+				634D910D2F19BCB10069FD8F /* PandoraDevice.swift in Sources */,
 				634D8E7B2F16EE7A0069FD8F /* HistoryViewModel.swift in Sources */,
 				634D8E7C2F16EE7A0069FD8F /* StationsViewModel.swift in Sources */,
 				634D8E7D2F16EE7A0069FD8F /* LoginView.swift in Sources */,

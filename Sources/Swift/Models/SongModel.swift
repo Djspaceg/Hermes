@@ -2,31 +2,62 @@
 //  SongModel.swift
 //  Hermes
 //
-//  Swift wrapper for Objective-C Song class
+//  SwiftUI-friendly view model for Song
 //
 
 import Foundation
+import Combine
 
-struct SongModel: Identifiable, Hashable {
-    let objcSong: Song
+final class SongModel: ObservableObject, Identifiable, Hashable {
+    let song: Song
     
-    var id: String { objcSong.token ?? UUID().uuidString }
-    var title: String { objcSong.title ?? "Unknown" }
-    var artist: String { objcSong.artist ?? "Unknown Artist" }
-    var album: String { objcSong.album ?? "Unknown Album" }
-    var artworkURL: URL? { 
-        guard let art = objcSong.art else { return nil }
+    // Published properties that can change
+    @Published var rating: Int
+    
+    nonisolated var id: String { song.token ?? UUID().uuidString }
+    var title: String { song.title }
+    var artist: String { song.artist }
+    var album: String { song.album }
+    var artworkURL: URL? {
+        guard let art = song.art else { return nil }
         return URL(string: art)
     }
-    var rating: Int { objcSong.nrating?.intValue ?? 0 }
     
     // Pandora web URLs
-    var titleUrl: String? { objcSong.titleUrl }
-    var artistUrl: String? { objcSong.artistUrl }
-    var albumUrl: String? { objcSong.albumUrl }
+    var titleUrl: String? { song.titleUrl }
+    var artistUrl: String? { song.artistUrl }
+    var albumUrl: String? { song.albumUrl }
+    
+    private var cancellables = Set<AnyCancellable>()
     
     init(song: Song) {
-        self.objcSong = song
+        self.song = song
+        self.rating = song.nrating?.intValue ?? 0
+        setupRatingObserver()
+    }
+    
+    private func setupRatingObserver() {
+        // Observe rating changes from Objective-C layer
+        NotificationCenter.default.publisher(for: Notification.Name("PandoraDidRateSongNotification"))
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] notification in
+                guard let self = self,
+                      let ratedSong = notification.object as? Song,
+                      ratedSong === self.song else { return }
+                
+                self.rating = self.song.nrating?.intValue ?? 0
+            }
+            .store(in: &cancellables)
+    }
+    
+    // MARK: - Hashable
+    
+    nonisolated static func == (lhs: SongModel, rhs: SongModel) -> Bool {
+        lhs.song === rhs.song
+    }
+    
+    nonisolated func hash(into hasher: inout Hasher) {
+        hasher.combine(ObjectIdentifier(song))
     }
 }
 
@@ -51,3 +82,5 @@ extension SongModel {
         return SongModel(song: song)
     }
 }
+
+

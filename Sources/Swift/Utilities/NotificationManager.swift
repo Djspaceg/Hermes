@@ -108,14 +108,14 @@ final class NotificationManager: NSObject, ObservableObject {
         // Build notification content
         let content = UNMutableNotificationContent()
         
-        var title = song.title ?? "Unknown Song"
+        var title = song.title
         if song.nrating?.intValue == 1 {
             title = "👍 \(title)"
         }
         content.title = title
         
-        let artist = song.artist ?? "Unknown Artist"
-        let album = song.album ?? "Unknown Album"
+        let artist = song.artist
+        let album = song.album
         content.body = "\(artist)\n\(album)"
         
         content.categoryIdentifier = songCategoryIdentifier
