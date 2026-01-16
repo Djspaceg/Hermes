@@ -11,9 +11,23 @@ import Combine
 @MainActor
 final class HistoryViewModel: ObservableObject {
     @Published var historyItems: [SongModel] = []
-    @Published var selectedItem: SongModel?
+    @Published var selectedItem: SongModel? {
+        didSet {
+            // When selection changes, observe the new item's rating changes
+            selectedItemRatingCancellable?.cancel()
+            if let selectedItem = selectedItem {
+                selectedItemRatingCancellable = selectedItem.$rating
+                    .sink { [weak self] _ in
+                        // Trigger view update by reassigning selectedItem
+                        // This forces SwiftUI to re-evaluate the footer buttons
+                        self?.objectWillChange.send()
+                    }
+            }
+        }
+    }
     
     private var cancellables = Set<AnyCancellable>()
+    private var selectedItemRatingCancellable: AnyCancellable?
     private let maxHistoryItems = 20 // Match Objective-C HISTORY_LIMIT
     private let saveStatePath: String
     

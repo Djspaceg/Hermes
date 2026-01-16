@@ -27,6 +27,9 @@ final class Song: NSObject, Identifiable {
     var medUrl: String?
     var lowUrl: String?
     
+    var trackGain: String?
+    var allowFeedback: Bool = true
+    
     var playDate: Date?
     
     // MARK: - Computed Properties
@@ -65,20 +68,22 @@ final class Song: NSObject, Identifiable {
     // MARK: - NSCoding (for backward compatibility with saved history)
     
     required init?(coder: NSCoder) {
-        self.artist = coder.decodeObject(forKey: "artist") as? String ?? ""
-        self.title = coder.decodeObject(forKey: "title") as? String ?? ""
-        self.album = coder.decodeObject(forKey: "album") as? String ?? ""
-        self.art = coder.decodeObject(forKey: "art") as? String
-        self.highUrl = coder.decodeObject(forKey: "highUrl") as? String
-        self.medUrl = coder.decodeObject(forKey: "medUrl") as? String
-        self.lowUrl = coder.decodeObject(forKey: "lowUrl") as? String
-        self.stationId = coder.decodeObject(forKey: "stationId") as? String
-        self.nrating = coder.decodeObject(forKey: "nrating") as? NSNumber
-        self.albumUrl = coder.decodeObject(forKey: "albumUrl") as? String
-        self.artistUrl = coder.decodeObject(forKey: "artistUrl") as? String
-        self.titleUrl = coder.decodeObject(forKey: "titleUrl") as? String
-        self.token = coder.decodeObject(forKey: "token") as? String
-        self.playDate = coder.decodeObject(forKey: "playDate") as? Date
+        self.artist = coder.decodeObject(of: NSString.self, forKey: "artist") as String? ?? ""
+        self.title = coder.decodeObject(of: NSString.self, forKey: "title") as String? ?? ""
+        self.album = coder.decodeObject(of: NSString.self, forKey: "album") as String? ?? ""
+        self.art = coder.decodeObject(of: NSString.self, forKey: "art") as String?
+        self.highUrl = coder.decodeObject(of: NSString.self, forKey: "highUrl") as String?
+        self.medUrl = coder.decodeObject(of: NSString.self, forKey: "medUrl") as String?
+        self.lowUrl = coder.decodeObject(of: NSString.self, forKey: "lowUrl") as String?
+        self.stationId = coder.decodeObject(of: NSString.self, forKey: "stationId") as String?
+        self.nrating = coder.decodeObject(of: NSNumber.self, forKey: "nrating")
+        self.albumUrl = coder.decodeObject(of: NSString.self, forKey: "albumUrl") as String?
+        self.artistUrl = coder.decodeObject(of: NSString.self, forKey: "artistUrl") as String?
+        self.titleUrl = coder.decodeObject(of: NSString.self, forKey: "titleUrl") as String?
+        self.token = coder.decodeObject(of: NSString.self, forKey: "token") as String?
+        self.trackGain = coder.decodeObject(of: NSString.self, forKey: "trackGain") as String?
+        self.allowFeedback = coder.decodeBool(forKey: "allowFeedback")
+        self.playDate = coder.decodeObject(of: NSDate.self, forKey: "playDate") as Date?
         super.init()
     }
     
@@ -95,7 +100,8 @@ final class Song: NSObject, Identifiable {
         var dict: [String: Any] = [
             "artist": artist,
             "title": title,
-            "album": album
+            "album": album,
+            "allowFeedback": allowFeedback
         ]
         
         if let art = art { dict["art"] = art }
@@ -108,6 +114,7 @@ final class Song: NSObject, Identifiable {
         if let artistUrl = artistUrl { dict["artistUrl"] = artistUrl }
         if let titleUrl = titleUrl { dict["titleUrl"] = titleUrl }
         if let token = token { dict["token"] = token }
+        if let trackGain = trackGain { dict["trackGain"] = trackGain }
         if let playDate = playDate { dict["playDate"] = playDate }
         
         return dict

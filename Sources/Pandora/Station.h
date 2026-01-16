@@ -19,9 +19,12 @@
 @property BOOL allowRename;
 @property BOOL allowAddMusic; // seems that (with the exception of QuickMix, which is excluded from editing elsewhere) that this is not actually a limitation any more; it's possible to add seeds to genre stations (#267).
 @property BOOL isQuickMix;
+@property NSString *artUrl;
+@property NSArray<NSString *> *genres;
 
 - (void) setRadio:(Pandora*)radio;
 - (NSString*) streamNetworkError;
+- (void) applyTrackGain:(NSString*)gainString;
 
 + (Station*) stationForToken:(NSString*)token;
 + (void) addStation:(Station*)s;

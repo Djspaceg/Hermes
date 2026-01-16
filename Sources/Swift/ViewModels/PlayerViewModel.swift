@@ -21,7 +21,6 @@ final class PlayerViewModel: ObservableObject, PlayerViewModelProtocol {
     @Published var volume: Double = 1.0
     @Published var isLiked: Bool = false
     @Published var artworkImage: NSImage?
-    @Published var showingArtworkPreview: Bool = false
     
     // MARK: - Private Properties
     
@@ -66,16 +65,26 @@ final class PlayerViewModel: ObservableObject, PlayerViewModelProtocol {
         
         let center = NotificationCenter.default
         
-        // New song started
+        // New song started - deduplicate rapid notifications
         center.publisher(for: Notification.Name("StationDidPlaySongNotification"))
+            .debounce(for: .milliseconds(100), scheduler: DispatchQueue.main)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.updateCurrentSong()
             }
             .store(in: &cancellables)
         
-        // Playback state changed (play/pause/stop)
+        // Song rating changed - update like state
+        center.publisher(for: Notification.Name("PandoraDidRateSongNotification"))
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] notification in
+                self?.handleSongRatingChanged(notification)
+            }
+            .store(in: &cancellables)
+        
+        // Playback state changed (play/pause/stop) - deduplicate rapid changes
         center.publisher(for: Notification.Name("PlaybackStateDidChangeNotification"))
+            .debounce(for: .milliseconds(50), scheduler: DispatchQueue.main)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.updatePlaybackState()
@@ -90,28 +99,11 @@ final class PlayerViewModel: ObservableObject, PlayerViewModelProtocol {
             }
             .store(in: &cancellables)
         
-        // Album art loaded
+        // Album art loaded - this is the proper time to update artwork
         center.publisher(for: Notification.Name("PlaybackArtDidLoadNotification"))
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.updateArtwork()
-            }
-            .store(in: &cancellables)
-        
-        // Legacy song playing notification (from Station)
-        center.songPlayingPublisher
-            .sink { [weak self] song in
-                print("PlayerViewModel: Received legacy song notification - \(song.title)")
-                self?.currentSong = SongModel(song: song)
-                self?.isLiked = (song.nrating?.intValue ?? 0) == 1
-            }
-            .store(in: &cancellables)
-        
-        // Legacy playback state
-        center.playbackStatePublisher
-            .sink { [weak self] playing in
-                print("PlayerViewModel: Legacy playback state - playing: \(playing)")
-                self?.isPlaying = playing
             }
             .store(in: &cancellables)
     }
@@ -139,6 +131,7 @@ final class PlayerViewModel: ObservableObject, PlayerViewModelProtocol {
               let song = station.playingSong else {
             currentSong = nil
             isLiked = false
+            artworkImage = nil
             return
         }
         
@@ -146,9 +139,11 @@ final class PlayerViewModel: ObservableObject, PlayerViewModelProtocol {
         let previousSong = currentSong
         currentSong = SongModel(song: song)
         isLiked = (song.nrating?.intValue ?? 0) == 1
-        updateArtwork()
         
-        // Show notification for new song
+        // Don't call updateArtwork() here - it will be called when PlaybackArtDidLoadNotification fires
+        // This prevents showing stale artwork from the previous song
+        
+        // Show notification for new song (artwork will be updated via PlaybackArtDidLoadNotification)
         let isNewSong = previousSong?.title != song.title
         NotificationManager.shared.showSongNotification(
             song: song,
@@ -160,12 +155,18 @@ final class PlayerViewModel: ObservableObject, PlayerViewModelProtocol {
     private func updatePlaybackState() {
         guard let controller = playbackController,
               let station = controller.playing else {
-            isPlaying = false
+            if isPlaying != false {
+                isPlaying = false
+                print("PlayerViewModel: State updated - isPlaying: false")
+            }
             return
         }
         
-        isPlaying = station.isPlaying()
-        print("PlayerViewModel: State updated - isPlaying: \(isPlaying)")
+        let newState = station.isPlaying()
+        if isPlaying != newState {
+            isPlaying = newState
+            print("PlayerViewModel: State updated - isPlaying: \(isPlaying)")
+        }
     }
     
     private func handleProgressUpdate(_ notification: Notification) {
@@ -179,8 +180,36 @@ final class PlayerViewModel: ObservableObject, PlayerViewModelProtocol {
         duration = dur
     }
     
+    private func handleSongRatingChanged(_ notification: Notification) {
+        // Update isLiked state when song rating changes
+        guard let ratedSong = notification.object as? Song else { return }
+        
+        // Check if this is the currently playing song
+        if let currentSongToken = currentSong?.song.token,
+           let ratedSongToken = ratedSong.token,
+           currentSongToken == ratedSongToken {
+            let newRating = ratedSong.nrating?.intValue ?? 0
+            isLiked = (newRating == 1)
+            print("PlayerViewModel: Rating changed for current song - isLiked: \(isLiked)")
+            
+            // Update the current song model's rating too
+            currentSong?.song.nrating = ratedSong.nrating
+        }
+    }
+    
     private func updateArtwork() {
+        let previousArtwork = artworkImage
         artworkImage = playbackController?.artImage
+        
+        // If artwork just loaded and we have a current song, update the notification with artwork
+        if previousArtwork == nil && artworkImage != nil, 
+           let song = playbackController?.playing?.playingSong {
+            NotificationManager.shared.showSongNotification(
+                song: song,
+                image: artworkImage,
+                isNewSong: false // Don't play sound again, just update the notification
+            )
+        }
     }
     
     // MARK: - Playback Controls
@@ -214,12 +243,6 @@ final class PlayerViewModel: ObservableObject, PlayerViewModelProtocol {
     func setVolume(_ newVolume: Double) {
         volume = newVolume
         playbackController?.volume = Int(newVolume * 100)
-    }
-    
-    // MARK: - Album Art Preview
-    
-    func toggleArtworkPreview() {
-        showingArtworkPreview.toggle()
     }
 }
 
@@ -261,7 +284,6 @@ final class PreviewPlayerViewModel: ObservableObject, PlayerViewModelProtocol {
     @Published var volume: Double = 1.0
     @Published var isLiked: Bool = false
     @Published var artworkImage: NSImage?
-    @Published var showingArtworkPreview: Bool = false
     
     init(
         song: SongModel? = .mock(),
@@ -288,5 +310,4 @@ final class PreviewPlayerViewModel: ObservableObject, PlayerViewModelProtocol {
     func dislike() {}
     func tired() {}
     func setVolume(_ newVolume: Double) { volume = newVolume }
-    func toggleArtworkPreview() { showingArtworkPreview.toggle() }
 }

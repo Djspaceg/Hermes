@@ -24,6 +24,11 @@ final class StationModel: ObservableObject, Identifiable, Hashable {
     var allowAddMusic: Bool { station.allowAddMusic }
     var isQuickMix: Bool { station.isQuickMix }
     var playingSong: Song? { station.playingSong }
+    var artworkURL: URL? {
+        guard let artUrl = station.artUrl else { return nil }
+        return URL(string: artUrl)
+    }
+    var genres: [String] { station.genres ?? [] }
     
     private var cancellables = Set<AnyCancellable>()
     

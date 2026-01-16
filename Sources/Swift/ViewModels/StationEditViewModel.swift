@@ -25,6 +25,7 @@ protocol StationEditViewModelProtocol: ObservableObject {
     var isLoading: Bool { get set }
     var isSaving: Bool { get set }
     
+    func loadDetailsIfNeeded()
     func renameStation(to name: String)
     func openInPandora()
     func addSeed(_ result: SeedSearchResult)
@@ -67,9 +68,18 @@ final class StationEditViewModel: ObservableObject, StationEditViewModelProtocol
     init(station: Station, pandora: Pandora) {
         self.station = station
         self.pandora = pandora
-        loadStationDetails()
+        self.stationName = station.name ?? ""
         setupSeedSearchDebounce()
         setupNotificationObservers()
+        // Don't load details immediately - wait for explicit call
+    }
+    
+    // MARK: - Public Methods
+    
+    /// Call this when the view appears to load station details
+    func loadDetailsIfNeeded() {
+        guard seeds.isEmpty && likes.isEmpty && dislikes.isEmpty else { return }
+        loadStationDetails()
     }
     
     // MARK: - Notification Observers
@@ -134,7 +144,7 @@ final class StationEditViewModel: ObservableObject, StationEditViewModelProtocol
     
     // MARK: - Load Station Details
     
-    func loadStationDetails() {
+    private func loadStationDetails() {
         isLoading = true
         stationName = station.name ?? ""
         pandora.fetchStationInfo(station)
@@ -143,7 +153,9 @@ final class StationEditViewModel: ObservableObject, StationEditViewModelProtocol
     private func handleStationInfo(_ notification: Notification) {
         isLoading = false
         
-        guard let userInfo = notification.userInfo as? [String: Any] else { return }
+        guard let userInfo = notification.userInfo as? [String: Any] else {
+            return
+        }
         
         // Basic info
         if let name = userInfo["name"] as? String {

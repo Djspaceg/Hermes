@@ -441,6 +441,19 @@ static NSString *hierrs[] = {
   [station setCreated:       [s[@"dateCreated"][@"time"] unsignedLongLongValue]];
   [station setRadio:self];
   
+  // Extract artwork URL if available (note: JSON API v5 doesn't provide this)
+  if (s[@"artUrl"] != nil && ![s[@"artUrl"] isEqual:[NSNull null]]) {
+    [station setArtUrl:s[@"artUrl"]];
+  }
+  
+  // Extract genres - can be array or single string
+  id genreData = s[@"genre"];
+  if ([genreData isKindOfClass:[NSArray class]]) {
+    [station setGenres:genreData];
+  } else if ([genreData isKindOfClass:[NSString class]]) {
+    [station setGenres:@[genreData]];
+  }
+  
   if ([s[@"isQuickMix"] boolValue]) {
     station.name = @"\U0001F500 Shuffle";
     station.isQuickMix = YES;
@@ -477,6 +490,18 @@ static NSString *hierrs[] = {
       song.albumUrl = s[@"albumDetailUrl"];
       song.artistUrl = s[@"artistDetailUrl"];
       song.titleUrl = s[@"songDetailUrl"];
+      
+      // Extract track gain for audio normalization
+      if (s[@"trackGain"] != nil && ![s[@"trackGain"] isEqual:[NSNull null]]) {
+        song.trackGain = s[@"trackGain"];
+      }
+      
+      // Extract allowFeedback flag (defaults to YES if not present)
+      if (s[@"allowFeedback"] != nil) {
+        song.allowFeedback = [s[@"allowFeedback"] boolValue];
+      } else {
+        song.allowFeedback = YES;
+      }
 
       id urls = s[@"additionalAudioUrl"];
       if ([urls isKindOfClass:[NSArray class]]) {
@@ -569,7 +594,15 @@ static NSString *hierrs[] = {
     info[@"created"] = [gregorian dateFromComponents:created];
     NSString *art = result[@"artUrl"];
     if (art != nil) { info[@"art"] = art; }
-    info[@"genres"] = result[@"genre"];
+    
+    // Parse genres - could be array or single string
+    id genreData = result[@"genre"];
+    if ([genreData isKindOfClass:[NSArray class]]) {
+      info[@"genres"] = genreData;
+    } else if ([genreData isKindOfClass:[NSString class]]) {
+      info[@"genres"] = @[genreData];
+    }
+    
     info[@"url"] = result[@"stationDetailUrl"];
     
     /* Seeds - note that mutability is assumed by StationController */

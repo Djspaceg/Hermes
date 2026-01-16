@@ -12,10 +12,9 @@ struct StationEditView<ViewModel: StationEditViewModelProtocol>: View {
     @Environment(\.dismiss) private var dismiss
     @State private var isEditingName = false
     @State private var editedName = ""
-    @State private var selectedTab: Tab = .seeds
-    
+    @State private var selectedTab: Tab = .likes
+
     enum Tab: String, CaseIterable {
-        case seeds = "Seeds"
         case likes = "Likes"
         case dislikes = "Dislikes"
     }
@@ -33,6 +32,9 @@ struct StationEditView<ViewModel: StationEditViewModelProtocol>: View {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Done") { dismiss() }
             }
+        }
+        .onAppear {
+            viewModel.loadDetailsIfNeeded()
         }
     }
     
@@ -66,16 +68,7 @@ struct StationEditView<ViewModel: StationEditViewModelProtocol>: View {
             .frame(minWidth: 400, maxHeight: .infinity, alignment: .top)
             
             // Right: Feedback tabs
-            VStack(alignment: .leading, spacing: 0) {
-                Text("Feedback")
-                    .font(.headline)
-                    .padding()
-                
-                Divider()
-                
-                feedbackSection
-            }
-            .frame(minWidth: 300, maxHeight: .infinity, alignment: .top)
+            feedbackSection.frame(minWidth: 300, maxHeight: .infinity, alignment: .top)
         }
     }
     
@@ -229,8 +222,6 @@ struct StationEditView<ViewModel: StationEditViewModelProtocol>: View {
             Divider()
             
             switch selectedTab {
-            case .seeds:
-                EmptyView()
             case .likes:
                 feedbackList(items: viewModel.likes, emptyMessage: "No liked songs")
             case .dislikes:

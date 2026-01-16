@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		6D2D8B1F1FAD4654B364E77F /* StationArtworkLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD2036192DD64C5DB24413F7 /* StationArtworkLoader.swift */; };
+		3028D908ACEE48939E153EE8 /* SidebarWidthKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1C07AF1C3E448FDB3B2CA5E /* SidebarWidthKey.swift */; };
 		05C0BB8F3C1940D8BEBFA6F2 /* NetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D276383AE2745A59B7165F6 /* NetworkMonitor.swift */; };
 		441C9F0E1CC80AA0000A0302 /* ASPlaylist.m in Sources */ = {isa = PBXBuildFile; fileRef = FA99E25A15E4B7EA005AB6E6 /* ASPlaylist.m */; };
 		441C9F101CC815A1000A0302 /* NSObject+SPInvocationGrabbing.m in Sources */ = {isa = PBXBuildFile; fileRef = 843B578A19660680000898F2 /* NSObject+SPInvocationGrabbing.m */; settings = {COMPILER_FLAGS = "-fno-objc-arc"; }; };
@@ -118,6 +120,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		DD2036192DD64C5DB24413F7 /* StationArtworkLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StationArtworkLoader.swift; path = Sources/Swift/Services/StationArtworkLoader.swift; sourceTree = SOURCE_ROOT; };
+		E1C07AF1C3E448FDB3B2CA5E /* SidebarWidthKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SidebarWidthKey.swift; path = Sources/Swift/Utilities/SidebarWidthKey.swift; sourceTree = SOURCE_ROOT; };
 		089C165DFE840E0CC02AAC07 /* English */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = English; path = English.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		197AFF42DDEA46718095DC3F /* NotificationNames.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NotificationNames.swift; path = Sources/Swift/Utilities/NotificationNames.swift; sourceTree = SOURCE_ROOT; };
 		1DDD58150DA1D0A300B32029 /* English */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = English; path = English.lproj/MainMenu.xib; sourceTree = "<group>"; };
@@ -329,7 +333,8 @@
 				197AFF42DDEA46718095DC3F /* NotificationNames.swift */,
 				83CE1A66FC3E4E83B90BC42F /* HTTPClient.swift */,
 				4D276383AE2745A59B7165F6 /* NetworkMonitor.swift */,
-			);
+			
+				E1C07AF1C3E448FDB3B2CA5E /* SidebarWidthKey.swift */,);
 			path = Utilities;
 			sourceTree = "<group>";
 		};
@@ -385,7 +390,8 @@
 			children = (
 				634D90E72F19AD5E0069FD8F /* AppleScriptSupport.swift */,
 				634D90E82F19AD5E0069FD8F /* LastFMService.swift */,
-			);
+			
+				DD2036192DD64C5DB24413F7 /* StationArtworkLoader.swift */,);
 			path = Services;
 			sourceTree = "<group>";
 		};
@@ -692,7 +698,9 @@
 				9994CD5B5A274289862EBCEE /* NotificationNames.swift in Sources */,
 				96BB97EF20A84DC8857739DC /* HTTPClient.swift in Sources */,
 				05C0BB8F3C1940D8BEBFA6F2 /* NetworkMonitor.swift in Sources */,
-			);
+			
+						3028D908ACEE48939E153EE8 /* SidebarWidthKey.swift in Sources */,
+						6D2D8B1F1FAD4654B364E77F /* StationArtworkLoader.swift in Sources */,);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */

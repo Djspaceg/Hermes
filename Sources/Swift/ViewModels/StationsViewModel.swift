@@ -25,12 +25,19 @@ final class StationsViewModel: ObservableObject {
     @Published var isRefreshing = false
     @Published var showAddStationSheet = false
     
+    /// Artwork loader for lazy loading station artwork
+    let artworkLoader = StationArtworkLoader.shared
+    
     let pandora: Pandora
     private var cancellables = Set<AnyCancellable>()
     private var hasRestoredLastStation = false
     
     init(pandora: Pandora) {
         self.pandora = pandora
+        
+        // Configure artwork loader with Pandora instance
+        artworkLoader.configure(with: pandora)
+        
         setupNotificationSubscriptions()
         
         if pandora.isAuthenticated() {

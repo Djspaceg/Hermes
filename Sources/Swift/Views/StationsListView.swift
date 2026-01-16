@@ -11,12 +11,21 @@ struct StationsListView: View {
     @ObservedObject var viewModel: StationsViewModel
     @Binding var selectedStation: StationModel?
     @Binding var sortOrder: StationsViewModel.SortOrder
+    @Environment(\.sidebarWidth) private var sidebarWidth
+    
+    private let thumbnailWidthThreshold: CGFloat = 240
+    
+    private var showThumbnails: Bool {
+        sidebarWidth >= thumbnailWidthThreshold
+    }
     
     var body: some View {
         List(viewModel.sortedStations(by: sortOrder), id: \.id, selection: $selectedStation) { station in
             StationRow(
                 station: station,
-                isPlaying: station.id == viewModel.playingStationId
+                isPlaying: station.id == viewModel.playingStationId,
+                artworkLoader: viewModel.artworkLoader,
+                showThumbnail: showThumbnails
             )
             .tag(station)
         }
@@ -77,18 +86,102 @@ struct StationsListView: View {
 struct StationRow: View {
     let station: StationModel
     let isPlaying: Bool
+    @ObservedObject var artworkLoader: StationArtworkLoader
+    let showThumbnail: Bool
+    @State private var artwork: NSImage?
+    @State private var isLoading = false
+    
+    private let thumbnailSize: CGFloat = 32
     
     var body: some View {
-        HStack {
-            if isPlaying {
-                Image(systemName: "speaker.wave.2.fill")
-                    .foregroundColor(.accentColor)
-                    .font(.caption)
+        HStack(spacing: showThumbnail ? 8 : 0) {
+            // Artwork thumbnail - always in hierarchy, animated width collapse
+            thumbnailView
+                .frame(width: showThumbnail ? thumbnailSize : 0, height: thumbnailSize)
+                .opacity(showThumbnail ? 1 : 0)
+                .clipped()
+            
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    if isPlaying {
+                        Image(systemName: "speaker.wave.2.fill")
+                            .foregroundColor(.accentColor)
+                            .font(.caption)
+                    }
+                    Text(station.name)
+                        .lineLimit(1)
+                    
+                    Spacer(minLength: 0)
+                }
+                
+                // Genre badges (no scroller - just show up to 3)
+                if !station.genres.isEmpty {
+                    HStack(spacing: 4) {
+                        ForEach(station.genres.prefix(3), id: \.self) { genre in
+                            Text(genre)
+                                .font(.caption2)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .background(.secondary.opacity(0.15))
+                                .clipShape(Capsule())
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                }
             }
-            Text(station.name)
-            Spacer()
         }
+        .animation(.easeInOut(duration: 0.2), value: showThumbnail)
         .contentShape(Rectangle())
+        .onAppear {
+            // Trigger lazy loading of artwork URL when row appears
+            artworkLoader.loadArtworkIfNeeded(for: station.station)
+            // Load image from disk-backed cache
+            loadArtwork()
+        }
+        .onChange(of: artworkLoader.artworkUpdateTrigger) {
+            // Artwork URL became available, load the image
+            loadArtwork()
+        }
+    }
+    
+    @ViewBuilder
+    private var thumbnailView: some View {
+        if let artwork {
+            Image(nsImage: artwork)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: thumbnailSize, height: thumbnailSize)
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+        } else if isLoading {
+            ProgressView()
+                .scaleEffect(0.5)
+                .frame(width: thumbnailSize, height: thumbnailSize)
+        } else if station.artworkURL != nil {
+            Color.gray.opacity(0.3)
+                .frame(width: thumbnailSize, height: thumbnailSize)
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+                .overlay {
+                    Image(systemName: "music.note")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.secondary)
+                }
+        } else {
+            // No artwork URL yet - empty placeholder that takes no space when collapsed
+            Color.clear
+        }
+    }
+    
+    private func loadArtwork() {
+        guard artwork == nil, !isLoading, let url = station.artworkURL else { return }
+        isLoading = true
+        Task {
+            let image = await ImageCache.shared.loadImage(from: url)
+            await MainActor.run {
+                self.artwork = image
+                self.isLoading = false
+            }
+        }
     }
 }
 
@@ -159,12 +252,37 @@ private struct StationsListPreview: View {
     
     var body: some View {
         List(viewModel.stations, id: \.id, selection: $selectedStation) { station in
-            StationRow(
-                station: station,
-                isPlaying: false
-            )
-            .tag(station)
+            StationRowPreview(station: station)
+                .tag(station)
         }
         .listStyle(.sidebar)
+    }
+}
+
+/// Simplified row for previews (no artwork loader dependency)
+private struct StationRowPreview: View {
+    let station: StationModel
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(station.name)
+                .lineLimit(1)
+            
+            if !station.genres.isEmpty {
+                HStack(spacing: 4) {
+                    ForEach(station.genres.prefix(3), id: \.self) { genre in
+                        Text(genre)
+                            .font(.caption2)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(.secondary.opacity(0.15))
+                            .clipShape(Capsule())
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+            }
+        }
+        .contentShape(Rectangle())
     }
 }

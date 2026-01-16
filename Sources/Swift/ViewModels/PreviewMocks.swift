@@ -132,6 +132,7 @@ final class PreviewStationEditViewModel: ObservableObject, StationEditViewModelP
     @Published var seedSearchResults: [SeedSearchResult] = []
     @Published var isSearchingSeeds = false
     
+    func loadDetailsIfNeeded() {}
     func renameStation(to name: String) {}
     func openInPandora() {}
     func addSeed(_ result: SeedSearchResult) {}

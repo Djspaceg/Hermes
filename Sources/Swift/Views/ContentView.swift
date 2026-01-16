@@ -49,43 +49,58 @@ struct ContentView: View {
                     historyViewModel: appState.historyViewModel
                 )
                 .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 350)
+                .toolbar {
+                    // When sidebar is visible, show play/pause in sidebar header
+                    if columnVisibility != .detailOnly {
+                        ToolbarItem(placement: .automatic) {
+                            PlayPauseButton(viewModel: appState.playerViewModel)
+                        }
+                    }
+                }
             } detail: {
                 PlayerView(viewModel: appState.playerViewModel)
+                    .navigationTitle("Hermes")
+                    .navigationSubtitle(appState.playerViewModel.currentSong?.artist ?? "")
+                    .toolbar {
+                        // Leading accessory buttons
+                        ToolbarItemGroup(placement: .navigation) {
+                            // When sidebar is hidden, show both play/pause and next
+                            if columnVisibility == .detailOnly {
+                                PlayPauseButton(viewModel: appState.playerViewModel)
+                            }
+                            
+                            // Next button always in leading position
+                            Button(action: { appState.playerViewModel.next() }) {
+                                Label("Next", systemImage: "forward.fill")
+                            }
+                            .help("Next")
+                        }
+                        
+                        // Rating controls after title (primaryAction placement)
+                        ToolbarItemGroup(placement: .primaryAction) {
+                            Button(action: { appState.playerViewModel.like() }) {
+                                Label(
+                                    appState.playerViewModel.isLiked ? "Unlike" : "Like",
+                                    systemImage: appState.playerViewModel.isLiked ? "hand.thumbsup.fill" : "hand.thumbsup"
+                                )
+                            }
+                            .symbolRenderingMode(.hierarchical)
+                            .foregroundStyle(appState.playerViewModel.isLiked ? .green : .primary)
+                            .help(appState.playerViewModel.isLiked ? "Unlike" : "Like")
+                            
+                            Button(action: { appState.playerViewModel.dislike() }) {
+                                Label("Dislike", systemImage: "hand.thumbsdown")
+                            }
+                            .help("Dislike")
+                            
+                            Button(action: { appState.playerViewModel.tired() }) {
+                                Label("Tired", systemImage: "moon.zzz")
+                            }
+                            .help("Tired of this song")
+                        }
+                    }
             }
             .navigationSplitViewStyle(.automatic)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    PlayPauseButton(viewModel: appState.playerViewModel)
-                }
-                
-                ToolbarItem(placement: .principal) {
-                    Button(action: { appState.playerViewModel.next() }) {
-                        Label("Next", systemImage: "forward.fill")
-                    }
-                    .help("Next")
-                }
-                
-                ToolbarItem(placement: .primaryAction) {
-                    Button(action: { appState.playerViewModel.like() }) {
-                        Label("Like", systemImage: appState.playerViewModel.isLiked ? "hand.thumbsup.fill" : "hand.thumbsup")
-                    }
-                    .help(appState.playerViewModel.isLiked ? "Liked" : "Like")
-                }
-                
-                ToolbarItem(placement: .primaryAction) {
-                    Button(action: { appState.playerViewModel.dislike() }) {
-                        Label("Dislike", systemImage: "hand.thumbsdown")
-                    }
-                    .help("Dislike")
-                }
-                
-                ToolbarItem(placement: .primaryAction) {
-                    Button(action: { appState.playerViewModel.tired() }) {
-                        Label("Tired", systemImage: "moon.zzz")
-                    }
-                    .help("Tired of this song")
-                }
-            }
             .onChange(of: geometry.size.width) { oldWidth, newWidth in
                 // Auto-hide sidebar when window is narrow (only if user hasn't manually collapsed it)
                 let shouldShowSidebar = newWidth >= sidebarToggleWidth
@@ -137,7 +152,8 @@ struct ContentView: View {
     }
 }
 
-// Separate view to properly observe isPlaying state
+// MARK: - Play/Pause Button
+
 private struct PlayPauseButton: View {
     @ObservedObject var viewModel: PlayerViewModel
     
@@ -151,7 +167,6 @@ private struct PlayPauseButton: View {
         .help(viewModel.isPlaying ? "Pause" : "Play")
     }
 }
-
 
 // MARK: - Preview
 

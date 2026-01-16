@@ -54,6 +54,8 @@
     [self setShared:[aDecoder decodeBoolForKey:@"shared"]];
     [self setAllowAddMusic:[aDecoder decodeBoolForKey:@"allowAddMusic"]];
     [self setAllowRename:[aDecoder decodeBoolForKey:@"allowRename"]];
+    [self setArtUrl:[aDecoder decodeObjectForKey:@"artUrl"]];
+    [self setGenres:[aDecoder decodeObjectForKey:@"genres"]];
     lastKnownSeekTime = [aDecoder decodeFloatForKey:@"lastKnownSeekTime"];
     [songs addObject:[aDecoder decodeObjectForKey:@"playing"]];
     [songs addObjectsFromArray:[aDecoder decodeObjectForKey:@"songs"]];
@@ -86,6 +88,8 @@
   [aCoder encodeBool:_shared forKey:@"shared"];
   [aCoder encodeBool:_allowAddMusic forKey:@"allowAddMusic"];
   [aCoder encodeBool:_allowRename forKey:@"allowRename"];
+  [aCoder encodeObject:_artUrl forKey:@"artUrl"];
+  [aCoder encodeObject:_genres forKey:@"genres"];
 }
 
 - (void) dealloc {
@@ -131,30 +135,62 @@
 
   for (Song *s in more) {
     NSURL *url = nil;
+    NSString *selectedQuality = @"unknown";
+    
+    // Select URL based on user preference
     switch (PREF_KEY_INT(DESIRED_QUALITY)) {
       case QUALITY_HIGH:
-        [qualities addObject:@"high"];
-        url = [NSURL URLWithString:[s highUrl]];
+        if (s.highUrl) {
+          url = [NSURL URLWithString:s.highUrl];
+          selectedQuality = @"high";
+        }
         break;
       case QUALITY_LOW:
-        [qualities addObject:@"low"];
-        url = [NSURL URLWithString:[s lowUrl]];
+        if (s.lowUrl) {
+          url = [NSURL URLWithString:s.lowUrl];
+          selectedQuality = @"low";
+        }
         break;
-
       case QUALITY_MED:
       default:
-        [qualities addObject:@"med"];
-        url = [NSURL URLWithString:[s medUrl]];
+        if (s.medUrl) {
+          url = [NSURL URLWithString:s.medUrl];
+          selectedQuality = @"med";
+        }
         break;
     }
-    [urls addObject:url];
-    [songs addObject:s];
+    
+    // Fallback to available quality if preferred isn't available
+    if (!url) {
+      if (s.medUrl) {
+        url = [NSURL URLWithString:s.medUrl];
+        selectedQuality = @"med (fallback)";
+      } else if (s.highUrl) {
+        url = [NSURL URLWithString:s.highUrl];
+        selectedQuality = @"high (fallback)";
+      } else if (s.lowUrl) {
+        url = [NSURL URLWithString:s.lowUrl];
+        selectedQuality = @"low (fallback)";
+      }
+    }
+    
+    if (url) {
+      [urls addObject:url];
+      [songs addObject:s];
+      [qualities addObject:selectedQuality];
+    } else {
+      NSLog(@"Warning: No valid audio URL found for song: %@ - %@", s.artist, s.title);
+    }
   }
-  if (shouldPlaySongOnFetch) {
+  
+  if (shouldPlaySongOnFetch && [songs count] > 0) {
     [self play];
   }
   shouldPlaySongOnFetch = NO;
-  NSLogd(@"Received %@ from %@ with qualities: %@", not.name, not.object, [qualities componentsJoinedByString:@" "]);
+  
+  if ([qualities count] > 0) {
+    NSLogd(@"Loaded %lu songs with qualities: %@", (unsigned long)[qualities count], [qualities componentsJoinedByString:@", "]);
+  }
 }
 
 - (void) configureNewStream:(NSNotification*) notification {
@@ -176,6 +212,32 @@
         break;
     }
   }
+  
+  // Apply track gain normalization if available
+  if (_playingSong && _playingSong.trackGain) {
+    [self applyTrackGain:_playingSong.trackGain];
+  }
+}
+
+- (void) applyTrackGain:(NSString*)gainString {
+  // Track gain is in dB format (e.g., "10.09", "-2.5")
+  // Convert to linear scale and adjust volume
+  double gainDB = [gainString doubleValue];
+  
+  // Convert dB to linear scale: linear = 10^(dB/20)
+  // Clamp to reasonable range to avoid extreme values
+  gainDB = MAX(-15.0, MIN(15.0, gainDB));
+  double gainLinear = pow(10.0, gainDB / 20.0);
+  
+  // Apply gain adjustment to current volume
+  // Volume is already set, so we adjust it by the gain factor
+  double adjustedVolume = volume * gainLinear;
+  adjustedVolume = MAX(0.0, MIN(1.0, adjustedVolume)); // Clamp to 0-1 range
+  
+  NSLogd(@"Applying track gain: %@ dB (%.2fx linear) to volume %.2f -> %.2f", 
+         gainString, gainLinear, volume, adjustedVolume);
+  
+  [stream setVolume:adjustedVolume];
 }
 
 - (void) newSongPlaying:(NSNotification*) notification {

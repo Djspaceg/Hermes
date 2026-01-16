@@ -120,6 +120,20 @@ struct HermesApp: App {
                 }
         }
         
+        Window("Album Art", id: "artworkPreview") {
+            AlbumArtPreviewWindow(playerViewModel: appState.playerViewModel)
+                .onAppear {
+                    WindowTracker.shared.windowOpened("artworkPreview")
+                }
+                .onDisappear {
+                    WindowTracker.shared.windowClosed("artworkPreview")
+                }
+        }
+        .windowStyle(.hiddenTitleBar)
+        .windowResizability(.contentMinSize)
+        .defaultSize(width: 600, height: 600)
+        .windowToolbarStyle(.unified)
+        
         MenuBarExtra {
             StatusBarMenuContent(playerViewModel: appState.playerViewModel)
         } label: {

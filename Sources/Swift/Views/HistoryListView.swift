@@ -59,7 +59,7 @@ struct HistoryListView: View {
 }
 
 struct HistoryRow: View {
-    let song: SongModel
+    @ObservedObject var song: SongModel
     
     var body: some View {
         HStack(spacing: 8) {

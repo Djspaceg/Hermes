@@ -28,6 +28,10 @@ final class SongModel: ObservableObject, Identifiable, Hashable {
     var artistUrl: String? { song.artistUrl }
     var albumUrl: String? { song.albumUrl }
     
+    // Audio quality and feedback
+    var trackGain: String? { song.trackGain }
+    var allowFeedback: Bool { song.allowFeedback }
+    
     private var cancellables = Set<AnyCancellable>()
     
     init(song: Song) {
@@ -42,10 +46,16 @@ final class SongModel: ObservableObject, Identifiable, Hashable {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] notification in
                 guard let self = self,
-                      let ratedSong = notification.object as? Song,
-                      ratedSong === self.song else { return }
+                      let ratedSong = notification.object as? Song else { return }
                 
-                self.rating = self.song.nrating?.intValue ?? 0
+                // Match by token (song ID) instead of object identity
+                // This allows rating updates to propagate to all SongModel instances
+                // representing the same song
+                if let myToken = self.song.token,
+                   let ratedToken = ratedSong.token,
+                   myToken == ratedToken {
+                    self.rating = ratedSong.nrating?.intValue ?? 0
+                }
             }
             .store(in: &cancellables)
     }

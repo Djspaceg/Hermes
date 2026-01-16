@@ -448,10 +448,13 @@ static BOOL playOnStart = YES;
 // MARK: - Notification Handlers
 
 - (void)playbackStateChanged:(NSNotification *)notification {
-    NSLog(@"PlaybackController: playbackStateChanged - isPlaying=%d, isPaused=%d",
-          [_playing isPlaying], [_playing isPaused]);
+    BOOL currentlyPlaying = [_playing isPlaying];
+    BOOL currentlyPaused = [_playing isPaused];
     
-    if ([_playing isPlaying]) {
+    NSLog(@"PlaybackController: playbackStateChanged - isPlaying=%d, isPaused=%d",
+          currentlyPlaying, currentlyPaused);
+    
+    if (currentlyPlaying) {
         [self startUpdatingProgress];
     } else {
         [self stopUpdatingProgress];

@@ -18,7 +18,6 @@ protocol PlayerViewModelProtocol: ObservableObject {
     var volume: Double { get set }
     var isLiked: Bool { get }
     var artworkImage: NSImage? { get }
-    var showingArtworkPreview: Bool { get set }
     
     func playPause()
     func next()
@@ -26,12 +25,12 @@ protocol PlayerViewModelProtocol: ObservableObject {
     func dislike()
     func tired()
     func setVolume(_ newVolume: Double)
-    func toggleArtworkPreview()
 }
 
 struct PlayerView<ViewModel: PlayerViewModelProtocol>: View {
     @ObservedObject var viewModel: ViewModel
     @State private var isHovering = false
+    @Environment(\.openWindow) private var openWindow
     
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -42,7 +41,10 @@ struct PlayerView<ViewModel: PlayerViewModelProtocol>: View {
                         song: song,
                         artworkImage: viewModel.artworkImage,
                         availableSize: geometry.size,
-                        onTap: { viewModel.toggleArtworkPreview() }
+                        onTap: { 
+                            print("PlayerView: Album art tapped, opening window")
+                            openWindow(id: "artworkPreview")
+                        }
                     )
                 }
                 
@@ -56,40 +58,29 @@ struct PlayerView<ViewModel: PlayerViewModelProtocol>: View {
                         .frame(maxWidth: .infinity)
                         .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
                     
-                    // Bottom controls
+                    // Bottom controls (progress and volume)
                     PlaybackControlsView(
                         playbackPosition: viewModel.playbackPosition,
                         duration: viewModel.duration,
                         volume: $viewModel.volume,
                         onVolumeChange: { viewModel.setVolume($0) }
                     )
+                    .background(.ultraThinMaterial)
                 }
+                .compositingGroup() // Render as single layer before applying opacity
                 .opacity(isHovering ? 1 : 0)
                 .animation(
                     isHovering 
-                        ? .easeIn(duration: 0.1)  // Fast fade in
+                        ? .easeIn(duration: 0.2)  // Slightly slower fade in to let material render
                         : .easeOut(duration: 2), // Slow fade out
                     value: isHovering
                 )
+                .allowsHitTesting(isHovering) // Only allow interaction when visible
             } else {
                 EmptyPlayerStateView()
             }
         }
         .background(WindowHoverTracker(isHovering: $isHovering))
-        .sheet(isPresented: $viewModel.showingArtworkPreview) {
-            AlbumArtPreviewView(
-                song: viewModel.currentSong,
-                artworkImage: viewModel.artworkImage,
-                isPresented: $viewModel.showingArtworkPreview
-            )
-            .frame(minWidth: 500, minHeight: 500)
-            .onAppear {
-                WindowTracker.shared.windowOpened("artworkPreview")
-            }
-            .onDisappear {
-                WindowTracker.shared.windowClosed("artworkPreview")
-            }
-        }
     }
 }
 
@@ -184,8 +175,6 @@ struct AlbumArtView: View {
                     Image(nsImage: image)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
-                        .onTapGesture(count: 1) { onTap() }
-                        .help("Click to view album art")
                 } else {
                     AsyncImage(url: song.artworkURL) { phase in
                         switch phase {
@@ -195,8 +184,6 @@ struct AlbumArtView: View {
                             image
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
-                                .onTapGesture(count: 1) { onTap() }
-                                .help("Click to view album art")
                         case .failure:
                             PlaceholderArtworkView()
                         @unknown default:
@@ -208,6 +195,11 @@ struct AlbumArtView: View {
             .frame(width: geometry.size.width, height: geometry.size.height)
             .clipped()
             .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                onTap()
+            }
+            .help("Click to view album art")
         }
     }
 }
@@ -272,8 +264,87 @@ struct SongInfoView: View {
                 .font(.caption)
                 .foregroundColor(.white.opacity(0.7))
                 .lineLimit(1)
+            
+            // Track gain indicator (for power users/debugging)
+            if let gainString = song.trackGain,
+               let gainValue = Double(gainString) {
+                HStack(spacing: 4) {
+                    Image(systemName: gainValue > 0 ? "speaker.wave.3" : "speaker.wave.1")
+                        .font(.caption2)
+                    Text(String(format: "%+.1f dB", gainValue))
+                        .font(.caption2)
+                        .monospacedDigit()
+                }
+                .foregroundColor(.white.opacity(0.6))
+            }
         }
         .padding(.horizontal, 16)
+    }
+}
+
+// MARK: - Playback Buttons View
+
+struct PlaybackButtonsView<ViewModel: PlayerViewModelProtocol>: View {
+    @ObservedObject var viewModel: ViewModel
+    
+    var body: some View {
+        HStack(spacing: 20) {
+            // Like button - reactive to current song rating
+            Button(action: { viewModel.like() }) {
+                Image(systemName: viewModel.isLiked ? "hand.thumbsup.fill" : "hand.thumbsup")
+                    .font(.title2)
+                    .foregroundColor(viewModel.isLiked ? .green : .white)
+                    .frame(width: 44, height: 44)
+            }
+            .buttonStyle(.plain)
+            .disabled(!(viewModel.currentSong?.allowFeedback ?? true))
+            .opacity((viewModel.currentSong?.allowFeedback ?? true) ? 1.0 : 0.5)
+            .help(viewModel.isLiked ? "Unlike" : "Like")
+            
+            Spacer()
+            
+            // Play/Pause button (larger, centered)
+            Button(action: { viewModel.playPause() }) {
+                Image(systemName: viewModel.isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                    .font(.system(size: 48))
+                    .foregroundColor(.white)
+                    .frame(width: 60, height: 60)
+            }
+            .buttonStyle(.plain)
+            .help(viewModel.isPlaying ? "Pause" : "Play")
+            
+            // Next button
+            Button(action: { viewModel.next() }) {
+                Image(systemName: "forward.fill")
+                    .font(.title2)
+                    .foregroundColor(.white)
+                    .frame(width: 44, height: 44)
+            }
+            .buttonStyle(.plain)
+            .help("Next")
+            
+            Spacer()
+            
+            // More actions menu
+            Menu {
+                Button(action: { viewModel.dislike() }) {
+                    Label("Dislike", systemImage: "hand.thumbsdown")
+                }
+                .disabled(!(viewModel.currentSong?.allowFeedback ?? true))
+                
+                Button(action: { viewModel.tired() }) {
+                    Label("Tired of this song", systemImage: "moon.zzz")
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .font(.title2)
+                    .foregroundColor(.white)
+                    .frame(width: 44, height: 44)
+            }
+            .menuStyle(.borderlessButton)
+            .help("More actions")
+        }
+        .padding(.horizontal, 24)
     }
 }
 
@@ -301,7 +372,6 @@ struct PlaybackControlsView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 16)
-        .background(.ultraThinMaterial)
     }
 }
 

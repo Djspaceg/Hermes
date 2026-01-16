@@ -20,23 +20,35 @@ struct SidebarView: View {
     @State private var selectedView: SidebarSelection = .stations
     @State private var selectedStation: StationModel?
     @State private var sortOrder: StationsViewModel.SortOrder = .dateCreated
+    @State private var sidebarWidth: CGFloat = 250
     
     var body: some View {
-        VStack(spacing: 0) {
-            navigationHeader
-            
-            if selectedView == .stations {
-                sortControls
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                navigationHeader
+                
+                if selectedView == .stations {
+                    sortControls
+                }
+                
+                contentArea
+                
+                if selectedView == .stations {
+                    stationsFooter
+                } else {
+                    historyFooter
+                }
             }
-            
-            contentArea
-            
-            if selectedView == .stations {
-                stationsFooter
-            } else {
-                historyFooter
+            .onChange(of: geometry.size.width) { _, newWidth in
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    sidebarWidth = newWidth
+                }
+            }
+            .onAppear {
+                sidebarWidth = geometry.size.width
             }
         }
+        .environment(\.sidebarWidth, sidebarWidth)
         .sheet(item: $stationsViewModel.stationToEdit) { station in
             StationEditView(
                 viewModel: StationEditViewModel(
@@ -211,18 +223,20 @@ struct SidebarView: View {
             Spacer()
             
             Button(action: { historyViewModel.likeSelected() }) {
-                Image(systemName: "hand.thumbsup")
+                Image(systemName: historyViewModel.selectedItem?.rating == 1 ? "hand.thumbsup.fill" : "hand.thumbsup")
+                    .foregroundColor(historyViewModel.selectedItem?.rating == 1 ? .green : .primary)
                     .frame(width: 32, height: 28)
             }
             .disabled(historyViewModel.selectedItem == nil)
-            .help("Like")
+            .help(historyViewModel.selectedItem?.rating == 1 ? "Unlike" : "Like")
             
             Button(action: { historyViewModel.dislikeSelected() }) {
-                Image(systemName: "hand.thumbsdown")
+                Image(systemName: historyViewModel.selectedItem?.rating == -1 ? "hand.thumbsdown.fill" : "hand.thumbsdown")
+                    .foregroundColor(historyViewModel.selectedItem?.rating == -1 ? .red : .primary)
                     .frame(width: 32, height: 28)
             }
             .disabled(historyViewModel.selectedItem == nil)
-            .help("Dislike")
+            .help(historyViewModel.selectedItem?.rating == -1 ? "Remove Dislike" : "Dislike")
         }
         .buttonStyle(.borderless)
         .padding(.horizontal, 8)
