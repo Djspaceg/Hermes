@@ -58,6 +58,8 @@ final class WindowTracker: ObservableObject {
             if NSApp.activationPolicy() != .regular {
                 print("WindowTracker: Switching to .regular (\(openWindows.count) windows open)")
                 NSApp.setActivationPolicy(.regular)
+                // Activate the app to bring it to the foreground after switching from accessory mode
+                NSApp.activate(ignoringOtherApps: true)
             }
         }
     }

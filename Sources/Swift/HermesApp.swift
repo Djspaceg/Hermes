@@ -135,10 +135,14 @@ struct HermesApp: App {
         .windowToolbarStyle(.unified)
         
         MenuBarExtra {
-            StatusBarMenuContent(playerViewModel: appState.playerViewModel)
+            StatusBarWindowContent(
+                playerViewModel: appState.playerViewModel,
+                stationsViewModel: appState.stationsViewModel
+            )
         } label: {
             StatusBarIcon(playerViewModel: appState.playerViewModel)
         }
+        .menuBarExtraStyle(.window)
     }
 }
 
@@ -152,53 +156,207 @@ struct StatusBarIcon: View {
     }
 }
 
-// MARK: - Status Bar Menu Content
+// MARK: - Menu Item Button Style
 
-struct StatusBarMenuContent: View {
+struct MenuItemButtonStyle: ButtonStyle {
+    @State private var isHovered = false
+    
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(isHovered ? Color.accentColor.opacity(0.8) : Color.clear)
+            )
+            .foregroundStyle(isHovered ? .white : .primary)
+            .onHover { hovering in
+                isHovered = hovering
+            }
+    }
+}
+
+struct IconButtonStyle: ButtonStyle {
+    @State private var isHovered = false
+    
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .padding(6)
+            .background(
+                Circle()
+                    .fill(isHovered ? Color.accentColor.opacity(0.2) : Color.clear)
+            )
+            .scaleEffect(configuration.isPressed ? 0.9 : 1.0)
+            .onHover { hovering in
+                isHovered = hovering
+            }
+    }
+}
+
+// MARK: - Status Bar Window Content
+
+struct StatusBarWindowContent: View {
     @ObservedObject var playerViewModel: PlayerViewModel
+    @ObservedObject var stationsViewModel: StationsViewModel
     @Environment(\.openSettings) private var openSettings
     @Environment(\.openWindow) private var openWindow
     
+    private var currentStationName: String? {
+        guard let playingId = stationsViewModel.playingStationId else { return nil }
+        return stationsViewModel.stations.first { $0.id == playingId }?.name
+    }
+    
     var body: some View {
-        Button(playerViewModel.isPlaying ? "Pause" : "Play") {
-            playerViewModel.playPause()
+        VStack(spacing: 0) {
+            // Now Playing section
+            if let song = playerViewModel.currentSong {
+                nowPlayingSection(song: song)
+                Divider()
+                    .padding(.vertical, 8)
+            }
+            
+            // Playback controls
+            playbackControlsSection
+            
+            Divider()
+                .padding(.vertical, 8)
+            
+            // Rating controls
+            ratingControlsSection
+            
+            Divider()
+                .padding(.vertical, 8)
+            
+            // App controls
+            appControlsSection
         }
-        .keyboardShortcut(.space, modifiers: [])
-        
-        Button("Next Song") {
-            playerViewModel.next()
+        .padding(12)
+        .frame(width: 300)
+    }
+    
+    // MARK: - Now Playing Section
+    
+    @ViewBuilder
+    private func nowPlayingSection(song: SongModel) -> some View {
+        VStack(spacing: 8) {
+            // Album artwork
+            if let artwork = playerViewModel.artworkImage {
+                Image(nsImage: artwork)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 200, height: 200)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .shadow(radius: 2)
+            }
+            
+            // Song info
+            VStack(spacing: 4) {
+                Text(song.title)
+                    .font(.headline)
+                    .lineLimit(1)
+                
+                Text(song.artist)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                
+                if let stationName = currentStationName {
+                    Label(stationName, systemImage: "radio")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                }
+            }
         }
-        
-        Divider()
-        
-        Button("Like Song") {
-            playerViewModel.like()
+        .frame(maxWidth: .infinity)
+    }
+    
+    // MARK: - Playback Controls Section
+    
+    private var playbackControlsSection: some View {
+        HStack(spacing: 12) {
+            Button {
+                playerViewModel.playPause()
+            } label: {
+                Image(systemName: playerViewModel.isPlaying ? "pause.fill" : "play.fill")
+                    .font(.title2)
+            }
+            .buttonStyle(IconButtonStyle())
+            .keyboardShortcut(.space, modifiers: [])
+            
+            Button {
+                playerViewModel.next()
+            } label: {
+                Image(systemName: "forward.fill")
+                    .font(.title2)
+            }
+            .buttonStyle(IconButtonStyle())
         }
-        
-        Button("Dislike Song") {
-            playerViewModel.dislike()
+        .frame(maxWidth: .infinity)
+    }
+    
+    // MARK: - Rating Controls Section
+    
+    private var ratingControlsSection: some View {
+        HStack(spacing: 12) {
+            Button {
+                playerViewModel.like()
+            } label: {
+                Image(systemName: playerViewModel.isLiked ? "hand.thumbsup.fill" : "hand.thumbsup")
+                    .font(.title3)
+            }
+            .buttonStyle(IconButtonStyle())
+            .disabled(playerViewModel.currentSong == nil)
+            
+            Button {
+                playerViewModel.dislike()
+            } label: {
+                Image(systemName: "hand.thumbsdown")
+                    .font(.title3)
+            }
+            .buttonStyle(IconButtonStyle())
+            .disabled(playerViewModel.currentSong == nil)
+            
+            Button {
+                playerViewModel.tired()
+            } label: {
+                Image(systemName: "moon.zzz")
+                    .font(.title3)
+            }
+            .buttonStyle(IconButtonStyle())
+            .disabled(playerViewModel.currentSong == nil)
         }
-        
-        Button("Tired of Song") {
-            playerViewModel.tired()
+        .frame(maxWidth: .infinity)
+    }
+    
+    // MARK: - App Controls Section
+    
+    private var appControlsSection: some View {
+        VStack(spacing: 2) {
+            Button {
+                openWindow(id: "main")
+            } label: {
+                Label("Show Hermes", systemImage: "macwindow")
+            }
+            .buttonStyle(MenuItemButtonStyle())
+            
+            Button {
+                openSettings()
+            } label: {
+                Label("Settings...", systemImage: "gearshape")
+            }
+            .buttonStyle(MenuItemButtonStyle())
+            
+            Divider()
+                .padding(.vertical, 4)
+            
+            Button {
+                NSApp.terminate(nil)
+            } label: {
+                Label("Quit Hermes", systemImage: "power")
+            }
+            .buttonStyle(MenuItemButtonStyle())
         }
-        
-        Divider()
-        
-        Button("Show Hermes") {
-            openWindow(id: "main")
-        }
-        
-        Button("Settings...") {
-            openSettings()
-        }
-        .keyboardShortcut(",", modifiers: .command)
-        
-        Divider()
-        
-        Button("Quit Hermes") {
-            NSApp.terminate(nil)
-        }
-        .keyboardShortcut("q", modifiers: .command)
     }
 }
