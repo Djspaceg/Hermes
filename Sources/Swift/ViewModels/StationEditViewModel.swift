@@ -394,7 +394,10 @@ final class StationEditViewModel: ObservableObject, StationEditViewModelProtocol
         isLoading = false
         isSaving = false
         
-        if let error = notification.userInfo?["error"] as? String {
+        // Pandora.m uses "err" key for error message
+        if let error = notification.userInfo?["err"] as? String {
+            errorMessage = error
+        } else if let error = notification.userInfo?["error"] as? String {
             errorMessage = error
         } else {
             errorMessage = "An unknown error occurred"

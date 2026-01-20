@@ -883,18 +883,43 @@ static NSString *hierrs[] = {
                       }
 
                       NSString *err = e ? [e localizedDescription] : nil;
+                      NSNumber *pandoraCode = nil;
+                      
                       /* If we still don't have an error, look at the JSON for an error */
                       if (!err && dict) {
                         if ([dict[@"stat"] isEqualToString:@"fail"]) {
                           err = dict[@"message"];
+                          pandoraCode = dict[@"code"];
                         }
                       }
                       
                       /* If we don't have an error, then invoke the callback. */
                       if (err == nil) {
                         assert(dict != nil);
+                        self->retries = 0; // Reset retry counter on success
                         [request callback](dict);
                         return;
+                      }
+                      
+                      /* Check for auth token expiration - automatically re-authenticate and retry */
+                      if (pandoraCode != nil) {
+                        int code = [pandoraCode intValue];
+                        if ((code == INVALID_AUTH_TOKEN || code == INVALID_SYNC_TIME) && self->retries < 3) {
+                          self->retries++;
+                          NSLogd(@"Auth token expired (code %d), re-authenticating (attempt %d)...", code, self->retries);
+                          
+                          // Clear auth state to force re-authentication
+                          [self logoutNoNotify];
+                          
+                          // Get saved credentials and re-authenticate with the original request
+                          NSString *user = [[NSUserDefaults standardUserDefaults] stringForKey:@"pandora.username"];
+                          NSString *pass = user ? [[KeychainManager objcShared] getPassword:user] : nil;
+                          
+                          if (user && pass) {
+                            [self authenticate:user password:pass request:request];
+                            return;
+                          }
+                        }
                       }
 
                       /* Otherwise build the error dictionary. */

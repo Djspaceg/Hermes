@@ -49,7 +49,14 @@ extension NotificationCenter {
     
     var pandoraErrorPublisher: AnyPublisher<String, Never> {
         publisher(for: Notification.Name("PandoraDidErrorNotification"))
-            .compactMap { $0.userInfo?["error"] as? String }
+            .compactMap { notification -> String? in
+                // Pandora.m uses "err" key for error message
+                if let err = notification.userInfo?["err"] as? String {
+                    return err
+                }
+                // Fallback to "error" for any other sources
+                return notification.userInfo?["error"] as? String
+            }
             .eraseToAnyPublisher()
     }
 }
