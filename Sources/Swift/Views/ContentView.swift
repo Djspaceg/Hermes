@@ -9,11 +9,17 @@ import SwiftUI
 
 struct ContentView: View {
     @ObservedObject var appState: AppState
+    @ObservedObject private var playerViewModel: PlayerViewModel
+    @ObservedObject private var settingsManager = SettingsManager.shared
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
-    @State private var userCollapsedSidebar = false // Track if user manually collapsed
     @Environment(\.openSettings) private var openSettings
     
     private let sidebarToggleWidth: CGFloat = 500
+    
+    init(appState: AppState) {
+        self.appState = appState
+        self.playerViewModel = appState.playerViewModel
+    }
     
     var body: some View {
         Group {
@@ -43,34 +49,23 @@ struct ContentView: View {
     
     private var mainInterfaceView: some View {
         GeometryReader { geometry in
+            let isWindowTooNarrow = geometry.size.width < sidebarToggleWidth
+            
             NavigationSplitView(columnVisibility: $columnVisibility) {
                 SidebarView(
                     stationsViewModel: appState.stationsViewModel,
                     historyViewModel: appState.historyViewModel
                 )
                 .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 350)
-                .toolbar {
-                    // When sidebar is visible, show play/pause in sidebar header
-                    if columnVisibility != .detailOnly {
-                        ToolbarItem(placement: .automatic) {
-                            PlayPauseButton(viewModel: appState.playerViewModel)
-                        }
-                    }
-                }
             } detail: {
-                PlayerView(viewModel: appState.playerViewModel)
-                    .navigationTitle("Hermes")
-                    .navigationSubtitle(appState.playerViewModel.currentSong?.artist ?? "")
+                PlayerView(viewModel: playerViewModel)
+                    .navigationTitle(playerViewModel.currentSong?.title ?? "Hermes")
+                    .navigationSubtitle(playerViewModel.currentSong?.artist ?? "")
                     .toolbar {
                         // Leading accessory buttons
                         ToolbarItemGroup(placement: .navigation) {
-                            // When sidebar is hidden, show both play/pause and next
-                            if columnVisibility == .detailOnly {
-                                PlayPauseButton(viewModel: appState.playerViewModel)
-                            }
-                            
-                            // Next button always in leading position
-                            Button(action: { appState.playerViewModel.next() }) {
+                            // Next button in leading position
+                            Button(action: { playerViewModel.next() }) {
                                 Label("Next", systemImage: "forward.fill")
                             }
                             .help("Next")
@@ -78,22 +73,22 @@ struct ContentView: View {
                         
                         // Rating controls after title (primaryAction placement)
                         ToolbarItemGroup(placement: .primaryAction) {
-                            Button(action: { appState.playerViewModel.like() }) {
+                            Button(action: { playerViewModel.like() }) {
                                 Label(
-                                    appState.playerViewModel.isLiked ? "Unlike" : "Like",
-                                    systemImage: appState.playerViewModel.isLiked ? "hand.thumbsup.fill" : "hand.thumbsup"
+                                    playerViewModel.isLiked ? "Unlike" : "Like",
+                                    systemImage: playerViewModel.isLiked ? "hand.thumbsup.fill" : "hand.thumbsup"
                                 )
                             }
                             .symbolRenderingMode(.hierarchical)
-                            .foregroundStyle(appState.playerViewModel.isLiked ? .green : .primary)
-                            .help(appState.playerViewModel.isLiked ? "Unlike" : "Like")
+                            .foregroundStyle(playerViewModel.isLiked ? .green : .primary)
+                            .help(playerViewModel.isLiked ? "Unlike" : "Like")
                             
-                            Button(action: { appState.playerViewModel.dislike() }) {
+                            Button(action: { playerViewModel.dislike() }) {
                                 Label("Dislike", systemImage: "hand.thumbsdown")
                             }
                             .help("Dislike")
                             
-                            Button(action: { appState.playerViewModel.tired() }) {
+                            Button(action: { playerViewModel.tired() }) {
                                 Label("Tired", systemImage: "moon.zzz")
                             }
                             .help("Tired of this song")
@@ -101,43 +96,37 @@ struct ContentView: View {
                     }
             }
             .navigationSplitViewStyle(.automatic)
-            .onChange(of: geometry.size.width) { oldWidth, newWidth in
-                // Auto-hide sidebar when window is narrow (only if user hasn't manually collapsed it)
-                let shouldShowSidebar = newWidth >= sidebarToggleWidth
-                
-                if shouldShowSidebar && columnVisibility == .detailOnly && !userCollapsedSidebar {
-                    // Window is wide enough and sidebar was auto-hidden, show it
-                    withAnimation {
-                        columnVisibility = .all
-                    }
-                } else if !shouldShowSidebar && columnVisibility != .detailOnly {
-                    // Window is too narrow, auto-hide sidebar
+            .onChange(of: isWindowTooNarrow) { _, tooNarrow in
+                // Window width changed across threshold
+                if tooNarrow {
+                    // Force collapse - window too narrow
                     withAnimation {
                         columnVisibility = .detailOnly
                     }
-                    // Don't set userCollapsedSidebar here - this is automatic
+                } else if !settingsManager.userCollapsedSidebar {
+                    // Window wide enough AND user hasn't manually collapsed - show sidebar
+                    withAnimation {
+                        columnVisibility = .all
+                    }
                 }
+                // If window is wide but user collapsed it, leave it collapsed
             }
             .onChange(of: columnVisibility) { oldValue, newValue in
-                // Track if user manually toggled the sidebar
+                // Only track user preference when window is wide enough for choice to matter
+                guard !isWindowTooNarrow else { return }
+                
                 if oldValue != newValue {
-                    // If changing to detailOnly when window is wide enough, user manually collapsed it
-                    if newValue == .detailOnly && (NSApp.mainWindow?.frame.width ?? 0) >= sidebarToggleWidth {
-                        userCollapsedSidebar = true
-                    }
-                    // If changing to .all, user manually expanded it
-                    else if newValue == .all {
-                        userCollapsedSidebar = false
-                    }
+                    // User toggled sidebar while window is wide enough
+                    settingsManager.userCollapsedSidebar = (newValue == .detailOnly)
                 }
             }
-            .onChange(of: appState.isSidebarVisible) { oldValue, newValue in
-                columnVisibility = newValue ? .all : .detailOnly
-                // When toggled via app state, respect it as user action
-                userCollapsedSidebar = !newValue
-            }
             .onAppear {
-                columnVisibility = appState.isSidebarVisible ? .all : .detailOnly
+                // Initial state: respect user preference unless window is too narrow
+                if isWindowTooNarrow {
+                    columnVisibility = .detailOnly
+                } else {
+                    columnVisibility = settingsManager.userCollapsedSidebar ? .detailOnly : .all
+                }
             }
         }
     }
@@ -149,22 +138,6 @@ struct ContentView: View {
             Text("Loading...")
                 .foregroundColor(.secondary)
         }
-    }
-}
-
-// MARK: - Play/Pause Button
-
-private struct PlayPauseButton: View {
-    @ObservedObject var viewModel: PlayerViewModel
-    
-    var body: some View {
-        Button(action: { viewModel.playPause() }) {
-            Label(
-                viewModel.isPlaying ? "Pause" : "Play",
-                systemImage: viewModel.isPlaying ? "pause.fill" : "play.fill"
-            )
-        }
-        .help(viewModel.isPlaying ? "Pause" : "Play")
     }
 }
 

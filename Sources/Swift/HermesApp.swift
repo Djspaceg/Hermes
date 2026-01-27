@@ -14,7 +14,7 @@ struct HermesApp: App {
     @State private var showingNewStation = false
     
     var body: some Scene {
-        WindowGroup(id: "main") {
+        Window("Hermes", id: "main") {
             ContentView(appState: appState)
                 .frame(minWidth: 300, minHeight: 300)
                 .sheet(isPresented: $showingNewStation) {
@@ -150,9 +150,62 @@ struct HermesApp: App {
 
 struct StatusBarIcon: View {
     @ObservedObject var playerViewModel: PlayerViewModel
+    @ObservedObject private var settings = SettingsManager.shared
     
     var body: some View {
-        Image(systemName: playerViewModel.isPlaying ? "play.fill" : "pause.fill")
+        HStack(spacing: 0) {
+            iconImage
+            
+            if let song = playerViewModel.currentSong {
+                // Determine what text to show based on settings
+                let text: String? = {
+                    if settings.showSongInMenuBar && settings.showArtistInMenuBar {
+                        return " \(song.title) - \(song.artist)"
+                    } else if settings.showSongInMenuBar {
+                        return " \(song.title)"
+                    } else if settings.showArtistInMenuBar {
+                        return " \(song.artist)"
+                    } else {
+                        return nil
+                    }
+                }()
+                
+                if let text = text {
+                    Text(text)
+                        .lineLimit(1)
+                        .fixedSize()
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var iconImage: some View {
+        if settings.menuBarIconAlbumArt, let artwork = playerViewModel.artworkImage {
+            // Album art icon - create a properly sized thumbnail
+            Image(nsImage: resizedImage(artwork, size: NSSize(width: 18, height: 18)))
+        } else if settings.menuBarIconBW {
+            // Monochrome play/pause icon
+            Image(systemName: playerViewModel.isPlaying ? "pause.fill" : "play.fill")
+        } else {
+            // Default color icon (Pandora-style)
+            Image(systemName: "radio.fill")
+        }
+    }
+    
+    private func resizedImage(_ image: NSImage, size: NSSize) -> NSImage {
+        let resized = NSImage(size: size)
+        resized.lockFocus()
+        
+        // Use high quality interpolation for sharper results
+        NSGraphicsContext.current?.imageInterpolation = .high
+        
+        image.draw(in: NSRect(origin: .zero, size: size),
+                   from: NSRect(origin: .zero, size: image.size),
+                   operation: .copy,
+                   fraction: 1.0)
+        resized.unlockFocus()
+        return resized
     }
 }
 
@@ -335,14 +388,26 @@ struct StatusBarWindowContent: View {
     private var appControlsSection: some View {
         VStack(spacing: 2) {
             Button {
-                openWindow(id: "main")
+                NSApp.activate(ignoringOtherApps: true)
+                // Find and bring forward existing main window instead of opening a new one
+                if let mainWindow = NSApp.windows.first(where: { $0.identifier?.rawValue == "main" || $0.title == "Hermes" }) {
+                    mainWindow.makeKeyAndOrderFront(nil)
+                } else {
+                    openWindow(id: "main")
+                }
             } label: {
                 Label("Show Hermes", systemImage: "macwindow")
             }
             .buttonStyle(MenuItemButtonStyle())
             
             Button {
-                openSettings()
+                NSApp.activate(ignoringOtherApps: true)
+                // Check if settings window is already open
+                if let settingsWindow = NSApp.windows.first(where: { $0.title == "Settings" || $0.identifier?.rawValue.contains("settings") == true }) {
+                    settingsWindow.makeKeyAndOrderFront(nil)
+                } else {
+                    openSettings()
+                }
             } label: {
                 Label("Settings...", systemImage: "gearshape")
             }

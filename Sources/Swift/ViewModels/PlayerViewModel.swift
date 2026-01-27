@@ -21,10 +21,30 @@ final class PlayerViewModel: ObservableObject, PlayerViewModelProtocol {
     @Published var volume: Double = 1.0
     @Published var isLiked: Bool = false
     @Published var artworkImage: NSImage?
+    @Published var streamError: StreamError?
+    @Published var isRetrying: Bool = false
+    
+    // MARK: - Stream Error Type
+    
+    struct StreamError: Identifiable {
+        let id = UUID()
+        let message: String
+        let isNetworkError: Bool
+        let timestamp: Date
+        
+        init(message: String, isNetworkError: Bool = false) {
+            self.message = message
+            self.isNetworkError = isNetworkError
+            self.timestamp = Date()
+        }
+    }
     
     // MARK: - Private Properties
     
     private var cancellables = Set<AnyCancellable>()
+    private var retryCount = 0
+    private let maxAutoRetries = 2
+    private var periodicRetryTask: Task<Void, Never>?
     
     // MARK: - Computed Properties
     
@@ -104,6 +124,22 @@ final class PlayerViewModel: ObservableObject, PlayerViewModelProtocol {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.updateArtwork()
+            }
+            .store(in: &cancellables)
+        
+        // Stream error - network failure or timeout
+        center.publisher(for: Notification.Name("ASStreamError"))
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] notification in
+                self?.handleStreamError(notification)
+            }
+            .store(in: &cancellables)
+        
+        // New song attempting - clear error state
+        center.publisher(for: Notification.Name("ASAttemptingNewSong"))
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.clearStreamError()
             }
             .store(in: &cancellables)
     }
@@ -212,10 +248,111 @@ final class PlayerViewModel: ObservableObject, PlayerViewModelProtocol {
         }
     }
     
+    // MARK: - Error Handling
+    
+    private func handleStreamError(_ notification: Notification) {
+        // Get error details from the station
+        let errorMessage: String
+        if let station = playbackController?.playing {
+            errorMessage = station.streamNetworkError() ?? "Connection failed"
+        } else {
+            errorMessage = "Stream connection failed"
+        }
+        
+        print("PlayerViewModel: Stream error - \(errorMessage)")
+        
+        // Check if we should auto-retry
+        if retryCount < maxAutoRetries {
+            retryCount += 1
+            isRetrying = true
+            print("PlayerViewModel: Auto-retrying (\(retryCount)/\(maxAutoRetries))...")
+            
+            // Delay retry slightly to allow network to recover
+            Task {
+                try? await Task.sleep(for: .seconds(2))
+                await MainActor.run {
+                    self.isRetrying = false
+                    self.retryPlayback()
+                }
+            }
+        } else {
+            // Show error to user after max retries
+            streamError = StreamError(
+                message: errorMessage,
+                isNetworkError: true
+            )
+            isRetrying = false
+            
+            // Start periodic retry in background
+            startPeriodicRetry()
+        }
+    }
+    
+    private func startPeriodicRetry() {
+        // Cancel any existing periodic retry
+        periodicRetryTask?.cancel()
+        
+        periodicRetryTask = Task {
+            while !Task.isCancelled {
+                // Wait 60 seconds before retrying
+                try? await Task.sleep(for: .seconds(60))
+                
+                guard !Task.isCancelled else { break }
+                
+                await MainActor.run {
+                    // Only retry if we're still in error state
+                    if self.streamError != nil {
+                        print("PlayerViewModel: Periodic retry attempt...")
+                        self.isRetrying = true
+                        self.retryPlayback()
+                    }
+                }
+            }
+        }
+    }
+    
+    private func stopPeriodicRetry() {
+        periodicRetryTask?.cancel()
+        periodicRetryTask = nil
+    }
+    
+    private func clearStreamError() {
+        streamError = nil
+        retryCount = 0
+        isRetrying = false
+        stopPeriodicRetry()
+    }
+    
+    func retryPlayback() {
+        print("PlayerViewModel: Retrying playback...")
+        streamError = nil
+        stopPeriodicRetry()
+        
+        // Call retry on the station's playlist
+        if let station = playbackController?.playing {
+            station.retry()
+        }
+    }
+    
+    func dismissError() {
+        streamError = nil
+        retryCount = 0
+        stopPeriodicRetry()
+    }
+    
     // MARK: - Playback Controls
     
     func playPause() {
         print("PlayerViewModel: playPause called")
+        
+        // If we're in an error state, retry instead of normal play/pause
+        if let station = playbackController?.playing, station.isError() {
+            print("PlayerViewModel: Stream in error state, retrying...")
+            clearStreamError()
+            station.retry()
+            return
+        }
+        
         playbackController?.playpause()
     }
     
@@ -258,7 +395,9 @@ extension PlayerViewModel {
         duration: TimeInterval = 245.0,
         volume: Double = 0.7,
         isLiked: Bool = false,
-        artworkImage: NSImage? = nil
+        artworkImage: NSImage? = nil,
+        streamError: StreamError? = nil,
+        isRetrying: Bool = false
     ) -> PlayerViewModel {
         let viewModel = PlayerViewModel()
         viewModel.currentSong = song
@@ -268,6 +407,8 @@ extension PlayerViewModel {
         viewModel.volume = volume
         viewModel.isLiked = isLiked
         viewModel.artworkImage = artworkImage
+        viewModel.streamError = streamError
+        viewModel.isRetrying = isRetrying
         return viewModel
     }
 }
@@ -277,6 +418,11 @@ extension PlayerViewModel {
 /// A completely isolated mock for previews that doesn't connect to any live data
 @MainActor
 final class PreviewPlayerViewModel: ObservableObject, PlayerViewModelProtocol {
+    struct PreviewError: Identifiable {
+        let id = UUID()
+        let message: String
+    }
+    
     @Published var currentSong: SongModel?
     @Published var isPlaying: Bool = false
     @Published var playbackPosition: TimeInterval = 0
@@ -284,6 +430,8 @@ final class PreviewPlayerViewModel: ObservableObject, PlayerViewModelProtocol {
     @Published var volume: Double = 1.0
     @Published var isLiked: Bool = false
     @Published var artworkImage: NSImage?
+    @Published var streamError: PreviewError?
+    @Published var isRetrying: Bool = false
     
     init(
         song: SongModel? = .mock(),
@@ -292,7 +440,9 @@ final class PreviewPlayerViewModel: ObservableObject, PlayerViewModelProtocol {
         duration: TimeInterval = 245.0,
         volume: Double = 0.7,
         isLiked: Bool = false,
-        artworkImage: NSImage? = nil
+        artworkImage: NSImage? = nil,
+        streamError: PreviewError? = nil,
+        isRetrying: Bool = false
     ) {
         self.currentSong = song
         self.isPlaying = isPlaying
@@ -301,6 +451,8 @@ final class PreviewPlayerViewModel: ObservableObject, PlayerViewModelProtocol {
         self.volume = volume
         self.isLiked = isLiked
         self.artworkImage = artworkImage
+        self.streamError = streamError
+        self.isRetrying = isRetrying
     }
     
     // No-op methods for preview compatibility
@@ -310,4 +462,6 @@ final class PreviewPlayerViewModel: ObservableObject, PlayerViewModelProtocol {
     func dislike() {}
     func tired() {}
     func setVolume(_ newVolume: Double) { volume = newVolume }
+    func retryPlayback() { isRetrying = true }
+    func dismissError() { streamError = nil }
 }

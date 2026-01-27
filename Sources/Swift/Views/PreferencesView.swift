@@ -40,17 +40,11 @@ struct PreferencesView: View {
 struct GeneralPreferencesView: View {
     @ObservedObject private var settings = SettingsManager.shared
     @State private var menuBarIconType: MenuBarIconType = .color
-    @State private var appearanceMode: AppearanceMode = .dock
     
     enum MenuBarIconType: Int {
         case color = 0
         case blackAndWhite = 1
         case albumArt = 2
-    }
-    
-    enum AppearanceMode {
-        case dock
-        case menuBar
     }
     
     var body: some View {
@@ -65,67 +59,65 @@ struct GeneralPreferencesView: View {
             }
             .groupBoxStyle(ModernGroupBoxStyle())
             
-            // Appearance
-            GroupBox("Appearance") {
-                VStack(alignment: .leading, spacing: 16) {
-                    // Mutually exclusive mode selector
-                    Picker("Show Hermes in:", selection: $appearanceMode) {
-                        Text("Dock").tag(AppearanceMode.dock)
-                        Text("Menu Bar").tag(AppearanceMode.menuBar)
-                    }
-                    .pickerStyle(.segmented)
-                    .onChange(of: appearanceMode) { _, newValue in
-                        settings.showStatusBarIcon = (newValue == .menuBar)
-                        settings.applyStatusBarVisibility()
-                    }
+            // Dock Options
+            GroupBox("Dock") {
+                VStack(alignment: .leading, spacing: 12) {
+                    Toggle("Show album art as Dock icon", isOn: $settings.showAlbumArtInDock)
+                        .help("Replace the Hermes icon with the current song's album artwork")
+                        .onChange(of: settings.showAlbumArtInDock) { _, _ in
+                            settings.applyDockIcon()
+                        }
+                    
+                    Toggle("Show play/pause overlay on album art", isOn: $settings.showPlayPauseOverArt)
+                        .padding(.leading, 20)
+                        .disabled(!settings.showAlbumArtInDock)
+                        .onChange(of: settings.showPlayPauseOverArt) { _, _ in
+                            settings.applyDockIcon()
+                        }
+                }
+            }
+            .groupBoxStyle(ModernGroupBoxStyle())
+            
+            // Menu Bar Options
+            GroupBox("Menu Bar") {
+                VStack(alignment: .leading, spacing: 12) {
+                    Toggle("Run as menu bar accessory (hide Dock icon)", isOn: $settings.showStatusBarIcon)
+                        .help("Hide the Dock icon and run Hermes as a menu bar app only")
+                        .onChange(of: settings.showStatusBarIcon) { _, _ in
+                            settings.applyStatusBarVisibility()
+                        }
                     
                     Divider()
-                        .padding(.vertical, 4)
                     
-                    // Dock options
-                    if appearanceMode == .dock {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Toggle("Show album art as Dock icon", isOn: $settings.showAlbumArtInDock)
-                                .help("Replace the Hermes icon with the current song's album artwork")
-                                .onChange(of: settings.showAlbumArtInDock) { _, _ in
-                                    settings.applyDockIcon()
-                                }
-                            
-                            Toggle("Show play/pause overlay on album art", isOn: $settings.showPlayPauseOverArt)
-                                .padding(.leading, 20)
-                                .disabled(!settings.showAlbumArtInDock)
-                                .onChange(of: settings.showPlayPauseOverArt) { _, _ in
-                                    settings.applyDockIcon()
-                                }
-                        }
-                        .transition(.opacity.combined(with: .move(edge: .top)))
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Show in menu bar:")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        
+                        Toggle("Song title", isOn: $settings.showSongInMenuBar)
+                            .padding(.leading, 16)
+                        
+                        Toggle("Artist name", isOn: $settings.showArtistInMenuBar)
+                            .padding(.leading, 16)
                     }
                     
-                    // Menu Bar options
-                    if appearanceMode == .menuBar {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Toggle("Show song title in menu bar", isOn: $settings.showSongInMenuBar)
-                            
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Menu bar icon style:")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                                
-                                Picker("Menu bar icon", selection: $menuBarIconType) {
-                                    Text("Color icon").tag(MenuBarIconType.color)
-                                    Text("Monochrome with play/pause").tag(MenuBarIconType.blackAndWhite)
-                                    Text("Album artwork").tag(MenuBarIconType.albumArt)
-                                }
-                                .pickerStyle(.radioGroup)
-                                .labelsHidden()
-                                .padding(.leading, 16)
-                                .onChange(of: menuBarIconType) { _, newValue in
-                                    settings.menuBarIconBW = (newValue == .blackAndWhite)
-                                    settings.menuBarIconAlbumArt = (newValue == .albumArt)
-                                }
-                            }
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Menu bar icon style:")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        
+                        Picker("Menu bar icon", selection: $menuBarIconType) {
+                            Text("Color icon").tag(MenuBarIconType.color)
+                            Text("Monochrome with play/pause").tag(MenuBarIconType.blackAndWhite)
+                            Text("Album artwork").tag(MenuBarIconType.albumArt)
                         }
-                        .transition(.opacity.combined(with: .move(edge: .top)))
+                        .pickerStyle(.radioGroup)
+                        .labelsHidden()
+                        .padding(.leading, 16)
+                        .onChange(of: menuBarIconType) { _, newValue in
+                            settings.menuBarIconBW = (newValue == .blackAndWhite)
+                            settings.menuBarIconAlbumArt = (newValue == .albumArt)
+                        }
                     }
                 }
             }
@@ -166,9 +158,6 @@ struct GeneralPreferencesView: View {
         }
         .padding(20)
         .onAppear {
-            // Sync appearance mode from settings
-            appearanceMode = settings.showStatusBarIcon ? .menuBar : .dock
-            
             // Sync menu bar icon type from stored values
             if settings.menuBarIconAlbumArt {
                 menuBarIconType = .albumArt

@@ -11,6 +11,8 @@ import SwiftUI
 
 @MainActor
 protocol PlayerViewModelProtocol: ObservableObject {
+    associatedtype ErrorType: Identifiable
+    
     var currentSong: SongModel? { get }
     var isPlaying: Bool { get }
     var playbackPosition: TimeInterval { get }
@@ -18,6 +20,8 @@ protocol PlayerViewModelProtocol: ObservableObject {
     var volume: Double { get set }
     var isLiked: Bool { get }
     var artworkImage: NSImage? { get }
+    var streamError: ErrorType? { get }
+    var isRetrying: Bool { get }
     
     func playPause()
     func next()
@@ -25,6 +29,8 @@ protocol PlayerViewModelProtocol: ObservableObject {
     func dislike()
     func tired()
     func setVolume(_ newVolume: Double)
+    func retryPlayback()
+    func dismissError()
 }
 
 struct PlayerView<ViewModel: PlayerViewModelProtocol>: View {
@@ -33,9 +39,9 @@ struct PlayerView<ViewModel: PlayerViewModelProtocol>: View {
     @Environment(\.openWindow) private var openWindow
     
     var body: some View {
-        ZStack(alignment: .bottom) {
+        ZStack {
             if let song = viewModel.currentSong {
-                // Album art - extends to bottom of player area
+                // Album art background
                 GeometryReader { geometry in
                     AlbumArtView(
                         song: song,
@@ -48,34 +54,74 @@ struct PlayerView<ViewModel: PlayerViewModelProtocol>: View {
                     )
                 }
                 
-                // Overlay controls - fade in/out based on hover
-                VStack(spacing: 0) {
-                    Spacer()
-                    
-                    // Song info
-                    SongInfoView(song: song)
-                        .padding(.vertical, 16)
-                        .frame(maxWidth: .infinity)
-                        .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-                    
-                    // Bottom controls (progress and volume)
-                    PlaybackControlsView(
-                        playbackPosition: viewModel.playbackPosition,
-                        duration: viewModel.duration,
-                        volume: $viewModel.volume,
-                        onVolumeChange: { viewModel.setVolume($0) }
+                // Stream error overlay
+                if let error = viewModel.streamError {
+                    StreamErrorOverlay(
+                        error: error,
+                        isRetrying: viewModel.isRetrying,
+                        onRetry: { viewModel.retryPlayback() },
+                        onDismiss: { viewModel.dismissError() }
                     )
-                    .background(.ultraThinMaterial)
+                } else if viewModel.isRetrying {
+                    RetryingOverlay()
                 }
-                .compositingGroup() // Render as single layer before applying opacity
-                .opacity(isHovering ? 1 : 0)
+                
+                // Overlay controls
+                ZStack {
+                    // Main column layout
+                    VStack(spacing: 0) {
+                        // Upper box: expands, centers play button
+                        // Song info is overlaid (absolutely positioned) at bottom-left
+                        ZStack(alignment: .bottomLeading) {
+                            // Play button centered in full area
+                            CenteredPlayPauseButton(
+                                isPlaying: viewModel.isPlaying,
+                                onTap: { viewModel.playPause() }
+                            )
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            
+                            // Song info - absolutely positioned, doesn't affect centering
+                            CompactSongInfoView(song: song)
+                                .padding(.horizontal, 20)
+                                .padding(.bottom, 8)
+                        }
+                        .frame(maxHeight: .infinity)
+                        
+                        // Progress bar at bottom
+                        ProgressBarView(
+                            currentTime: viewModel.playbackPosition,
+                            totalTime: viewModel.duration
+                        )
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 14)
+                        .padding(.top,8)
+                        .glassEffect()
+                    }
+                    
+                    // Volume slider - top right corner, absolutely positioned
+                    VStack {
+                        HStack {
+                            Spacer()
+                            VerticalVolumeControl(
+                                volume: $viewModel.volume,
+                                onVolumeChange: { viewModel.setVolume($0) }
+                            )
+                            .padding(4)
+                            .glassEffect(.regular.interactive())
+                            .padding(8)
+                        }
+                        Spacer()
+                    }
+                }
+                .compositingGroup()
+                .opacity(isHovering && viewModel.streamError == nil ? 1 : 0)
                 .animation(
                     isHovering 
-                        ? .easeIn(duration: 0.2)  // Slightly slower fade in to let material render
-                        : .easeOut(duration: 2), // Slow fade out
+                        ? .easeIn(duration: 0.2)
+                        : .easeOut(duration: 2),
                     value: isHovering
                 )
-                .allowsHitTesting(isHovering) // Only allow interaction when visible
+                .allowsHitTesting(isHovering && viewModel.streamError == nil)
             } else {
                 EmptyPlayerStateView()
             }
@@ -170,41 +216,73 @@ struct AlbumArtView: View {
     
     var body: some View {
         GeometryReader { geometry in
-            Group {
-                if let image = artworkImage {
-                    Image(nsImage: image)
+            artworkContent
+                .frame(width: geometry.size.width, height: geometry.size.height)
+                .clipped()
+                .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    onTap()
+                }
+                .help("Click to view album art")
+        }
+    }
+    
+    @ViewBuilder
+    private var artworkContent: some View {
+        if let image = artworkImage {
+            Image(nsImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+        } else {
+            AsyncImage(url: song.artworkURL) { phase in
+                switch phase {
+                case .empty:
+                    PlaceholderArtworkContent()
+                case .success(let image):
+                    image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
-                } else {
-                    AsyncImage(url: song.artworkURL) { phase in
-                        switch phase {
-                        case .empty:
-                            ProgressView()
-                        case .success(let image):
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                        case .failure:
-                            PlaceholderArtworkView()
-                        @unknown default:
-                            PlaceholderArtworkView()
-                        }
-                    }
+                case .failure:
+                    PlaceholderArtworkContent()
+                @unknown default:
+                    PlaceholderArtworkContent()
                 }
             }
-            .frame(width: geometry.size.width, height: geometry.size.height)
-            .clipped()
-            .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
-            .contentShape(Rectangle())
-            .onTapGesture {
-                onTap()
-            }
-            .help("Click to view album art")
         }
     }
 }
 
 // MARK: - Placeholder Artwork View
+
+// MARK: - Placeholder Artwork Content
+
+struct PlaceholderArtworkContent: View {
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                // Vibrant multi-dimensional gradient background
+                MeshGradient(
+                    width: 2,
+                    height: 2,
+                    points: [
+                        [0.0, 0.0], [0.0, 1.0], [1.0, 0.0], [1.0, 1.0]
+                    ],
+                    colors: [
+                        .purple, .indigo, .blue, .cyan,
+                    ]
+                )
+                
+                Image(systemName: "music.note")
+                    .font(.system(size: min(geometry.size.width, geometry.size.height) * 0.25))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+            }
+        }
+    }
+}
+
+// MARK: - Placeholder Artwork View (Standalone)
 
 struct PlaceholderArtworkView: View {
     let size: CGFloat?
@@ -214,17 +292,12 @@ struct PlaceholderArtworkView: View {
     }
     
     var body: some View {
-        ZStack {
-            Color.gray.opacity(0.3)
-            Image(systemName: "music.note")
-                .font(.system(size: (size ?? 200) * 0.3))
-                .foregroundColor(.gray)
-        }
-        .aspectRatio(1, contentMode: .fit)
-        .cornerRadius(12)
-        .if(size != nil) { view in
-            view.frame(width: size, height: size)
-        }
+        PlaceholderArtworkContent()
+            .aspectRatio(1, contentMode: .fit)
+            .cornerRadius(12)
+            .if(size != nil) { view in
+                view.frame(width: size, height: size)
+            }
     }
 }
 
@@ -238,6 +311,54 @@ extension View {
         } else {
             self
         }
+    }
+}
+
+// MARK: - Centered Play/Pause Button
+
+struct CenteredPlayPauseButton: View {
+    let isPlaying: Bool
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                .font(.system(size: 54, weight: .medium))
+                .foregroundColor(.white)
+                // Offset play icon slightly right to appear visually centered
+                .offset(x: isPlaying ? 0 : 4)
+                .frame(width: 96, height: 96)
+                .glassEffect(.regular.interactive(), in: .circle)
+        }
+        .buttonStyle(.plain)
+        .help(isPlaying ? "Pause" : "Play")
+    }
+}
+
+// MARK: - Compact Song Info View (Bottom Left)
+
+struct CompactSongInfoView: View {
+    let song: SongModel
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(song.title)
+                .font(.headline)
+                .fontWeight(.semibold)
+                .lineLimit(1)
+                .foregroundColor(.white)
+            
+            Text(song.artist)
+                .font(.subheadline)
+                .foregroundColor(.white.opacity(0.9))
+                .lineLimit(1)
+            
+            Text(song.album)
+                .font(.caption)
+                .foregroundColor(.white.opacity(0.8))
+                .lineLimit(1)
+        }
+        .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 1)
     }
 }
 
@@ -348,55 +469,32 @@ struct PlaybackButtonsView<ViewModel: PlayerViewModelProtocol>: View {
     }
 }
 
-// MARK: - Playback Controls View
-
-struct PlaybackControlsView: View {
-    let playbackPosition: TimeInterval
-    let duration: TimeInterval
-    @Binding var volume: Double
-    let onVolumeChange: (Double) -> Void
-    
-    var body: some View {
-        VStack(spacing: 8) {
-            // Progress bar
-            ProgressBarView(
-                currentTime: playbackPosition,
-                totalTime: duration
-            )
-            
-            // Volume control
-            VolumeControlView(
-                volume: $volume,
-                onVolumeChange: onVolumeChange
-            )
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 16)
-    }
-}
-
-// MARK: - Progress Bar View
+// MARK: - Empty Player State View
 
 struct ProgressBarView: View {
     let currentTime: TimeInterval
     let totalTime: TimeInterval
     
     var body: some View {
-        VStack(spacing: 4) {
-            ProgressView(value: currentTime, total: max(totalTime, 1))
-                .tint(.accentColor)
-
+        VStack(spacing: 0) {
+            // Times above the bar
             HStack {
                 Text(formatTime(currentTime))
                     .font(.caption2)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.white.opacity(0.8))
                     .monospacedDigit()
+                    .shadow(color: .black.opacity(0.5), radius: 1, x: 0, y: 1)
                 Spacer()
                 Text(formatTime(totalTime))
                     .font(.caption2)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.white.opacity(0.8))
                     .monospacedDigit()
+                    .shadow(color: .black.opacity(0.5), radius: 1, x: 0, y: 1)
             }
+            
+            // Progress bar
+            ProgressView(value: currentTime, total: max(totalTime, 1))
+                .tint(.white)
         }
     }
     
@@ -407,25 +505,36 @@ struct ProgressBarView: View {
     }
 }
 
-// MARK: - Volume Control View
+// MARK: - Vertical Volume Control
 
-struct VolumeControlView: View {
+struct VerticalVolumeControl: View {
     @Binding var volume: Double
     let onVolumeChange: (Double) -> Void
     
+    private let sliderLength: CGFloat = 80
+    private let containerWidth: CGFloat = 32
+    
     var body: some View {
-        HStack {
-            Image(systemName: "speaker.fill")
+        VStack(spacing: 8) {
+            Image(systemName: "speaker.wave.3.fill")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(.white.opacity(0.8))
+            
+            // Slider rotated, then clipped to narrow width
             Slider(value: $volume, in: 0...1)
+                .rotationEffect(.degrees(-90))
+                .frame(width: sliderLength, height: sliderLength)
+                .frame(width: containerWidth, height: sliderLength)
+                .clipped()
                 .onChange(of: volume) { oldValue, newValue in
                     onVolumeChange(newValue)
                 }
-            Image(systemName: "speaker.wave.3.fill")
+            
+            Image(systemName: "speaker.fill")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(.white.opacity(0.8))
         }
+        .padding(.vertical, 8)
     }
 }
 
@@ -447,6 +556,90 @@ struct EmptyPlayerStateView: View {
                 .foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Stream Error Overlay
+
+struct StreamErrorOverlay<E: Identifiable>: View {
+    let error: E
+    let isRetrying: Bool
+    let onRetry: () -> Void
+    let onDismiss: () -> Void
+    
+    var body: some View {
+        ZStack {
+            // Semi-transparent background
+            Color.black.opacity(0.7)
+            
+            VStack(spacing: 20) {
+                // Error icon
+                Image(systemName: "wifi.exclamationmark")
+                    .font(.system(size: 48))
+                    .foregroundColor(.orange)
+                
+                // Error message
+                Text("Connection Lost")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
+                
+                Text("Unable to stream audio. Check your network connection.")
+                    .font(.body)
+                    .foregroundColor(.white.opacity(0.8))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+                
+                // Action buttons
+                HStack(spacing: 16) {
+                    Button(action: onDismiss) {
+                        Text("Dismiss")
+                            .frame(minWidth: 80)
+                    }
+                    .buttonStyle(.bordered)
+                    
+                    Button(action: onRetry) {
+                        HStack {
+                            if isRetrying {
+                                ProgressView()
+                                    .scaleEffect(0.7)
+                                    .frame(width: 16, height: 16)
+                            }
+                            Text(isRetrying ? "Retrying..." : "Retry")
+                        }
+                        .frame(minWidth: 80)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isRetrying)
+                }
+                .padding(.top, 8)
+            }
+            .padding(32)
+        }
+        .transition(.opacity)
+    }
+}
+
+// MARK: - Retrying Overlay
+
+struct RetryingOverlay: View {
+    var body: some View {
+        ZStack {
+            // Semi-transparent background
+            Color.black.opacity(0.5)
+            
+            VStack(spacing: 16) {
+                ProgressView()
+                    .scaleEffect(1.5)
+                    .tint(.white)
+                
+                Text("Reconnecting...")
+                    .font(.headline)
+                    .foregroundColor(.white)
+            }
+            .padding(32)
+        }
+        .transition(.opacity)
     }
 }
 
@@ -498,6 +691,33 @@ struct EmptyPlayerStateView: View {
         .frame(width: 600, height: 400)
 }
 
+#Preview("Player View - Stream Error") {
+    PlayerView(viewModel: PreviewPlayerViewModel(
+        song: .mock(
+            title: "The Fabric of Time",
+            artist: "Audiomachine",
+            album: "Phenomena"
+        ),
+        isPlaying: false,
+        streamError: PreviewPlayerViewModel.PreviewError(message: "Connection reset by peer"),
+        isRetrying: false
+    ))
+    .frame(width: 600, height: 400)
+}
+
+#Preview("Player View - Retrying") {
+    PlayerView(viewModel: PreviewPlayerViewModel(
+        song: .mock(
+            title: "The Fabric of Time",
+            artist: "Audiomachine",
+            album: "Phenomena"
+        ),
+        isPlaying: false,
+        isRetrying: true
+    ))
+    .frame(width: 600, height: 400)
+}
+
 // MARK: - Component Previews
 
 #Preview("Album Art - Loaded") {
@@ -546,16 +766,6 @@ struct EmptyPlayerStateView: View {
     .padding()
 }
 
-#Preview("Playback Controls") {
-    PlaybackControlsView(
-        playbackPosition: 125.5,
-        duration: 245.0,
-        volume: .constant(0.7),
-        onVolumeChange: { _ in }
-    )
-    .frame(width: 500)
-}
-
 #Preview("Progress Bar - Mid Song") {
     ProgressBarView(
         currentTime: 125.5,
@@ -563,6 +773,7 @@ struct EmptyPlayerStateView: View {
     )
     .padding()
     .frame(width: 400)
+    .background(.black)
 }
 
 #Preview("Progress Bar - Starting") {
@@ -572,15 +783,17 @@ struct EmptyPlayerStateView: View {
     )
     .padding()
     .frame(width: 400)
+    .background(.black)
 }
 
-#Preview("Volume Control") {
-    VolumeControlView(
+#Preview("Vertical Volume Control") {
+    VerticalVolumeControl(
         volume: .constant(0.5),
         onVolumeChange: { _ in }
     )
     .padding()
-    .frame(width: 300)
+    .frame(width: 100, height: 200)
+    .background(.gray)
 }
 
 #Preview("Empty State") {

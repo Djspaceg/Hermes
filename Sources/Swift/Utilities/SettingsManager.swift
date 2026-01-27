@@ -19,6 +19,7 @@ final class SettingsManager: NSObject, ObservableObject {
     @AppStorage("albumArtPlayPause") var showPlayPauseOverArt = false
     @AppStorage("alwaysOnTop") var alwaysOnTop = false
     @AppStorage("statusBarShowSongTitle") var showSongInMenuBar = false
+    @AppStorage("statusBarShowArtist") var showArtistInMenuBar = false
     @AppStorage("statusBarIconBlackWhite") var menuBarIconBW = false
     @AppStorage("statusBarIconAlbumArt") var menuBarIconAlbumArt = false
     
@@ -49,6 +50,9 @@ final class SettingsManager: NSObject, ObservableObject {
     @AppStorage("SUEnableAutomaticChecks") var automaticUpdateChecks = true
     @AppStorage("SUScheduledCheckInterval") var updateCheckInterval: Double = 86400
     @AppStorage("SUAutomaticallyUpdate") var automaticallyDownloadUpdates = true
+    
+    // MARK: - UI State
+    @AppStorage("userCollapsedSidebar") var userCollapsedSidebar = false
     
     private var cancellables = Set<AnyCancellable>()
     
