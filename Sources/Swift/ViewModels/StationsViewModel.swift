@@ -195,3 +195,19 @@ final class StationsViewModel: ObservableObject {
         case dateCreated
     }
 }
+
+
+// MARK: - Preview Helpers
+
+extension StationsViewModel {
+    /// Creates a mock StationsViewModel for SwiftUI previews
+    static func mock(
+        stations: [StationModel] = [],
+        playingStationId: String? = nil
+    ) -> StationsViewModel {
+        let viewModel = StationsViewModel(pandora: Pandora())
+        viewModel.stations = stations
+        viewModel.playingStationId = playingStationId
+        return viewModel
+    }
+}

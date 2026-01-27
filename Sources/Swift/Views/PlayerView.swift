@@ -831,3 +831,66 @@ struct RetryingOverlay: View {
     EmptyPlayerStateView()
         .frame(width: 600, height: 400)
 }
+
+
+// MARK: - Player Controls View (Simplified)
+
+/// Simplified controls view - no hover logic, just the controls.
+/// Hover/fade is handled at the ContentView level.
+struct PlayerControlsView<ViewModel: PlayerViewModelProtocol>: View {
+    @ObservedObject var viewModel: ViewModel
+    
+    var body: some View {
+        ZStack {
+            if let song = viewModel.currentSong {
+                // Main column layout
+                VStack(spacing: 0) {
+                    // Upper box: expands, centers play button
+                    ZStack(alignment: .bottomLeading) {
+                        // Play button centered in full area
+                        CenteredPlayPauseButton(
+                            isPlaying: viewModel.isPlaying,
+                            onTap: { viewModel.playPause() }
+                        )
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        
+                        // Song info - absolutely positioned
+                        CompactSongInfoView(song: song)
+                            .padding(.horizontal, 28)
+                            .padding(.bottom, 8)
+                    }
+                    .frame(maxHeight: .infinity)
+                    
+                    // Progress bar at bottom
+                    ProgressBarView(
+                        currentTime: viewModel.playbackPosition,
+                        totalTime: viewModel.duration
+                    )
+                    .padding(.top, 8)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 14)
+                    .glassEffect()
+                    .padding(.horizontal, 8)
+                    .padding(.bottom, 8)
+                }
+                
+                // Volume slider - top right corner
+                VStack {
+                    HStack {
+                        Spacer()
+                        VerticalVolumeControl(
+                            volume: $viewModel.volume,
+                            onVolumeChange: { viewModel.setVolume($0) }
+                        )
+                        .padding(4)
+                        .glassEffect(.regular.interactive())
+                        .padding(8)
+                    }
+                    Spacer()
+                }
+            } else {
+                EmptyPlayerStateView()
+            }
+        }
+    }
+}
