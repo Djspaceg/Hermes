@@ -298,7 +298,7 @@ struct StatusBarWindowContent: View {
                 Image(nsImage: artwork)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: 200, height: 200)
+                    .frame(width: (300 - 12 * 2), height: (300 - 12 * 2))
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .shadow(radius: 2)
             }
