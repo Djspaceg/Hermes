@@ -59,27 +59,22 @@ struct ContentView: View {
                 .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 350)
             } detail: {
                 PlayerView(viewModel: playerViewModel)
-                    .navigationTitle(playerViewModel.currentSong?.title ?? "Hermes")
-                    .navigationSubtitle(playerViewModel.currentSong?.artist ?? "")
+                    .navigationTitle("")
+                    .toolbarTitleDisplayMode(.inline)
+                    .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
                     .toolbar {
-                        // Leading accessory buttons
                         ToolbarItemGroup(placement: .navigation) {
-                            // Next button in leading position
                             Button(action: { playerViewModel.next() }) {
                                 Label("Next", systemImage: "forward.fill")
                             }
                             .help("Next")
-                        }
-                        
-                        // Rating controls after title (primaryAction placement)
-                        ToolbarItemGroup(placement: .primaryAction) {
+                            
                             Button(action: { playerViewModel.like() }) {
                                 Label(
                                     playerViewModel.isLiked ? "Unlike" : "Like",
                                     systemImage: playerViewModel.isLiked ? "hand.thumbsup.fill" : "hand.thumbsup"
                                 )
                             }
-                            .symbolRenderingMode(.hierarchical)
                             .foregroundStyle(playerViewModel.isLiked ? .green : .primary)
                             .help(playerViewModel.isLiked ? "Unlike" : "Like")
                             
@@ -95,33 +90,21 @@ struct ContentView: View {
                         }
                     }
             }
-            .navigationSplitViewStyle(.automatic)
+            .navigationSplitViewStyle(.balanced)
             .onChange(of: isWindowTooNarrow) { _, tooNarrow in
-                // Window width changed across threshold
                 if tooNarrow {
-                    // Force collapse - window too narrow
-                    withAnimation {
-                        columnVisibility = .detailOnly
-                    }
+                    withAnimation { columnVisibility = .detailOnly }
                 } else if !settingsManager.userCollapsedSidebar {
-                    // Window wide enough AND user hasn't manually collapsed - show sidebar
-                    withAnimation {
-                        columnVisibility = .all
-                    }
+                    withAnimation { columnVisibility = .all }
                 }
-                // If window is wide but user collapsed it, leave it collapsed
             }
             .onChange(of: columnVisibility) { oldValue, newValue in
-                // Only track user preference when window is wide enough for choice to matter
                 guard !isWindowTooNarrow else { return }
-                
                 if oldValue != newValue {
-                    // User toggled sidebar while window is wide enough
                     settingsManager.userCollapsedSidebar = (newValue == .detailOnly)
                 }
             }
             .onAppear {
-                // Initial state: respect user preference unless window is too narrow
                 if isWindowTooNarrow {
                     columnVisibility = .detailOnly
                 } else {

@@ -28,6 +28,9 @@ import Combine
         
         MinimalAppDelegate.shared = self
         
+        // Configure main window for transparent title bar
+        configureMainWindow()
+        
         // Create PlaybackController
         print("MinimalAppDelegate: Creating PlaybackController...")
         playbackController = PlaybackController()
@@ -54,6 +57,32 @@ import Combine
         
         // Notify that playback controller is ready
         NotificationCenter.default.post(name: Notification.Name("PlaybackControllerReady"), object: nil)
+        
+        // Apply all settings (activation policy, dock icon, media keys, etc.)
+        SettingsManager.shared.applyAllSettings()
+    }
+    
+    private func configureMainWindow() {
+        // Delay slightly to ensure SwiftUI window is created
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            guard let window = NSApp.windows.first(where: { $0.identifier?.rawValue == "main" || $0.title == "Hermes" }) else {
+                // Try again if window not found yet
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    self.configureMainWindow()
+                }
+                return
+            }
+            
+            // Make title bar transparent with content underneath
+            window.titlebarAppearsTransparent = true
+            window.titleVisibility = .hidden
+            window.styleMask.insert(.fullSizeContentView)
+            
+            // Keep traffic lights visible
+            window.standardWindowButton(.closeButton)?.isHidden = false
+            window.standardWindowButton(.miniaturizeButton)?.isHidden = false
+            window.standardWindowButton(.zoomButton)?.isHidden = false
+        }
     }
     
     func applicationWillTerminate(_ notification: Notification) {

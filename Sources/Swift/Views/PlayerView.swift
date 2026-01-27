@@ -41,7 +41,7 @@ struct PlayerView<ViewModel: PlayerViewModelProtocol>: View {
     var body: some View {
         ZStack {
             if let song = viewModel.currentSong {
-                // Album art background
+                // Album art background - extends to edges
                 GeometryReader { geometry in
                     AlbumArtView(
                         song: song,
@@ -53,6 +53,7 @@ struct PlayerView<ViewModel: PlayerViewModelProtocol>: View {
                         }
                     )
                 }
+                .ignoresSafeArea()
                 
                 // Stream error overlay
                 if let error = viewModel.streamError {
@@ -94,11 +95,11 @@ struct PlayerView<ViewModel: PlayerViewModelProtocol>: View {
                         )
                         .padding(.horizontal, 20)
                         .padding(.bottom, 14)
-                        .padding(.top,8)
+                        .padding(.top, 8)
                         .glassEffect()
                     }
                     
-                    // Volume slider - top right corner, absolutely positioned
+                    // Volume slider - top right corner
                     VStack {
                         HStack {
                             Spacer()
@@ -137,15 +138,43 @@ struct WindowHoverTracker: NSViewRepresentable {
     
     func makeNSView(context: Context) -> WindowHoverView {
         let view = WindowHoverView()
-        view.onHoverChanged = { hovering in
+        view.onHoverChanged = { [weak view] hovering in
             DispatchQueue.main.async {
                 isHovering = hovering
+                // Control traffic light and toolbar visibility - only for THIS window
+                if let window = view?.window, isMainHermesWindow(window) {
+                    setWindowControlsHidden(!hovering, for: window)
+                }
             }
         }
         return view
     }
     
-    func updateNSView(_ nsView: WindowHoverView, context: Context) {}
+    func updateNSView(_ nsView: WindowHoverView, context: Context) {
+        // Sync state when view updates - only for main window
+        if let window = nsView.window, isMainHermesWindow(window) {
+            setWindowControlsHidden(!isHovering, for: window)
+        }
+    }
+    
+    private func isMainHermesWindow(_ window: NSWindow) -> Bool {
+        // Only apply to the main Hermes window, not popups like artwork preview
+        return window.identifier?.rawValue == "main" || 
+               (window.title == "Hermes" && !window.title.isEmpty)
+    }
+    
+    private func setWindowControlsHidden(_ hidden: Bool, for window: NSWindow) {
+        let duration = hidden ? 2.0 : 0.2
+        
+        // Fade the entire titlebar container - this includes traffic lights and toolbar items
+        // as a single unit, avoiding any positioning conflicts
+        if let titlebarContainer = window.standardWindowButton(.closeButton)?.superview?.superview {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = duration
+                titlebarContainer.animator().alphaValue = hidden ? 0 : 1
+            }
+        }
+    }
 }
 
 class WindowHoverView: NSView {
@@ -328,9 +357,11 @@ struct CenteredPlayPauseButton: View {
                 // Offset play icon slightly right to appear visually centered
                 .offset(x: isPlaying ? 0 : 4)
                 .frame(width: 96, height: 96)
+                .contentShape(Circle())
                 .glassEffect(.regular.interactive(), in: .circle)
         }
         .buttonStyle(.plain)
+        .contentShape(Circle())
         .help(isPlaying ? "Pause" : "Play")
     }
 }

@@ -68,8 +68,9 @@ final class SettingsManager: NSObject, ObservableObject {
     func applyAllSettings() {
         applyAlwaysOnTop()
         applyMediaKeys()
-        applyDockIcon()
-        applyStatusBarVisibility(isInitialLaunch: true)
+        // Note: applyStatusBarVisibility is NOT called here because windows
+        // haven't been tracked yet. WindowTracker.windowOpened() handles
+        // activation policy when windows appear.
     }
     
     // MARK: - Individual Setting Applications
@@ -139,7 +140,26 @@ final class SettingsManager: NSObject, ObservableObject {
         
         let symbolName = isPlaying ? "pause.circle.fill" : "play.circle.fill"
         if let symbol = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil) {
-            symbol.draw(in: iconRect)
+            // Create a white-tinted version of the symbol
+            let tintedSymbol = symbol.copy() as! NSImage
+            tintedSymbol.lockFocus()
+            NSColor.white.set()
+            NSRect(origin: .zero, size: symbol.size).fill(using: .sourceAtop)
+            tintedSymbol.unlockFocus()
+            
+            // Draw shadow first (offset down and slightly larger for blur effect)
+            let shadowOffset: CGFloat = 2
+            let shadowRect = iconRect.offsetBy(dx: 0, dy: -shadowOffset)
+            
+            if let context = NSGraphicsContext.current?.cgContext {
+                context.saveGState()
+                context.setShadow(offset: CGSize(width: 0, height: -2), blur: 4, color: NSColor.black.withAlphaComponent(0.5).cgColor)
+                tintedSymbol.draw(in: shadowRect)
+                context.restoreGState()
+            }
+            
+            // Draw the icon
+            tintedSymbol.draw(in: iconRect)
         }
         
         result.unlockFocus()
@@ -149,20 +169,26 @@ final class SettingsManager: NSObject, ObservableObject {
     // MARK: - Status Bar / Dock Icon Visibility
     
     func applyStatusBarVisibility(isInitialLaunch: Bool = false) {
-        // Let WindowTracker handle activation policy based on open windows
+        // WindowTracker handles both activation policy and dock icon in one place
         WindowTracker.shared.forceUpdate()
-        applyDockIcon()
     }
     
     // MARK: - Screensaver Observers
     
     private func setupPlaybackStateObserver() {
-        NotificationCenter.default.publisher(for: Notification.Name("StationDidPlaySongNotification"))
+        // Update dock icon when artwork loads
+        NotificationCenter.default.publisher(for: Notification.Name("PlaybackArtDidLoadNotification"))
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                Task { @MainActor in
-                    self?.updateDockIconWithAlbumArt()
-                }
+                self?.applyDockIcon()
+            }
+            .store(in: &cancellables)
+        
+        // Update dock icon when playback state changes (for play/pause overlay)
+        NotificationCenter.default.publisher(for: Notification.Name("ASStatusChangedNotification"))
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.applyDockIcon()
             }
             .store(in: &cancellables)
     }

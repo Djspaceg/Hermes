@@ -2,7 +2,7 @@
 //  WindowTracker.swift
 //  Hermes
 //
-//  Tracks open windows and manages activation policy for accessory mode
+//  Tracks open windows and manages activation policy and dock icon for accessory mode
 //
 
 import SwiftUI
@@ -19,48 +19,53 @@ final class WindowTracker: ObservableObject {
     func windowOpened(_ identifier: String) {
         print("WindowTracker: Window opened - \(identifier)")
         openWindows.insert(identifier)
-        updateActivationPolicy()
+        updateAppPresentation()
     }
     
     func windowClosed(_ identifier: String) {
         print("WindowTracker: Window closed - \(identifier)")
         openWindows.remove(identifier)
-        updateActivationPolicy()
+        updateAppPresentation()
     }
     
-    /// Force update activation policy based on current settings
+    /// Force update based on current state - call when settings change
     func forceUpdate() {
         print("WindowTracker: Force update - open windows: \(openWindows)")
-        updateActivationPolicy()
+        updateAppPresentation()
     }
     
-    private func updateActivationPolicy() {
-        // Only manage activation policy if user has enabled status bar icon (accessory mode)
-        guard SettingsManager.shared.showStatusBarIcon else {
-            // User wants regular mode, ensure we're in it
-            if NSApp.activationPolicy() != .regular {
-                print("WindowTracker: Switching to .regular (user preference)")
-                NSApp.setActivationPolicy(.regular)
-            }
-            return
-        }
+    // MARK: - Unified App Presentation Logic
+    
+    /// Single method that handles both activation policy and dock icon
+    /// Rules:
+    /// 1. If accessory mode disabled → regular mode, apply dock icon setting
+    /// 2. If accessory mode enabled AND no windows → accessory mode (no dock icon visible)
+    /// 3. If accessory mode enabled AND windows open → regular mode, apply dock icon setting
+    private func updateAppPresentation() {
+        let wantsAccessoryMode = SettingsManager.shared.showStatusBarIcon
+        let hasOpenWindows = !openWindows.isEmpty
         
-        // User wants accessory mode - but only switch to .accessory when NO windows are open
-        // Always allow windows to open by staying in .regular when windows exist
-        if openWindows.isEmpty {
-            // No windows open, switch to accessory to hide dock icon
-            if NSApp.activationPolicy() != .accessory {
-                print("WindowTracker: Switching to .accessory (no windows)")
-                NSApp.setActivationPolicy(.accessory)
-            }
-        } else {
-            // Windows are open, MUST be in regular mode for windows to display
-            if NSApp.activationPolicy() != .regular {
-                print("WindowTracker: Switching to .regular (\(openWindows.count) windows open)")
-                NSApp.setActivationPolicy(.regular)
-                // Activate the app to bring it to the foreground after switching from accessory mode
+        // Determine target activation policy
+        let targetPolicy: NSApplication.ActivationPolicy = (wantsAccessoryMode && !hasOpenWindows) ? .accessory : .regular
+        let currentPolicy = NSApp.activationPolicy()
+        
+        print("WindowTracker: updateAppPresentation - wantsAccessory=\(wantsAccessoryMode), hasWindows=\(hasOpenWindows), current=\(currentPolicy.rawValue), target=\(targetPolicy.rawValue)")
+        
+        // Apply activation policy if changed
+        if currentPolicy != targetPolicy {
+            print("WindowTracker: Switching to .\(targetPolicy == .accessory ? "accessory" : "regular")")
+            NSApp.setActivationPolicy(targetPolicy)
+            
+            // When switching TO regular mode, activate the app
+            if targetPolicy == .regular {
                 NSApp.activate(ignoringOtherApps: true)
             }
+        }
+        
+        // Always apply dock icon when in regular mode (dock is visible)
+        if targetPolicy == .regular {
+            print("WindowTracker: Applying dock icon (regular mode)")
+            SettingsManager.shared.applyDockIcon()
         }
     }
 }
