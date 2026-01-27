@@ -21,6 +21,8 @@ final class PlayerViewModel: ObservableObject, PlayerViewModelProtocol {
     @Published var volume: Double = 1.0
     @Published var isLiked: Bool = false
     @Published var artworkImage: NSImage?
+    @Published var menuBarThumbnail: NSImage?  // Pre-cached small thumbnail for MenuBarExtra
+    @Published var menuBarIconThumbnail: NSImage?  // Pre-cached tiny thumbnail for menu bar icon
     @Published var streamError: StreamError?
     @Published var isRetrying: Bool = false
     
@@ -237,6 +239,15 @@ final class PlayerViewModel: ObservableObject, PlayerViewModelProtocol {
         let previousArtwork = artworkImage
         artworkImage = playbackController?.artImage
         
+        // Pre-cache thumbnails to avoid main thread work when MenuBarExtra opens
+        if let artwork = artworkImage {
+            menuBarThumbnail = IconMask.scale(artwork, to: 280)
+            menuBarIconThumbnail = IconMask.createThumbnail(from: artwork, size: 18)
+        } else {
+            menuBarThumbnail = nil
+            menuBarIconThumbnail = nil
+        }
+        
         // If artwork just loaded and we have a current song, update the notification with artwork
         if previousArtwork == nil && artworkImage != nil, 
            let song = playbackController?.playing?.playingSong {
@@ -396,6 +407,7 @@ extension PlayerViewModel {
         volume: Double = 0.7,
         isLiked: Bool = false,
         artworkImage: NSImage? = nil,
+        menuBarThumbnail: NSImage? = nil,
         streamError: StreamError? = nil,
         isRetrying: Bool = false
     ) -> PlayerViewModel {
@@ -407,6 +419,7 @@ extension PlayerViewModel {
         viewModel.volume = volume
         viewModel.isLiked = isLiked
         viewModel.artworkImage = artworkImage
+        viewModel.menuBarThumbnail = menuBarThumbnail
         viewModel.streamError = streamError
         viewModel.isRetrying = isRetrying
         return viewModel
@@ -430,6 +443,7 @@ final class PreviewPlayerViewModel: ObservableObject, PlayerViewModelProtocol {
     @Published var volume: Double = 1.0
     @Published var isLiked: Bool = false
     @Published var artworkImage: NSImage?
+    @Published var menuBarThumbnail: NSImage?
     @Published var streamError: PreviewError?
     @Published var isRetrying: Bool = false
     
@@ -441,6 +455,7 @@ final class PreviewPlayerViewModel: ObservableObject, PlayerViewModelProtocol {
         volume: Double = 0.7,
         isLiked: Bool = false,
         artworkImage: NSImage? = nil,
+        menuBarThumbnail: NSImage? = nil,
         streamError: PreviewError? = nil,
         isRetrying: Bool = false
     ) {
@@ -451,6 +466,7 @@ final class PreviewPlayerViewModel: ObservableObject, PlayerViewModelProtocol {
         self.volume = volume
         self.isLiked = isLiked
         self.artworkImage = artworkImage
+        self.menuBarThumbnail = menuBarThumbnail
         self.streamError = streamError
         self.isRetrying = isRetrying
     }

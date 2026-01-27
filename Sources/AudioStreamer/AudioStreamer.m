@@ -112,25 +112,20 @@ static void MyPacketsProc(void *inClientData, UInt32 inNumberBytes, UInt32
 }
 
 /* AudioQueue callback notifying that a buffer is done, invoked on AudioQueue's
- * own personal threads, not the main thread */
+ * own high-priority audio thread. Handle directly here to avoid audio glitches
+ * caused by main thread delays. */
 static void MyAudioQueueOutputCallback(void *inClientData, AudioQueueRef inAQ,
                                 AudioQueueBufferRef inBuffer) {
   AudioStreamer* streamer = (__bridge AudioStreamer*)inClientData;
-  // Dispatch to main thread for thread safety
-  dispatch_async(dispatch_get_main_queue(), ^{
-    [streamer handleBufferCompleteForQueue:inAQ buffer:inBuffer];
-  });
+  [streamer handleBufferCompleteForQueue:inAQ buffer:inBuffer];
 }
 
-/* AudioQueue callback that a property has changed, invoked on AudioQueue's own
- * personal threads like above */
+/* AudioQueue callback that a property has changed, invoked on AudioQueue's
+ * high-priority audio thread. */
 static void MyAudioQueueIsRunningCallback(void *inUserData, AudioQueueRef inAQ,
                                    AudioQueuePropertyID inID) {
   AudioStreamer* streamer = (__bridge AudioStreamer *)inUserData;
-  // Dispatch to main thread for thread safety
-  dispatch_async(dispatch_get_main_queue(), ^{
-    [streamer handlePropertyChangeForQueue:inAQ propertyID:inID];
-  });
+  [streamer handlePropertyChangeForQueue:inAQ propertyID:inID];
 }
 
 /* CFReadStream callback when an event has occurred */
@@ -500,9 +495,13 @@ static void ASReadStreamCallBack(CFReadStreamRef aStream, CFStreamEventType even
   
   NSLog(@"AudioStreamer: setState - posting ASStatusChangedNotification");
 
-  [[NSNotificationCenter defaultCenter]
-        postNotificationName:ASStatusChangedNotification
-                      object:self];
+  // Post notification on main thread for UI observers
+  // (this method may be called from audio thread)
+  dispatch_async(dispatch_get_main_queue(), ^{
+    [[NSNotificationCenter defaultCenter]
+          postNotificationName:ASStatusChangedNotification
+                        object:self];
+  });
 
   NSString *statusString = nil;
   switch (aStatus) {
@@ -1298,11 +1297,8 @@ static void ASReadStreamCallBack(CFReadStreamRef aStream, CFStreamEventType even
   if (audioQueue == nil || inAQ != audioQueue) {
     return;
   }
-  /* Sanity check to make sure we're on the right thread */
-  assert([NSThread currentThread] == [NSThread mainThread]);
 
-  /* Figure out which buffer just became free, and it had better damn well be
-     one of our own buffers */
+  /* Figure out which buffer just became free */
   UInt32 idx;
   for (idx = 0; idx < bufferCnt; idx++) {
     if (buffers[idx] == inBuffer) break;
@@ -1316,24 +1312,23 @@ static void ASReadStreamCallBack(CFReadStreamRef aStream, CFStreamEventType even
   inuse[idx] = false;
   buffersUsed--;
 
-  /* If we're done with buffers because the stream dying, then there's no need
-   * to call more methods on it. */
   if (state_ == AS_STOPPED) {
     return;
   }
 
-  /* If there is absolutely no more data which will ever come into the stream,
-   * then we're done with the audio */
+  /* If stream ended and no more data, stop the queue */
   else if (buffersUsed == 0 && queued_head == NULL && stream != nil &&
       CFReadStreamGetStatus(stream) == kCFStreamStatusAtEnd) {
     assert(!waitingOnBuffer);
     AudioQueueStop(audioQueue, false);
 
-  /* Otherwise we just opened up a buffer so try to fill it with some cached
-   * data if there is any available */
+  /* Buffer freed - if we were waiting, refill from cache on main thread
+     (CFReadStream is scheduled on main run loop) */
   } else if (waitingOnBuffer) {
     waitingOnBuffer = false;
-    [self enqueueCachedData];
+    dispatch_async(dispatch_get_main_queue(), ^{
+      [self enqueueCachedData];
+    });
   }
 }
 
@@ -1349,8 +1344,6 @@ static void ASReadStreamCallBack(CFReadStreamRef aStream, CFStreamEventType even
 - (void)handlePropertyChangeForQueue:(AudioQueueRef)inAQ
                           propertyID:(AudioQueuePropertyID)inID {
   NSLog(@"AudioStreamer: handlePropertyChangeForQueue called, state=%d", state_);
-  /* Sanity check to make sure we're on the expected thread */
-  assert([NSThread currentThread] == [NSThread mainThread]);
   /* We only asked for one property, so the audio queue had better damn well
      only tell us about this property */
   assert(inID == kAudioQueueProperty_IsRunning);

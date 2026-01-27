@@ -181,9 +181,9 @@ struct StatusBarIcon: View {
     
     @ViewBuilder
     private var iconImage: some View {
-        if settings.menuBarIconAlbumArt, let artwork = playerViewModel.artworkImage {
-            // Album art icon - create a properly sized thumbnail
-            Image(nsImage: resizedImage(artwork, size: NSSize(width: 18, height: 18)))
+        if settings.menuBarIconAlbumArt, let iconThumbnail = playerViewModel.menuBarIconThumbnail {
+            // Album art icon - use pre-cached masked thumbnail
+            Image(nsImage: iconThumbnail)
         } else if settings.menuBarIconBW {
             // Monochrome play/pause icon
             Image(systemName: playerViewModel.isPlaying ? "pause.fill" : "play.fill")
@@ -191,21 +191,6 @@ struct StatusBarIcon: View {
             // Default color icon (Pandora-style)
             Image(systemName: "radio.fill")
         }
-    }
-    
-    private func resizedImage(_ image: NSImage, size: NSSize) -> NSImage {
-        let resized = NSImage(size: size)
-        resized.lockFocus()
-        
-        // Use high quality interpolation for sharper results
-        NSGraphicsContext.current?.imageInterpolation = .high
-        
-        image.draw(in: NSRect(origin: .zero, size: size),
-                   from: NSRect(origin: .zero, size: image.size),
-                   operation: .copy,
-                   fraction: 1.0)
-        resized.unlockFocus()
-        return resized
     }
 }
 
@@ -293,9 +278,9 @@ struct StatusBarWindowContent: View {
     @ViewBuilder
     private func nowPlayingSection(song: SongModel) -> some View {
         VStack(spacing: 8) {
-            // Album artwork
-            if let artwork = playerViewModel.artworkImage {
-                Image(nsImage: artwork)
+            // Album artwork - use pre-cached thumbnail to avoid main thread work
+            if let thumbnail = playerViewModel.menuBarThumbnail {
+                Image(nsImage: thumbnail)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: (300 - 12 * 2), height: (300 - 12 * 2))
