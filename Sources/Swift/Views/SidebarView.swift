@@ -143,105 +143,107 @@ struct SidebarView: View {
     
     private var stationsFooter: some View {
         HStack(spacing: 4) {
-            Button(action: {
+            AppKitIconButton(
+                systemName: "play.fill",
+                isEnabled: selectedStation != nil,
+                helpText: "Play Station"
+            ) {
                 if let station = selectedStation {
                     stationsViewModel.playStation(station)
                 }
-            }) {
-                Image(systemName: "play.fill")
-                    .frame(width: 32, height: 28)
             }
-            .disabled(selectedStation == nil)
-            .help("Play Station")
             
-            Button(action: { stationsViewModel.showAddStation() }) {
-                Image(systemName: "plus")
-                    .frame(width: 32, height: 28)
+            AppKitIconButton(
+                systemName: "plus",
+                helpText: "Add Station"
+            ) {
+                stationsViewModel.showAddStation()
             }
-            .help("Add Station")
             
-            Button(action: {
+            AppKitIconButton(
+                systemName: "pencil",
+                isEnabled: selectedStation != nil,
+                helpText: "Edit Station"
+            ) {
                 if let station = selectedStation {
                     stationsViewModel.editStation(station)
                 }
-            }) {
-                Image(systemName: "pencil")
-                    .frame(width: 32, height: 28)
             }
-            .disabled(selectedStation == nil)
-            .help("Edit Station")
             
             Spacer()
             
-            Button(action: {
+            AppKitIconButton(
+                systemName: "trash",
+                isEnabled: selectedStation != nil,
+                helpText: "Delete Station"
+            ) {
                 if let station = selectedStation {
                     stationsViewModel.confirmDeleteStation(station)
                 }
-            }) {
-                Image(systemName: "trash")
-                    .frame(width: 32, height: 28)
             }
-            .disabled(selectedStation == nil)
-            .help("Delete Station")
         }
-        .buttonStyle(.borderless)
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(.ultraThinMaterial)
     }
     
     private var historyFooter: some View {
         HStack(spacing: 4) {
-            Button(action: { historyViewModel.openSongOnPandora() }) {
-                Image(systemName: "music.note")
-                    .frame(width: 32, height: 28)
+            AppKitIconButton(
+                systemName: "music.note",
+                isEnabled: historyViewModel.selectedItem != nil,
+                helpText: "Song on Pandora"
+            ) {
+                historyViewModel.openSongOnPandora()
             }
-            .disabled(historyViewModel.selectedItem == nil)
-            .help("Song on Pandora")
             
-            Button(action: { historyViewModel.openArtistOnPandora() }) {
-                Image(systemName: "person")
-                    .frame(width: 32, height: 28)
+            AppKitIconButton(
+                systemName: "person",
+                isEnabled: historyViewModel.selectedItem != nil,
+                helpText: "Artist on Pandora"
+            ) {
+                historyViewModel.openArtistOnPandora()
             }
-            .disabled(historyViewModel.selectedItem == nil)
-            .help("Artist on Pandora")
             
-            Button(action: { historyViewModel.openAlbumOnPandora() }) {
-                Image(systemName: "square.stack")
-                    .frame(width: 32, height: 28)
+            AppKitIconButton(
+                systemName: "square.stack",
+                isEnabled: historyViewModel.selectedItem != nil,
+                helpText: "Album on Pandora"
+            ) {
+                historyViewModel.openAlbumOnPandora()
             }
-            .disabled(historyViewModel.selectedItem == nil)
-            .help("Album on Pandora")
             
-            Button(action: { historyViewModel.showLyrics() }) {
-                Image(systemName: "text.quote")
-                    .frame(width: 32, height: 28)
+            AppKitIconButton(
+                systemName: "text.quote",
+                isEnabled: historyViewModel.selectedItem != nil,
+                helpText: "Lyrics"
+            ) {
+                historyViewModel.showLyrics()
             }
-            .disabled(historyViewModel.selectedItem == nil)
-            .help("Lyrics")
             
             Spacer()
             
-            Button(action: { historyViewModel.likeSelected() }) {
-                Image(systemName: historyViewModel.selectedItem?.rating == 1 ? "hand.thumbsup.fill" : "hand.thumbsup")
-                    .foregroundColor(historyViewModel.selectedItem?.rating == 1 ? .green : .primary)
-                    .frame(width: 32, height: 28)
+            AppKitIconButton(
+                systemName: historyViewModel.selectedItem?.rating == 1 ? "hand.thumbsup.fill" : "hand.thumbsup",
+                isEnabled: historyViewModel.selectedItem != nil,
+                helpText: historyViewModel.selectedItem?.rating == 1 ? "Unlike" : "Like",
+                tintColor: historyViewModel.selectedItem?.rating == 1 ? .systemGreen : nil
+            ) {
+                historyViewModel.likeSelected()
             }
-            .disabled(historyViewModel.selectedItem == nil)
-            .help(historyViewModel.selectedItem?.rating == 1 ? "Unlike" : "Like")
             
-            Button(action: { historyViewModel.dislikeSelected() }) {
-                Image(systemName: historyViewModel.selectedItem?.rating == -1 ? "hand.thumbsdown.fill" : "hand.thumbsdown")
-                    .foregroundColor(historyViewModel.selectedItem?.rating == -1 ? .red : .primary)
-                    .frame(width: 32, height: 28)
+            AppKitIconButton(
+                systemName: historyViewModel.selectedItem?.rating == -1 ? "hand.thumbsdown.fill" : "hand.thumbsdown",
+                isEnabled: historyViewModel.selectedItem != nil,
+                helpText: historyViewModel.selectedItem?.rating == -1 ? "Remove Dislike" : "Dislike",
+                tintColor: historyViewModel.selectedItem?.rating == -1 ? .systemRed : nil
+            ) {
+                historyViewModel.dislikeSelected()
             }
-            .disabled(historyViewModel.selectedItem == nil)
-            .help(historyViewModel.selectedItem?.rating == -1 ? "Remove Dislike" : "Dislike")
         }
-        .buttonStyle(.borderless)
         .padding(.horizontal, 8)
-        .padding(.vertical, 8)
-        .background(Color(nsColor: .controlBackgroundColor))
+        .padding(.vertical, 6)
+        .background(.ultraThinMaterial)
     }
 }
 
@@ -280,6 +282,78 @@ struct SortButtonStyle: ButtonStyle {
                     .fill(isSelected ? Color(nsColor: .selectedControlColor) : Color.clear)
             )
             .opacity(configuration.isPressed ? 0.7 : 1.0)
+    }
+}
+
+// MARK: - AppKit Icon Button (for proper hover states)
+
+/// An AppKit-backed icon button that provides proper hover states on macOS Tahoe.
+/// SwiftUI buttons in content areas don't get hover states with Liquid Glass enabled,
+/// but NSButton does, so we use this wrapper for footer buttons.
+struct AppKitIconButton: NSViewRepresentable {
+    let systemName: String
+    let action: () -> Void
+    let isEnabled: Bool
+    let helpText: String
+    var tintColor: NSColor?
+    
+    init(
+        systemName: String,
+        isEnabled: Bool = true,
+        helpText: String = "",
+        tintColor: NSColor? = nil,
+        action: @escaping () -> Void
+    ) {
+        self.systemName = systemName
+        self.action = action
+        self.isEnabled = isEnabled
+        self.helpText = helpText
+        self.tintColor = tintColor
+    }
+    
+    func makeNSView(context: Context) -> NSButton {
+        let button = NSButton()
+        button.bezelStyle = .accessoryBar
+        button.isBordered = true
+        button.imagePosition = .imageOnly
+        button.target = context.coordinator
+        button.action = #selector(Coordinator.buttonClicked)
+        button.toolTip = helpText
+        button.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        return button
+    }
+    
+    func updateNSView(_ button: NSButton, context: Context) {
+        let config = NSImage.SymbolConfiguration(pointSize: 13, weight: .regular)
+        var image = NSImage(systemSymbolName: systemName, accessibilityDescription: helpText)?
+            .withSymbolConfiguration(config)
+        
+        if let color = tintColor {
+            image = image?.withSymbolConfiguration(
+                NSImage.SymbolConfiguration(paletteColors: [color])
+            )
+        }
+        
+        button.image = image
+        button.isEnabled = isEnabled
+        button.toolTip = helpText
+        context.coordinator.action = action
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(action: action)
+    }
+    
+    class Coordinator: NSObject {
+        var action: () -> Void
+        
+        init(action: @escaping () -> Void) {
+            self.action = action
+        }
+        
+        @objc func buttonClicked() {
+            action()
+        }
     }
 }
 

@@ -11,9 +11,11 @@ struct ContentView: View {
     @ObservedObject var appState: AppState
     @ObservedObject private var playerViewModel: PlayerViewModel
     @ObservedObject private var settingsManager = SettingsManager.shared
+    
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var isHovering = false
     @State private var hasCompletedInitialLoad = false
+    
     @Environment(\.openSettings) private var openSettings
     @Environment(\.openWindow) private var openWindow
     
@@ -29,28 +31,25 @@ struct ContentView: View {
             switch appState.currentView {
             case .login:
                 LoginView(viewModel: appState.loginViewModel)
-                
             case .loading:
-                loadingView
-                
+                LoadingView()
             case .player:
-                mainInterfaceView
-                
+                playerView
             case .error(let message):
-                ErrorView(errorMessage: message, onRetry: {
-                    appState.retry()
-                })
+                ErrorView(errorMessage: message, onRetry: { appState.retry() })
             }
         }
         .onAppear {
-            print("ContentView: Appeared - currentView: \(appState.currentView)")
+            // Initial view state logged for debugging if needed
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenSettingsRequested"))) { _ in
             openSettings()
         }
     }
     
-    private var mainInterfaceView: some View {
+    // MARK: - Player View
+    
+    private var playerView: some View {
         ZStack {
             // Album art background - always visible, covers entire window
             if let song = playerViewModel.currentSong {
@@ -58,7 +57,6 @@ struct ContentView: View {
                     AlbumArtView(
                         song: song,
                         artworkImage: playerViewModel.artworkImage,
-                        availableSize: geo.size,
                         onTap: { openWindow(id: "artworkPreview") }
                     )
                 }
@@ -75,55 +73,22 @@ struct ContentView: View {
                             stationsViewModel: appState.stationsViewModel,
                             historyViewModel: appState.historyViewModel
                         )
-                        .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 350)
+                        .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 280)
                     } detail: {
-                        PlayerControlsView(viewModel: playerViewModel)
-                            .navigationTitle("")
-                            .toolbarTitleDisplayMode(.inline)
-                            .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
-                            .toolbar {
-                                ToolbarItemGroup(placement: .navigation) {
-                                    Button(action: { playerViewModel.next() }) {
-                                        Label("Next", systemImage: "forward.fill")
-                                    }
-                                    .help("Next")
-                                    
-                                    Button(action: { playerViewModel.like() }) {
-                                        Label(
-                                            playerViewModel.isLiked ? "Unlike" : "Like",
-                                            systemImage: playerViewModel.isLiked ? "hand.thumbsup.fill" : "hand.thumbsup"
-                                        )
-                                    }
-                                    .foregroundStyle(playerViewModel.isLiked ? .green : .primary)
-                                    .help(playerViewModel.isLiked ? "Unlike" : "Like")
-                                    
-                                    Button(action: { playerViewModel.dislike() }) {
-                                        Label("Dislike", systemImage: "hand.thumbsdown")
-                                    }
-                                    .help("Dislike")
-                                    
-                                    Button(action: { playerViewModel.tired() }) {
-                                        Label("Tired", systemImage: "moon.zzz")
-                                    }
-                                    .help("Tired of this song")
-                                }
-                            }
+                        PlayerControlsView(
+                            viewModel: playerViewModel,
+                            onBackgroundTap: { openWindow(id: "artworkPreview") }
+                        )
+                        .navigationTitle("")
+                        .toolbarTitleDisplayMode(.inline)
+                        .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
+                        .toolbar { playbackToolbar }
                     }
-                    .navigationSplitViewStyle(.prominentDetail)
+                    .navigationSplitViewStyle(.balanced)
                     .opacity(controlsOpacity)
                     .allowsHitTesting(controlsVisible)
                     
-                    // Stream error overlay (always visible when present)
-                    if let error = playerViewModel.streamError {
-                        StreamErrorOverlay(
-                            error: error,
-                            isRetrying: playerViewModel.isRetrying,
-                            onRetry: { playerViewModel.retryPlayback() },
-                            onDismiss: { playerViewModel.dismissError() }
-                        )
-                    } else if playerViewModel.isRetrying {
-                        RetryingOverlay()
-                    }
+                    errorOverlay
                 }
                 .onChange(of: isWindowTooNarrow) { _, tooNarrow in
                     if tooNarrow {
@@ -144,7 +109,6 @@ struct ContentView: View {
                     } else {
                         columnVisibility = settingsManager.userCollapsedSidebar ? .detailOnly : .all
                     }
-                    // Delay enabling fade-out behavior until after initial load settles
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         hasCompletedInitialLoad = true
                     }
@@ -156,17 +120,64 @@ struct ContentView: View {
         .animation(.easeOut(duration: controlsVisible ? 0.2 : 2), value: controlsOpacity)
     }
     
-    /// Controls should be visible when hovering, error present, or still in initial load.
+    @ToolbarContentBuilder
+    private var playbackToolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .navigation) {
+            Button(action: { playerViewModel.next() }) {
+                Label("Next", systemImage: "forward.fill")
+            }
+            .help("Next")
+            
+            Button(action: { playerViewModel.like() }) {
+                Label(
+                    playerViewModel.isLiked ? "Unlike" : "Like",
+                    systemImage: playerViewModel.isLiked ? "hand.thumbsup.fill" : "hand.thumbsup"
+                )
+            }
+            .foregroundStyle(playerViewModel.isLiked ? .green : .primary)
+            .help(playerViewModel.isLiked ? "Unlike" : "Like")
+            
+            Button(action: { playerViewModel.dislike() }) {
+                Label("Dislike", systemImage: "hand.thumbsdown")
+            }
+            .help("Dislike")
+            
+            Button(action: { playerViewModel.tired() }) {
+                Label("Tired", systemImage: "moon.zzz")
+            }
+            .help("Tired of this song")
+        }
+    }
+    
+    @ViewBuilder
+    private var errorOverlay: some View {
+        if let error = playerViewModel.streamError {
+            StreamErrorOverlay(
+                error: error,
+                isRetrying: playerViewModel.isRetrying,
+                onRetry: { playerViewModel.retryPlayback() },
+                onDismiss: { playerViewModel.dismissError() }
+            )
+        } else if playerViewModel.isRetrying {
+            RetryingOverlay()
+        }
+    }
+    
+    // MARK: - Computed Properties
+    
     private var controlsVisible: Bool {
         isHovering || playerViewModel.streamError != nil || !hasCompletedInitialLoad
     }
     
-    /// Opacity for controls - 1 when visible OR when no song is playing
     private var controlsOpacity: Double {
         (controlsVisible || playerViewModel.currentSong == nil) ? 1 : 0
     }
-    
-    private var loadingView: some View {
+}
+
+// MARK: - Loading View
+
+private struct LoadingView: View {
+    var body: some View {
         VStack(spacing: 20) {
             ProgressView()
                 .scaleEffect(1.5)
@@ -176,25 +187,11 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Preview
+// MARK: - Previews
 
-#Preview("Loading State") {
-    VStack(spacing: 20) {
-        ProgressView()
-            .scaleEffect(1.5)
-        Text("Loading...")
-            .foregroundColor(.secondary)
-    }
-    .frame(width: 900, height: 600)
-}
-
-#Preview("Player State") {
+#Preview("Player") {
     PlayerView(viewModel: PreviewPlayerViewModel(
-        song: .mock(
-            title: "Bohemian Rhapsody",
-            artist: "Queen",
-            album: "A Night at the Opera"
-        ),
+        song: .mock(title: "Bohemian Rhapsody", artist: "Queen", album: "A Night at the Opera"),
         isPlaying: true,
         playbackPosition: 125.5,
         duration: 354.0,
@@ -204,11 +201,15 @@ struct ContentView: View {
     .frame(width: 600, height: 400)
 }
 
-#Preview("Error State") {
+#Preview("Loading") {
+    LoadingView()
+        .frame(width: 900, height: 600)
+}
+
+#Preview("Error") {
     ErrorView(
-        errorMessage: "Failed to connect to Pandora servers. Please check your internet connection and try again."
-    ) {
-        print("Retry tapped")
-    }
+        errorMessage: "Failed to connect to Pandora servers. Please check your internet connection and try again.",
+        onRetry: {}
+    )
     .frame(width: 900, height: 600)
 }

@@ -115,57 +115,19 @@ final class SettingsManager: NSObject, ObservableObject {
             return
         }
         
-        // Create dock icon with macOS Tahoe squircle mask and padding
-        var maskedImage = IconMask.createDockIcon(from: sourceImage)
-        
-        if showPlayPauseOverArt {
-            let isPlaying = MinimalAppDelegate.shared?.playbackController?.playing?.isPlaying() ?? false
-            maskedImage = overlayPlayPauseIcon(on: maskedImage, isPlaying: isPlaying)
-        }
+        // Create dock icon with macOS Tahoe squircle mask, padding, and optional play/pause overlay
+        // All rendering happens at 256x256 for crisp Retina display
+        let isPlaying = MinimalAppDelegate.shared?.playbackController?.playing?.isPlaying() ?? false
+        let maskedImage = IconMask.createDockIcon(
+            from: sourceImage,
+            isPlaying: isPlaying,
+            showOverlay: showPlayPauseOverArt
+        )
         
         NSApp.applicationIconImage = maskedImage
     }
     
-    private func overlayPlayPauseIcon(on image: NSImage, isPlaying: Bool) -> NSImage {
-        let size = image.size
-        let result = NSImage(size: size)
-        
-        result.lockFocus()
-        image.draw(in: NSRect(origin: .zero, size: size))
-        
-        // Calculate icon position within the content area (accounting for padding)
-        let contentSize = size.width * IconMask.dockContentRatio
-        let padding = (size.width - contentSize) / 2
-        let iconSize = contentSize * 0.4
-        let iconRect = NSRect(
-            x: padding + (contentSize - iconSize) / 2,
-            y: padding + (contentSize - iconSize) / 2,
-            width: iconSize,
-            height: iconSize
-        )
-        
-        let symbolName = isPlaying ? "pause.circle.fill" : "play.circle.fill"
-        if let symbol = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil) {
-            // Create a white-tinted version of the symbol
-            let tintedSymbol = NSImage(size: symbol.size)
-            tintedSymbol.lockFocus()
-            symbol.draw(in: NSRect(origin: .zero, size: symbol.size))
-            NSColor.white.set()
-            NSRect(origin: .zero, size: symbol.size).fill(using: .sourceAtop)
-            tintedSymbol.unlockFocus()
-            
-            // Draw with shadow
-            if let context = NSGraphicsContext.current?.cgContext {
-                context.saveGState()
-                context.setShadow(offset: CGSize(width: 0, height: -2), blur: 4, color: NSColor.black.withAlphaComponent(0.5).cgColor)
-                tintedSymbol.draw(in: iconRect)
-                context.restoreGState()
-            }
-        }
-        
-        result.unlockFocus()
-        return result
-    }
+    // Removed overlayPlayPauseIcon - now handled by IconMask.createDockIcon at full resolution
     
     // MARK: - Status Bar / Dock Icon Visibility
     
