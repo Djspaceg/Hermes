@@ -73,7 +73,7 @@ struct ContentView: View {
                             stationsViewModel: appState.stationsViewModel,
                             historyViewModel: appState.historyViewModel
                         )
-                        .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 280)
+                        .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300 - 8 * 2)
                     } detail: {
                         PlayerControlsView(
                             viewModel: playerViewModel,

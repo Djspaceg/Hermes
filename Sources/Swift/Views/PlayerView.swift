@@ -124,8 +124,8 @@ struct PlayerControlsView<ViewModel: PlayerViewModelProtocol>: View {
                         PlayPauseButton(
                             isPlaying: viewModel.isPlaying,
                             action: { viewModel.playPause() }
-                        )
-                        
+                        ).padding(.horizontal, 8)
+
                         // Song info - bottom leading
                         SongInfoView(song: song)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
