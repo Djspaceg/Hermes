@@ -48,7 +48,7 @@ struct LoginView: View {
                         try? await viewModel.authenticate()
                     }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.glassProminent)
                 .disabled(!viewModel.canSubmit)
                 .frame(width: 300)
                 
@@ -59,7 +59,6 @@ struct LoginView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(nsColor: .windowBackgroundColor))
     }
 }
 
@@ -101,7 +100,7 @@ private struct LoginPreview: View {
                     .frame(width: 300)
                 
                 Button("Sign In") {}
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.glassProminent)
                     .frame(width: 300)
             }
         }

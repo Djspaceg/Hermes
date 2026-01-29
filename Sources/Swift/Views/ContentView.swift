@@ -82,7 +82,6 @@ struct ContentView: View {
                         .navigationTitle("")
                         .toolbarTitleDisplayMode(.inline)
                         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
-                        .toolbar { playbackToolbar }
                     }
                     .navigationSplitViewStyle(.balanced)
                     .opacity(controlsOpacity)
@@ -118,35 +117,6 @@ struct ContentView: View {
         }
         .background(WindowHoverTracker(isHovering: $isHovering))
         .animation(.easeOut(duration: controlsVisible ? 0.2 : 2), value: controlsOpacity)
-    }
-    
-    @ToolbarContentBuilder
-    private var playbackToolbar: some ToolbarContent {
-        ToolbarItemGroup(placement: .navigation) {
-            Button(action: { playerViewModel.next() }) {
-                Label("Next", systemImage: "forward.fill")
-            }
-            .help("Next")
-            
-            Button(action: { playerViewModel.like() }) {
-                Label(
-                    playerViewModel.isLiked ? "Unlike" : "Like",
-                    systemImage: playerViewModel.isLiked ? "hand.thumbsup.fill" : "hand.thumbsup"
-                )
-            }
-            .foregroundStyle(playerViewModel.isLiked ? .green : .primary)
-            .help(playerViewModel.isLiked ? "Unlike" : "Like")
-            
-            Button(action: { playerViewModel.dislike() }) {
-                Label("Dislike", systemImage: "hand.thumbsdown")
-            }
-            .help("Dislike")
-            
-            Button(action: { playerViewModel.tired() }) {
-                Label("Tired", systemImage: "moon.zzz")
-            }
-            .help("Tired of this song")
-        }
     }
     
     @ViewBuilder

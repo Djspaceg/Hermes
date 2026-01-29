@@ -132,7 +132,7 @@ struct StatusBarWindowContent: View {
     // MARK: - Playback Controls Section
     
     private var playbackControlsSection: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 8) {
             Button {
                 playerViewModel.playPause()
             } label: {
@@ -141,8 +141,8 @@ struct StatusBarWindowContent: View {
                     .frame(width: 44, height: 44)
             }
             .padding(4)
-            .buttonStyle(.plain)
-            .glassEffect(.regular.interactive(), in: .circle)
+            .buttonStyle(.glass)
+            .buttonBorderShape(.circle)
             .keyboardShortcut(.space, modifiers: [])
             
             Button {
@@ -153,8 +153,8 @@ struct StatusBarWindowContent: View {
                     .frame(width: 44, height: 44)
             }
             .padding(4)
-            .buttonStyle(.plain)
-            .glassEffect(.regular.interactive(), in: .circle)
+            .buttonStyle(.glass)
+            .buttonBorderShape(.circle)
         }
         .frame(maxWidth: .infinity)
     }
@@ -167,33 +167,30 @@ struct StatusBarWindowContent: View {
                 playerViewModel.like()
             } label: {
                 Label("Like", systemImage: playerViewModel.isLiked ? "hand.thumbsup.fill" : "hand.thumbsup")
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 2)
             }
-            .buttonStyle(.plain)
-            .glassEffect(.regular.interactive(), in: .capsule)
+            .buttonStyle(.glass)
+            .buttonBorderShape(.capsule)
             .disabled(playerViewModel.currentSong == nil)
             
             Button {
                 playerViewModel.dislike()
             } label: {
                 Label("Dislike", systemImage: "hand.thumbsdown")
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 2)
             }
-            .buttonStyle(.plain)
-            .glassEffect(.regular.interactive(), in: .capsule)
+            .buttonStyle(.glass)
+            .buttonBorderShape(.capsule)
             .disabled(playerViewModel.currentSong == nil)
             
             Button {
                 playerViewModel.tired()
             } label: {
                 Label("Tired", systemImage: "moon.zzz")
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 2)
             }
-            .buttonStyle(.plain)
-            .glassEffect(.regular.interactive(), in: .capsule)
+            .buttonStyle(.glass)
+            .buttonBorderShape(.capsule)
             .disabled(playerViewModel.currentSong == nil)
         }
         .frame(maxWidth: .infinity)

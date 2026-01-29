@@ -30,7 +30,7 @@ struct ErrorView: View {
             Button("Retry") {
                 onRetry()
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.glassProminent)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(nsColor: .windowBackgroundColor))
