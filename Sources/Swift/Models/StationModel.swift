@@ -14,6 +14,7 @@ final class StationModel: ObservableObject, Identifiable, Hashable {
     // Published properties that can change
     @Published var name: String
     @Published var isPlaying: Bool = false
+    @Published var artworkURL: URL?
     
     var id: String { station.stationId }
     var token: String { station.token }
@@ -24,10 +25,6 @@ final class StationModel: ObservableObject, Identifiable, Hashable {
     var allowAddMusic: Bool { station.allowAddMusic }
     var isQuickMix: Bool { station.isQuickMix }
     var playingSong: Song? { station.playingSong }
-    var artworkURL: URL? {
-        guard let artUrl = station.artUrl else { return nil }
-        return URL(string: artUrl)
-    }
     var genres: [String] { station.genres ?? [] }
     
     private var cancellables = Set<AnyCancellable>()
@@ -35,22 +32,43 @@ final class StationModel: ObservableObject, Identifiable, Hashable {
     init(station: Station) {
         self.station = station
         self.name = station.name
+        // Initialize artworkURL from existing station data if available
+        if let artUrl = station.artUrl, !artUrl.isEmpty {
+            self.artworkURL = URL(string: artUrl)
+        } else {
+            self.artworkURL = nil
+        }
         setupObservers()
     }
     
     private func setupObservers() {
-        // Observe station name changes
-        // Note: If Station properties become observable in the future, add observers here
+        // Observe artwork URL changes from StationArtworkLoader
+        NotificationCenter.default.publisher(for: Notification.Name("PandoraDidLoadStationInfoNotification"))
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] notification in
+                guard let self = self,
+                      let userInfo = notification.userInfo as? [String: Any],
+                      let stationName = userInfo["name"] as? String,
+                      stationName == self.station.name else {
+                    return
+                }
+                
+                // Update artwork URL when it becomes available
+                if let artUrl = userInfo["art"] as? String {
+                    self.artworkURL = URL(string: artUrl)
+                }
+            }
+            .store(in: &cancellables)
     }
     
     // MARK: - Hashable
     
     nonisolated static func == (lhs: StationModel, rhs: StationModel) -> Bool {
-        lhs.station === rhs.station
+        lhs.stationId == rhs.stationId
     }
     
     nonisolated func hash(into hasher: inout Hasher) {
-        hasher.combine(ObjectIdentifier(station))
+        hasher.combine(stationId)
     }
 }
 

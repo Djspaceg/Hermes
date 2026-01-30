@@ -7,6 +7,8 @@
 
 import SwiftUI
 
+// MARK: - Outer View (Dependency Injection)
+
 struct StationsListView: View {
     @ObservedObject var viewModel: StationsViewModel
     @Binding var selectedStation: StationModel?
@@ -20,42 +22,20 @@ struct StationsListView: View {
     }
     
     var body: some View {
-        List(viewModel.sortedStations(by: sortOrder), id: \.id, selection: $selectedStation) { station in
-            StationRow(
-                station: station,
-                isPlaying: station.id == viewModel.playingStationId,
-                artworkLoader: viewModel.artworkLoader,
-                showThumbnail: showThumbnails
-            )
-            .tag(station)
-        }
-        .listStyle(.sidebar)
-        .contextMenu(forSelectionType: StationModel.self) { stations in
-            // Context menu items for right-click
-            if let station = stations.first {
-                Button("Play") {
-                    viewModel.playStation(station)
-                }
-                Button("Edit...") {
-                    viewModel.editStation(station)
-                }
-                Button("Rename...") {
-                    viewModel.startRenameStation(station)
-                }
-                Divider()
-                Button("Delete", role: .destructive) {
-                    viewModel.confirmDeleteStation(station)
-                }
-            }
-        } primaryAction: { stations in
-            // Double-click action
-            if let station = stations.first {
-                viewModel.playStation(station)
-            }
-        }
-        .refreshable {
-            await viewModel.refreshStations()
-        }
+        StationsListContent(
+            stations: viewModel.sortedStations(by: sortOrder),
+            selectedStation: $selectedStation,
+            playingStationId: viewModel.playingStationId,
+            showThumbnails: showThumbnails,
+            onRowAppear: { station in
+                viewModel.artworkLoader.loadArtworkIfNeeded(for: station)
+            },
+            onPlay: viewModel.playStation,
+            onEdit: viewModel.editStation,
+            onRename: viewModel.startRenameStation,
+            onDelete: viewModel.confirmDeleteStation,
+            onRefresh: viewModel.refreshStations
+        )
         .confirmationDialog(
             "Delete Station",
             isPresented: $viewModel.showDeleteConfirmation,
@@ -83,11 +63,55 @@ struct StationsListView: View {
     }
 }
 
+// MARK: - Inner View (Pure Presentation)
+
+private struct StationsListContent: View {
+    let stations: [StationModel]
+    @Binding var selectedStation: StationModel?
+    let playingStationId: String?
+    let showThumbnails: Bool
+    let onRowAppear: (Station) -> Void
+    let onPlay: (StationModel) -> Void
+    let onEdit: (StationModel) -> Void
+    let onRename: (StationModel) -> Void
+    let onDelete: (StationModel) -> Void
+    let onRefresh: () async -> Void
+    
+    var body: some View {
+        List(stations, id: \.id, selection: $selectedStation) { station in
+            StationRow(
+                station: station,
+                isPlaying: station.id == playingStationId,
+                showThumbnail: showThumbnails,
+                onAppear: onRowAppear
+            )
+            .tag(station)
+        }
+        .listStyle(.sidebar)
+        .contextMenu(forSelectionType: StationModel.self) { stations in
+            if let station = stations.first {
+                Button("Play") { onPlay(station) }
+                Button("Edit...") { onEdit(station) }
+                Button("Rename...") { onRename(station) }
+                Divider()
+                Button("Delete", role: .destructive) { onDelete(station) }
+            }
+        } primaryAction: { stations in
+            if let station = stations.first {
+                onPlay(station)
+            }
+        }
+        .refreshable {
+            await onRefresh()
+        }
+    }
+}
+
 struct StationRow: View {
-    let station: StationModel
+    @ObservedObject var station: StationModel
     let isPlaying: Bool
-    @ObservedObject var artworkLoader: StationArtworkLoader
     let showThumbnail: Bool
+    let onAppear: (Station) -> Void
     @State private var artwork: NSImage?
     @State private var isLoading = false
     
@@ -134,14 +158,11 @@ struct StationRow: View {
         .animation(.easeInOut(duration: 0.2), value: showThumbnail)
         .contentShape(Rectangle())
         .onAppear {
-            // Trigger lazy loading of artwork URL when row appears
-            artworkLoader.loadArtworkIfNeeded(for: station.station)
-            // Load image from disk-backed cache
-            loadArtwork()
+            onAppear(station.station)
+            Task { await loadArtwork() }
         }
-        .onChange(of: artworkLoader.artworkUpdateTrigger) {
-            // Artwork URL became available, load the image
-            loadArtwork()
+        .onChange(of: station.artworkURL) { _, _ in
+            Task { await loadArtwork() }
         }
     }
     
@@ -172,16 +193,12 @@ struct StationRow: View {
         }
     }
     
-    private func loadArtwork() {
-        guard artwork == nil, !isLoading, let url = station.artworkURL else { return }
+    private func loadArtwork() async {
+        guard !isLoading, let url = station.artworkURL else { return }
         isLoading = true
-        Task {
-            let image = await ImageCache.shared.loadImage(from: url)
-            await MainActor.run {
-                self.artwork = image
-                self.isLoading = false
-            }
-        }
+        let image = await ImageCache.shared.loadImage(from: url)
+        artwork = image
+        isLoading = false
     }
 }
 
@@ -233,56 +250,61 @@ struct RenameStationSheet: View {
 
 // MARK: - Preview
 
-#Preview {
-    StationsListPreview()
-        .frame(width: 250, height: 400)
+#Preview("Stations List") {
+    StationsListContentPreview()
 }
 
-private struct StationsListPreview: View {
-    @StateObject private var viewModel: PreviewStationsViewModel = {
-        let stations: [StationModel] = [
-            .mock(name: "Rock Classics", stationId: "1"),
-            .mock(name: "Chill Vibes", stationId: "2"),
-            .mock(name: "90s Alternative", stationId: "3")
-        ]
-        return PreviewStationsViewModel(stations: stations)
-    }()
+private struct StationsListContentPreview: View {
     @State private var selectedStation: StationModel?
-    @State private var sortOrder: StationsViewModel.SortOrder = .name
+    
+    private let mockStations: [StationModel] = [
+        .mock(name: "Rock Classics", stationId: "1"),
+        .mock(name: "Chill Vibes", stationId: "2"),
+        .mock(name: "90s Alternative", stationId: "3")
+    ]
     
     var body: some View {
-        List(viewModel.stations, id: \.id, selection: $selectedStation) { station in
-            StationRowPreview(station: station)
-                .tag(station)
-        }
-        .listStyle(.sidebar)
-    }
-}
-
-/// Simplified row for previews (no artwork loader dependency)
-private struct StationRowPreview: View {
-    let station: StationModel
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(station.name)
-                .lineLimit(1)
+        VStack(spacing: 0) {
+            StationsListContent(
+                stations: mockStations,
+                selectedStation: $selectedStation,
+                playingStationId: "1",
+                showThumbnails: false,
+                onRowAppear: { _ in },
+                onPlay: { _ in },
+                onEdit: { _ in },
+                onRename: { _ in },
+                onDelete: { _ in },
+                onRefresh: { }
+            )
             
-            if !station.genres.isEmpty {
-                HStack(spacing: 4) {
-                    ForEach(station.genres.prefix(3), id: \.self) { genre in
-                        Text(genre)
-                            .font(.caption2)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 2)
-                            .background(.secondary.opacity(0.15))
-                            .clipShape(Capsule())
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
+            // Footer
+            HStack(spacing: 4) {
+                Button(action: {}) {
+                    Image(systemName: "play.fill")
                 }
+                .disabled(selectedStation == nil)
+                
+                Button(action: {}) {
+                    Image(systemName: "plus")
+                }
+                
+                Button(action: {}) {
+                    Image(systemName: "pencil")
+                }
+                .disabled(selectedStation == nil)
+                
+                Spacer()
+                
+                Button(action: {}) {
+                    Image(systemName: "trash")
+                }
+                .disabled(selectedStation == nil)
             }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(.ultraThinMaterial)
         }
-        .contentShape(Rectangle())
+        .frame(width: 250, height: 400)
     }
 }

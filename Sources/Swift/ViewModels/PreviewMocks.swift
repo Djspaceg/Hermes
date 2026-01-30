@@ -45,6 +45,7 @@ final class PreviewStationsViewModel: ObservableObject {
     @Published var showAddStationSheet = false
     
     let pandora: Pandora
+    let artworkLoader = StationArtworkLoader.shared
     
     init(stations: [StationModel] = [], pandora: Pandora = Pandora()) {
         self.stations = stations

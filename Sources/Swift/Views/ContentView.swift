@@ -71,7 +71,8 @@ struct ContentView: View {
                     NavigationSplitView(columnVisibility: $columnVisibility) {
                         SidebarView(
                             stationsViewModel: appState.stationsViewModel,
-                            historyViewModel: appState.historyViewModel
+                            historyViewModel: appState.historyViewModel,
+                            columnVisibility: $columnVisibility
                         )
                         .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300 - 8 * 2)
                     } detail: {

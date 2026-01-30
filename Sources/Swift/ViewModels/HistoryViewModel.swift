@@ -201,3 +201,14 @@ final class HistoryViewModel: ObservableObject {
         MinimalAppDelegate.shared?.playbackController?.rate(song.song, as: false)
     }
 }
+
+// MARK: - Preview Helpers
+
+extension HistoryViewModel {
+    /// Creates a mock HistoryViewModel for SwiftUI previews
+    static func mock(items: [SongModel] = []) -> HistoryViewModel {
+        let viewModel = HistoryViewModel()
+        viewModel.historyItems = items
+        return viewModel
+    }
+}

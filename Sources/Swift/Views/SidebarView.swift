@@ -16,6 +16,7 @@ enum SidebarSelection {
 struct SidebarView: View {
     @ObservedObject var stationsViewModel: StationsViewModel
     @ObservedObject var historyViewModel: HistoryViewModel
+    @Binding var columnVisibility: NavigationSplitViewVisibility
     
     @State private var selectedView: SidebarSelection = .stations
     @State private var selectedStation: StationModel?
@@ -25,8 +26,6 @@ struct SidebarView: View {
     var body: some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
-                navigationHeader
-                
                 if selectedView == .stations {
                     sortControls
                 }
@@ -46,6 +45,15 @@ struct SidebarView: View {
             }
             .onAppear {
                 sidebarWidth = geometry.size.width
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .automatic) {
+                stationsButton
+            }
+            
+            ToolbarItem(placement: .automatic) {
+                historyButton
             }
         }
         .environment(\.sidebarWidth, sidebarWidth)
@@ -84,44 +92,63 @@ struct SidebarView: View {
         }
     }
     
-    private var navigationHeader: some View {
-        HStack(spacing: 0) {
-            Button(action: { selectedView = .stations }) {
-                Text("Stations")
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-            }
-            .buttonStyle(NavigationHeaderButtonStyle(isSelected: selectedView == .stations))
-            
-            Button(action: { selectedView = .history }) {
-                Text("History")
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-            }
-            .buttonStyle(NavigationHeaderButtonStyle(isSelected: selectedView == .history))
+    private var sortControls: some View {
+        Picker("Sort by", selection: $sortOrder) {
+            Text("Name").tag(StationsViewModel.SortOrder.name)
+            Text("Date").tag(StationsViewModel.SortOrder.dateCreated)
         }
+        .pickerStyle(.segmented)
+//        .labelsHidden()
         .padding(.horizontal, 8)
-        .padding(.top, 8)
+        .padding(.bottom, 4)
+    }
+
+var toolbarIconButtonSize: CGFloat = 16
+
+    @ViewBuilder
+    private var stationsButton: some View {
+        if selectedView == .stations {
+            Button { 
+                selectedView = .stations
+                withAnimation { columnVisibility = .all }
+            } label: {
+                Label("Stations", systemImage: "radio")
+                .frame(width: toolbarIconButtonSize, height: toolbarIconButtonSize)
+            }
+            .buttonStyle(.glassProminent)
+        } else {
+            Button { 
+                selectedView = .stations
+                withAnimation { columnVisibility = .all }
+            } label: {
+                Label("Stations", systemImage: "radio")
+                .frame(width: toolbarIconButtonSize, height: toolbarIconButtonSize)
+            }
+            .buttonStyle(.glass)
+        }
     }
     
-    private var sortControls: some View {
-        HStack(spacing: 0) {
-            Button(action: { sortOrder = .name }) {
-                Text("Name")
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
+    @ViewBuilder
+    private var historyButton: some View {
+        if selectedView == .history {
+            Button { 
+                selectedView = .history
+                withAnimation { columnVisibility = .all }
+            } label: {
+                Label("History", systemImage: "clock")
+                .frame(width: toolbarIconButtonSize, height: toolbarIconButtonSize)
             }
-            .buttonStyle(SortButtonStyle(isSelected: sortOrder == .name))
-            
-            Button(action: { sortOrder = .dateCreated }) {
-                Text("Date")
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
+            .buttonStyle(.glassProminent)
+        } else {
+            Button { 
+                selectedView = .history
+                withAnimation { columnVisibility = .all }
+            } label: {
+                Label("History", systemImage: "clock")
+                .frame(width: toolbarIconButtonSize, height: toolbarIconButtonSize)
             }
-            .buttonStyle(SortButtonStyle(isSelected: sortOrder == .dateCreated))
+            .buttonStyle(.glass)
         }
-        .padding(.horizontal, 8)
-        .padding(.top, 4)
     }
     
     @ViewBuilder
@@ -143,7 +170,7 @@ struct SidebarView: View {
     
     private var stationsFooter: some View {
         HStack(spacing: 4) {
-            AppKitIconButton(
+            SidebarIconButton(
                 systemName: "play.fill",
                 isEnabled: selectedStation != nil,
                 helpText: "Play Station"
@@ -153,14 +180,14 @@ struct SidebarView: View {
                 }
             }
             
-            AppKitIconButton(
+            SidebarIconButton(
                 systemName: "plus",
                 helpText: "Add Station"
             ) {
                 stationsViewModel.showAddStation()
             }
             
-            AppKitIconButton(
+            SidebarIconButton(
                 systemName: "pencil",
                 isEnabled: selectedStation != nil,
                 helpText: "Edit Station"
@@ -172,7 +199,7 @@ struct SidebarView: View {
             
             Spacer()
             
-            AppKitIconButton(
+            SidebarIconButton(
                 systemName: "trash",
                 isEnabled: selectedStation != nil,
                 helpText: "Delete Station"
@@ -189,7 +216,7 @@ struct SidebarView: View {
     
     private var historyFooter: some View {
         HStack(spacing: 4) {
-            AppKitIconButton(
+            SidebarIconButton(
                 systemName: "music.note",
                 isEnabled: historyViewModel.selectedItem != nil,
                 helpText: "Song on Pandora"
@@ -197,7 +224,7 @@ struct SidebarView: View {
                 historyViewModel.openSongOnPandora()
             }
             
-            AppKitIconButton(
+            SidebarIconButton(
                 systemName: "person",
                 isEnabled: historyViewModel.selectedItem != nil,
                 helpText: "Artist on Pandora"
@@ -205,7 +232,7 @@ struct SidebarView: View {
                 historyViewModel.openArtistOnPandora()
             }
             
-            AppKitIconButton(
+            SidebarIconButton(
                 systemName: "square.stack",
                 isEnabled: historyViewModel.selectedItem != nil,
                 helpText: "Album on Pandora"
@@ -213,7 +240,7 @@ struct SidebarView: View {
                 historyViewModel.openAlbumOnPandora()
             }
             
-            AppKitIconButton(
+            SidebarIconButton(
                 systemName: "text.quote",
                 isEnabled: historyViewModel.selectedItem != nil,
                 helpText: "Lyrics"
@@ -223,20 +250,20 @@ struct SidebarView: View {
             
             Spacer()
             
-            AppKitIconButton(
+            SidebarIconButton(
                 systemName: historyViewModel.selectedItem?.rating == 1 ? "hand.thumbsup.fill" : "hand.thumbsup",
                 isEnabled: historyViewModel.selectedItem != nil,
                 helpText: historyViewModel.selectedItem?.rating == 1 ? "Unlike" : "Like",
-                tintColor: historyViewModel.selectedItem?.rating == 1 ? .systemGreen : nil
+                tintColor: historyViewModel.selectedItem?.rating == 1 ? .green : nil
             ) {
                 historyViewModel.likeSelected()
             }
             
-            AppKitIconButton(
+            SidebarIconButton(
                 systemName: historyViewModel.selectedItem?.rating == -1 ? "hand.thumbsdown.fill" : "hand.thumbsdown",
                 isEnabled: historyViewModel.selectedItem != nil,
                 helpText: historyViewModel.selectedItem?.rating == -1 ? "Remove Dislike" : "Dislike",
-                tintColor: historyViewModel.selectedItem?.rating == -1 ? .systemRed : nil
+                tintColor: historyViewModel.selectedItem?.rating == -1 ? .red : nil
             ) {
                 historyViewModel.dislikeSelected()
             }
@@ -247,146 +274,71 @@ struct SidebarView: View {
     }
 }
 
-// MARK: - Button Styles
+// MARK: - Sidebar Icon Button (SwiftUI with hover states)
 
-struct NavigationHeaderButtonStyle: ButtonStyle {
-    let isSelected: Bool
-    
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 13, weight: .medium))
-            .foregroundColor(isSelected ? .primary : .secondary)
-            .contentShape(Rectangle())
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? Color.accentColor.opacity(0.15) : Color.clear)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 1)
-            )
-            .opacity(configuration.isPressed ? 0.7 : 1.0)
-    }
-}
-
-struct SortButtonStyle: ButtonStyle {
-    let isSelected: Bool
-    
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 11))
-            .foregroundColor(isSelected ? .primary : .secondary)
-            .contentShape(Rectangle())
-            .background(
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(isSelected ? Color(nsColor: .selectedControlColor) : Color.clear)
-            )
-            .opacity(configuration.isPressed ? 0.7 : 1.0)
-    }
-}
-
-// MARK: - AppKit Icon Button (for proper hover states)
-
-/// An AppKit-backed icon button that provides proper hover states on macOS Tahoe.
-/// SwiftUI buttons in content areas don't get hover states with Liquid Glass enabled,
-/// but NSButton does, so we use this wrapper for footer buttons.
-struct AppKitIconButton: NSViewRepresentable {
+struct SidebarIconButton: View {
     let systemName: String
-    let action: () -> Void
     let isEnabled: Bool
     let helpText: String
-    var tintColor: NSColor?
+    var tintColor: Color?
+    let action: () -> Void
+    
+    @State private var isHovering = false
     
     init(
         systemName: String,
         isEnabled: Bool = true,
         helpText: String = "",
-        tintColor: NSColor? = nil,
+        tintColor: Color? = nil,
         action: @escaping () -> Void
     ) {
         self.systemName = systemName
-        self.action = action
         self.isEnabled = isEnabled
         self.helpText = helpText
         self.tintColor = tintColor
+        self.action = action
     }
     
-    func makeNSView(context: Context) -> NSButton {
-        let button = NSButton()
-        button.bezelStyle = .accessoryBar
-        button.isBordered = true
-        button.imagePosition = .imageOnly
-        button.target = context.coordinator
-        button.action = #selector(Coordinator.buttonClicked)
-        button.toolTip = helpText
-        button.setContentHuggingPriority(.defaultHigh, for: .horizontal)
-        return button
-    }
-    
-    func updateNSView(_ button: NSButton, context: Context) {
-        let config = NSImage.SymbolConfiguration(pointSize: 13, weight: .regular)
-        var image = NSImage(systemSymbolName: systemName, accessibilityDescription: helpText)?
-            .withSymbolConfiguration(config)
-        
-        if let color = tintColor {
-            image = image?.withSymbolConfiguration(
-                NSImage.SymbolConfiguration(paletteColors: [color])
-            )
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 13, weight: .regular))
+                .foregroundStyle(tintColor ?? .primary)
+                .frame(width: 24, height: 24)
+                .background(
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(isHovering && isEnabled ? Color.primary.opacity(0.1) : Color.clear)
+                )
         }
-        
-        button.image = image
-        button.isEnabled = isEnabled
-        button.toolTip = helpText
-        context.coordinator.action = action
-    }
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator(action: action)
-    }
-    
-    class Coordinator: NSObject {
-        var action: () -> Void
-        
-        init(action: @escaping () -> Void) {
-            self.action = action
-        }
-        
-        @objc func buttonClicked() {
-            action()
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
+        .opacity(isEnabled ? 1 : 0.4)
+        .help(helpText)
+        .onHover { hovering in
+            isHovering = hovering
         }
     }
 }
-
 
 // MARK: - Preview
 
 #Preview {
-    SidebarPreview()
-        .frame(width: 250, height: 600)
-}
-
-private struct SidebarPreview: View {
-    @State private var selectedView: SidebarSelection = .stations
-    
-    var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 0) {
-                Button("Stations") { selectedView = .stations }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                Button("History") { selectedView = .history }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-            }
-            .padding(.horizontal, 8)
-            .padding(.top, 8)
-            
-            List {
-                Text("Rock Classics")
-                Text("Chill Vibes")
-                Text("90s Alternative")
-            }
-            .listStyle(.sidebar)
-        }
-    }
+    SidebarView(
+        stationsViewModel: .mock(
+            stations: [
+//                .mock(name: "Rock Classics", stationId: "1"),
+//                .mock(name: "Chill Vibes", stationId: "2"),
+//                .mock(name: "90s Alternative", stationId: "3")
+            ],
+            playingStationId: "1"
+        ),
+        historyViewModel: .mock(
+            items: [
+                .mock(title: "Song 1", artist: "Artist 1", album: "Album 1"),
+                .mock(title: "Song 2", artist: "Artist 2", album: "Album 2")
+            ]
+        ),
+        columnVisibility: .constant(.all)
+    )
+    .frame(width: 250, height: 300)
 }
