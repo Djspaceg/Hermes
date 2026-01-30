@@ -9,7 +9,6 @@
 #import <Cocoa/Cocoa.h>
 #import <UserNotifications/UserNotifications.h>
 
-#import "SPMediaKeyTap/SPMediaKeyTap.h"
 #import "FMEngine/NSString+FMEngine.h"
 #import "Pandora/Pandora.h"
 #import "Pandora/Station.h"

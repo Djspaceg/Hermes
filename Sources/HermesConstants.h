@@ -67,3 +67,4 @@
 #define PAUSE_ON_SCREEN_LOCK         @"pauseOnScreenLock"
 #define PLAY_ON_SCREEN_UNLOCK        @"playOnScreenUnlock"
 #define PLAY_AUTOMATICALLY_ON_LAUNCH @"playAutomaticallyOnLaunch"
+#define PLEASE_BIND_MEDIA            @"pleaseBindMedia"

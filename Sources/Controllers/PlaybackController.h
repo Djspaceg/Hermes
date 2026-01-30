@@ -13,7 +13,6 @@
 #import "Pandora/Station.h"
 
 @class Song;
-@class SPMediaKeyTap;
 
 /// Notification posted when playback state changes (playing/paused/stopped)
 extern NSString * const PlaybackStateDidChangeNotification;
@@ -49,9 +48,6 @@ extern NSString * const PlaybackArtDidLoadNotification;
 /// Media remote command center for system media controls
 @property (nonatomic, readonly) MPRemoteCommandCenter *remoteCommandCenter;
 
-/// Media key tap for keyboard media keys (debug builds)
-@property (nonatomic, readonly) SPMediaKeyTap *mediaKeyTap;
-
 /// Current playback progress in seconds
 @property (nonatomic, readonly) double currentProgress;
 
@@ -73,6 +69,9 @@ extern NSString * const PlaybackArtDidLoadNotification;
 
 /// Prepare for first use (load saved volume, etc.)
 - (void)prepareFirst;
+
+/// Set up or tear down media key handlers based on user preference
+- (void)setupMediaKeys;
 
 // MARK: - Station Management
 

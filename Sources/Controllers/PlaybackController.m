@@ -7,14 +7,12 @@
  * NotificationCenter for SwiftUI to observe.
  */
 
-#import <SPMediaKeyTap/SPMediaKeyTap.h>
 #import <MediaPlayer/MediaPlayer.h>
 
 #import "PlaybackController.h"
 #import "Hermes-Swift.h"
 #import "HermesConstants.h"
 #import "Pandora/Pandora.h"
-// #import "StationsController.h" // Not needed - removed
 
 // MARK: - Notification Names
 
@@ -33,7 +31,6 @@ static BOOL playOnStart = YES;
 @property (nonatomic, readwrite) NSData *lastImg;
 @property (nonatomic, readwrite) NSImage *artImage;
 @property (nonatomic, readwrite) MPRemoteCommandCenter *remoteCommandCenter;
-@property (nonatomic, readwrite) SPMediaKeyTap *mediaKeyTap;
 
 @property (nonatomic) NSTimer *progressUpdateTimer;
 @property (nonatomic) BOOL scrobbleSent;
@@ -48,6 +45,7 @@ static BOOL playOnStart = YES;
 
 + (void)setPlayOnStart:(BOOL)play {
     playOnStart = play;
+
 }
 
 + (BOOL)playOnStart {
@@ -145,47 +143,64 @@ static BOOL playOnStart = YES;
 
 - (void)setupMediaKeys {
     // Use MPRemoteCommandCenter for system media controls
-    if ([MPRemoteCommandCenter class] != nil) {
-        _remoteCommandCenter = [MPRemoteCommandCenter sharedCommandCenter];
-        
-        __weak typeof(self) weakSelf = self;
-        
-        [_remoteCommandCenter.playCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *event) {
-            return [weakSelf play] ? MPRemoteCommandHandlerStatusSuccess : MPRemoteCommandHandlerStatusCommandFailed;
-        }];
-        
-        [_remoteCommandCenter.pauseCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *event) {
-            return [weakSelf pause] ? MPRemoteCommandHandlerStatusSuccess : MPRemoteCommandHandlerStatusCommandFailed;
-        }];
-        
-        [_remoteCommandCenter.nextTrackCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *event) {
-            [weakSelf next];
-            return MPRemoteCommandHandlerStatusSuccess;
-        }];
-        
-        [_remoteCommandCenter.togglePlayPauseCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *event) {
-            [weakSelf playpause];
-            return MPRemoteCommandHandlerStatusSuccess;
-        }];
-        
-        [_remoteCommandCenter.likeCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *event) {
-            [weakSelf likeCurrent];
-            return MPRemoteCommandHandlerStatusSuccess;
-        }];
-        
-        [_remoteCommandCenter.dislikeCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *event) {
-            [weakSelf dislikeCurrent];
-            return MPRemoteCommandHandlerStatusSuccess;
-        }];
+    // This is the modern, built-in macOS API for media key handling
+    _remoteCommandCenter = [MPRemoteCommandCenter sharedCommandCenter];
+    
+    BOOL enabled = PREF_KEY_BOOL(PLEASE_BIND_MEDIA);
+    
+    // Remove all existing handlers first to ensure clean state
+    // This allows other apps to receive media key events when disabled
+    [_remoteCommandCenter.playCommand removeTarget:self];
+    [_remoteCommandCenter.pauseCommand removeTarget:self];
+    [_remoteCommandCenter.nextTrackCommand removeTarget:self];
+    [_remoteCommandCenter.togglePlayPauseCommand removeTarget:self];
+    [_remoteCommandCenter.likeCommand removeTarget:self];
+    [_remoteCommandCenter.dislikeCommand removeTarget:self];
+    
+    if (!enabled) {
+        NSLog(@"Media keys disabled - handlers removed");
+        return;
     }
     
-#ifndef DEBUG
-    // SPMediaKeyTap for keyboard media keys (only in release builds)
-    _mediaKeyTap = [[SPMediaKeyTap alloc] initWithDelegate:self];
-    if (PREF_KEY_BOOL(PLEASE_BIND_MEDIA)) {
-        [_mediaKeyTap startWatchingMediaKeys];
-    }
-#endif
+    // Add handlers when enabled
+    [_remoteCommandCenter.playCommand addTarget:self action:@selector(handlePlayCommand:)];
+    [_remoteCommandCenter.pauseCommand addTarget:self action:@selector(handlePauseCommand:)];
+    [_remoteCommandCenter.nextTrackCommand addTarget:self action:@selector(handleNextCommand:)];
+    [_remoteCommandCenter.togglePlayPauseCommand addTarget:self action:@selector(handleTogglePlayPauseCommand:)];
+    [_remoteCommandCenter.likeCommand addTarget:self action:@selector(handleLikeCommand:)];
+    [_remoteCommandCenter.dislikeCommand addTarget:self action:@selector(handleDislikeCommand:)];
+    
+    NSLog(@"Media keys enabled via MPRemoteCommandCenter");
+}
+
+// MARK: - Media Command Handlers
+
+- (MPRemoteCommandHandlerStatus)handlePlayCommand:(MPRemoteCommandEvent *)event {
+    return [self play] ? MPRemoteCommandHandlerStatusSuccess : MPRemoteCommandHandlerStatusCommandFailed;
+}
+
+- (MPRemoteCommandHandlerStatus)handlePauseCommand:(MPRemoteCommandEvent *)event {
+    return [self pause] ? MPRemoteCommandHandlerStatusSuccess : MPRemoteCommandHandlerStatusCommandFailed;
+}
+
+- (MPRemoteCommandHandlerStatus)handleNextCommand:(MPRemoteCommandEvent *)event {
+    [self next];
+    return MPRemoteCommandHandlerStatusSuccess;
+}
+
+- (MPRemoteCommandHandlerStatus)handleTogglePlayPauseCommand:(MPRemoteCommandEvent *)event {
+    [self playpause];
+    return MPRemoteCommandHandlerStatusSuccess;
+}
+
+- (MPRemoteCommandHandlerStatus)handleLikeCommand:(MPRemoteCommandEvent *)event {
+    [self likeCurrent];
+    return MPRemoteCommandHandlerStatusSuccess;
+}
+
+- (MPRemoteCommandHandlerStatus)handleDislikeCommand:(MPRemoteCommandEvent *)event {
+    [self dislikeCurrent];
+    return MPRemoteCommandHandlerStatusSuccess;
 }
 
 - (void)prepareFirst {
@@ -550,34 +565,6 @@ static BOOL playOnStart = YES;
         [self play];
     }
     self.pausedByScreenLock = NO;
-}
-
-// MARK: - Media Key Handling
-
-- (void)mediaKeyTap:(SPMediaKeyTap *)keyTap receivedMediaKeyEvent:(NSEvent *)event {
-    if ([event type] != NSEventTypeSystemDefined || [event subtype] != SPSystemDefinedEventMediaKeys) {
-        return;
-    }
-    
-    int keyCode = (([event data1] & 0xFFFF0000) >> 16);
-    int keyFlags = ([event data1] & 0x0000FFFF);
-    int keyState = (((keyFlags & 0xFF00) >> 8)) == 0xA;
-    
-    if (keyState != 1) return;
-    
-    switch (keyCode) {
-        case NX_KEYTYPE_PLAY:
-            [self playpause];
-            break;
-        case NX_KEYTYPE_FAST:
-        case NX_KEYTYPE_NEXT:
-            [self next];
-            break;
-        case NX_KEYTYPE_REWIND:
-        case NX_KEYTYPE_PREVIOUS:
-            // No previous track in Pandora
-            break;
-    }
 }
 
 // MARK: - Now Playing Info

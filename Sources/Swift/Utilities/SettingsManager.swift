@@ -83,14 +83,9 @@ final class SettingsManager: NSObject, ObservableObject {
     }
     
     func applyMediaKeys() {
-        guard let playbackController = MinimalAppDelegate.shared?.playbackController,
-              let mediaKeyTap = playbackController.mediaKeyTap else { return }
-        
-        if bindMediaKeys {
-            mediaKeyTap.startWatchingMediaKeys()
-        } else {
-            mediaKeyTap.stopWatchingMediaKeys()
-        }
+        // Re-initialize media keys with current preference
+        // This will enable/disable MPRemoteCommandCenter based on the setting
+        MinimalAppDelegate.shared?.playbackController?.setupMediaKeys()
     }
     
     func applyDockIcon() {
