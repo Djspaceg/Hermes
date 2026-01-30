@@ -84,14 +84,19 @@ final class StationArtworkLoader: ObservableObject {
             loadedStations.insert(stationId)
             
             // Post notification so StationModel updates its artworkURL
+            // Build userInfo carefully to avoid nil values
+            var userInfo: [String: Any] = [
+                "name": stationName,
+                "genres": cached.genres
+            ]
+            if let artUrl = cached.artUrl {
+                userInfo["art"] = artUrl
+            }
+            
             NotificationCenter.default.post(
                 name: Notification.Name("PandoraDidLoadStationInfoNotification"),
-                object: nil,
-                userInfo: [
-                    "name": stationName,
-                    "art": cached.artUrl as Any,
-                    "genres": cached.genres
-                ]
+                object: "cache",
+                userInfo: userInfo
             )
             
             artworkUpdateTrigger = UUID()
@@ -170,6 +175,12 @@ final class StationArtworkLoader: ObservableObject {
     private func handleStationInfoLoaded(_ notification: Notification) {
         guard let userInfo = notification.userInfo as? [String: Any],
               let stationName = userInfo["name"] as? String else {
+            return
+        }
+        
+        // Ignore notifications we posted ourselves (from cache restoration)
+        // These are marked with "cache" as the object
+        if let obj = notification.object as? String, obj == "cache" {
             return
         }
         

@@ -43,6 +43,7 @@ final class StationModel: ObservableObject, Identifiable, Hashable {
     
     private func setupObservers() {
         // Observe artwork URL changes from StationArtworkLoader
+        // Note: receive(on: .main) ensures we update @Published on main thread
         NotificationCenter.default.publisher(for: Notification.Name("PandoraDidLoadStationInfoNotification"))
             .receive(on: DispatchQueue.main)
             .sink { [weak self] notification in

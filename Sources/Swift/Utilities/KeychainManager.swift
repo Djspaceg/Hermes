@@ -26,20 +26,38 @@ final class KeychainManager: NSObject, KeychainProtocol {
     
     // MARK: - Singleton
     
+    /// Detects if we're running in a test environment
+    private static var isRunningTests: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil ||
+        ProcessInfo.processInfo.environment["XCTestSessionIdentifier"] != nil ||
+        NSClassFromString("XCTest") != nil
+    }
+    
     static let shared: KeychainProtocol = {
-        // Use mock keychain during unit tests
-        // Check multiple indicators that we're running in a test environment
-        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil ||
-           ProcessInfo.processInfo.environment["XCTestSessionIdentifier"] != nil ||
-           NSClassFromString("XCTest") != nil {
+        if isRunningTests {
             print("KeychainManager: Using MockKeychainManager for tests")
             return MockKeychainManager()
         }
         return KeychainManager()
     }()
     
-    /// Shared instance for Objective-C access (always returns real KeychainManager)
-    @objc static let objcShared = KeychainManager()
+    /// Shared instance for Objective-C access - also respects test mode
+    @objc static var objcShared: KeychainManager {
+        if isRunningTests {
+            // Return a no-op instance that won't touch the real keychain
+            return _mockObjcInstance
+        }
+        return _realObjcInstance
+    }
+    
+    private static let _realObjcInstance = KeychainManager()
+    private static let _mockObjcInstance: KeychainManager = {
+        let instance = KeychainManager()
+        instance._isMock = true
+        return instance
+    }()
+    
+    private var _isMock = false
     
     private override init() {
         super.init()
@@ -182,6 +200,10 @@ final class KeychainManager: NSObject, KeychainProtocol {
     ///   - password: The password to store
     /// - Returns: YES if successful, NO otherwise
     @objc func setItem(_ username: String, password: String) -> Bool {
+        if _isMock {
+            print("MockKeychainManager (objc): Skipping save for user: \(username)")
+            return true
+        }
         do {
             try saveCredentials(username: username, password: password)
             return true
@@ -195,6 +217,10 @@ final class KeychainManager: NSObject, KeychainProtocol {
     /// - Parameter username: The account name
     /// - Returns: The password if found, nil otherwise
     @objc func getPassword(_ username: String) -> String? {
+        if _isMock {
+            print("MockKeychainManager (objc): Returning nil for user: \(username)")
+            return nil
+        }
         do {
             return try retrievePassword(username: username)
         } catch {

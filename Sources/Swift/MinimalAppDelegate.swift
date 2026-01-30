@@ -188,16 +188,8 @@ import Combine
     }
     
     @objc private func handleMediaKeysChanged(_ notification: Notification) {
-        let bindMediaKeys = UserDefaults.standard.bool(forKey: UserDefaultsKeys.pleaseBindMedia)
-        
-        // Toggle media key handling via PlaybackController
-        if let mediaKeyTap = playbackController?.mediaKeyTap {
-            if bindMediaKeys {
-                mediaKeyTap.startWatchingMediaKeys()
-            } else {
-                mediaKeyTap.stopWatchingMediaKeys()
-            }
-        }
+        // Re-initialize media keys with current preference
+        playbackController?.setupMediaKeys()
     }
     
     @objc private func handleDockIconChanged(_ notification: Notification) {
@@ -243,7 +235,7 @@ import Combine
         UserDefaults.standard.register(defaults: defaults)
     }
     
-    private func setupMediaKeys() {
+    func setupMediaKeys() {
         // Media keys are handled by MediaKeyHandler in AppState
         // This is just a placeholder for any additional setup
     }

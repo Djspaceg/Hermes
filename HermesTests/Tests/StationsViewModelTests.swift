@@ -15,12 +15,14 @@ final class StationsViewModelTests: XCTestCase {
     
     override func setUp() async throws {
         try await super.setUp()
-        // Use real Pandora instance for testing
+        // Use isolated Pandora instance to avoid keychain access
         // Tests focus on state management and UI logic, not Pandora API
-        sut = StationsViewModel(pandora: AppState.shared.pandora)
+        sut = StationsViewModel(pandora: Pandora())
     }
     
     override func tearDown() async throws {
+        // Clean up UserDefaults to prevent test pollution
+        UserDefaults.standard.removeObject(forKey: "hermes.last-station")
         sut = nil
         try await super.tearDown()
     }

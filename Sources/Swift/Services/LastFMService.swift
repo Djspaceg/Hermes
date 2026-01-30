@@ -44,6 +44,12 @@ final class LastFMService: ObservableObject {
     // MARK: - Initialization
     
     private init() {
+        // Skip keychain access during tests
+        guard !Self.isRunningTests else {
+            setupNotificationObservers()
+            return
+        }
+        
         // Load session token from keychain
         sessionToken = KeychainManager.objcShared.getPassword(keychainItem)
         if sessionToken?.isEmpty == true {
@@ -52,6 +58,11 @@ final class LastFMService: ObservableObject {
         
         // Setup notification observers
         setupNotificationObservers()
+    }
+    
+    private static var isRunningTests: Bool {
+        ProcessInfo.processInfo.environment["XCTestSessionIdentifier"] != nil ||
+        NSClassFromString("XCTest") != nil
     }
     
     // MARK: - Notification Observers

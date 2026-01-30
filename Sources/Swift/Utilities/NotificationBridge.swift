@@ -3,6 +3,7 @@
 //  Hermes
 //
 //  Bridges Objective-C NSNotifications to Combine publishers
+//  All publishers dispatch to main thread since Obj-C posts from background threads
 //
 
 import Foundation
@@ -11,18 +12,21 @@ import Combine
 extension NotificationCenter {
     var pandoraAuthenticatedPublisher: AnyPublisher<Void, Never> {
         publisher(for: Notification.Name("PandoraDidAuthenticateNotification"))
+            .receive(on: DispatchQueue.main)
             .map { _ in () }
             .eraseToAnyPublisher()
     }
     
     var pandoraStationsLoadedPublisher: AnyPublisher<Void, Never> {
         publisher(for: Notification.Name("PandoraDidLoadStationsNotification"))
+            .receive(on: DispatchQueue.main)
             .map { _ in () }
             .eraseToAnyPublisher()
     }
     
     var songPlayingPublisher: AnyPublisher<Song, Never> {
         publisher(for: Notification.Name("StationDidPlaySongNotification"))
+            .receive(on: DispatchQueue.main)
             .compactMap { notification -> Song? in
                 // The notification object is the Station
                 guard let station = notification.object as? Station else {
@@ -36,6 +40,7 @@ extension NotificationCenter {
     
     var playbackStatePublisher: AnyPublisher<Bool, Never> {
         publisher(for: Notification.Name("ASStatusChangedNotification"))
+            .receive(on: DispatchQueue.main)
             .compactMap { notification -> Bool? in
                 // The notification object is the AudioStreamer
                 guard let streamer = notification.object as? AudioStreamer else {
@@ -49,6 +54,7 @@ extension NotificationCenter {
     
     var pandoraErrorPublisher: AnyPublisher<String, Never> {
         publisher(for: Notification.Name("PandoraDidErrorNotification"))
+            .receive(on: DispatchQueue.main)
             .compactMap { notification -> String? in
                 // Pandora.m uses "err" key for error message
                 if let err = notification.userInfo?["err"] as? String {

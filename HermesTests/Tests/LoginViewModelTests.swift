@@ -15,9 +15,9 @@ final class LoginViewModelTests: XCTestCase {
     
     override func setUp() async throws {
         try await super.setUp()
-        // Use real Pandora instance for testing
-        // Authentication tests focus on validation logic, not Pandora API
-        sut = LoginViewModel(pandora: AppState.shared.pandora)
+        // Use isolated Pandora instance to avoid keychain access
+        // Tests focus on validation logic, not Pandora API
+        sut = LoginViewModel(pandora: Pandora())
     }
     
     override func tearDown() async throws {
