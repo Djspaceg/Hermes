@@ -39,14 +39,12 @@
 - `AudioToolbox.framework` - Audio playback
 - `Security.framework` - Keychain access
 - `SystemConfiguration.framework` - Network reachability
-- `Carbon.framework` - Media key support
-- `MediaPlayer.framework` - Media controls (weak linked)
+- `MediaPlayer.framework` - Media controls via MPRemoteCommandCenter
 - `Quartz.framework` - Graphics
 
 ### Third-Party Libraries (Imported)
 
 - **FMEngine** (`ImportedSources/FMEngine/`) - Last.fm API client
-- **SPMediaKeyTap** (`ImportedSources/SPMediaKeyTap/`) - Media key handling
 - **Blowfish** (`ImportedSources/blowfish/`) - Encryption for Pandora API
 
 ### Package Dependencies
@@ -94,7 +92,7 @@ make clean              # Remove build artifacts
 
 ## Build Configuration Notes
 
-- **Debug builds**: Media keys will NOT work (SPMediaKeyTap limitation)
+- **Media keys**: Handled via MPRemoteCommandCenter (modern macOS API)
 - **Release builds**: Require code signing for distribution
 - **Code signing**: Uses `CODE_SIGN_IDENTITY` from Xcode settings
 - **Sparkle updates**: Require DSA signature (private key: `hermes.key`)
