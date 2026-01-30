@@ -52,11 +52,11 @@ final class AppState: ObservableObject {
         // Subscribe to notifications
         setupNotificationSubscriptions()
         
-        // Check for saved credentials - but NOT in preview mode
-        if !Self.isPreview {
+        // Check for saved credentials - but NOT in preview or test mode
+        if !Self.isPreview && !Self.isRunningTests {
             checkSavedCredentials()
         } else {
-            print("AppState: Running in preview mode, skipping credential check")
+            print("AppState: Running in preview/test mode, skipping credential check")
         }
         
         print("AppState: Initialized - currentView: \(currentView)")
@@ -65,7 +65,12 @@ final class AppState: ObservableObject {
     // MARK: - Preview Detection
     
     private static var isPreview: Bool {
-        return ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
+        ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
+    }
+    
+    private static var isRunningTests: Bool {
+        ProcessInfo.processInfo.environment["XCTestSessionIdentifier"] != nil ||
+        NSClassFromString("XCTest") != nil
     }
     
     // MARK: - Notification Subscriptions
