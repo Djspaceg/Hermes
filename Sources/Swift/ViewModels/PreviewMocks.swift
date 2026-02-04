@@ -44,10 +44,10 @@ final class PreviewStationsViewModel: ObservableObject {
     @Published var stationToEdit: StationModel?
     @Published var showAddStationSheet = false
     
-    let pandora: Pandora
+    let pandora: PandoraClient
     let artworkLoader = StationArtworkLoader.shared
     
-    init(stations: [StationModel] = [], pandora: Pandora = Pandora()) {
+    init(stations: [StationModel] = [], pandora: PandoraClient = PandoraClient()) {
         self.stations = stations
         self.pandora = pandora
     }

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import AppKit
 import Combine
 
 // MARK: - Protocol
@@ -60,12 +61,12 @@ final class StationEditViewModel: ObservableObject, StationEditViewModelProtocol
     // MARK: - Private Properties
     
     private let station: Station
-    private let pandora: Pandora
+    private let pandora: PandoraClient
     private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Initialization
     
-    init(station: Station, pandora: Pandora) {
+    init(station: Station, pandora: PandoraClient) {
         self.station = station
         self.pandora = pandora
         self.stationName = station.name ?? ""
@@ -314,7 +315,8 @@ final class StationEditViewModel: ObservableObject, StationEditViewModelProtocol
         // Parse artists
         if let artists = userInfo["Artists"] as? [PandoraSearchResult] {
             for artist in artists {
-                guard let artistName = artist.name else { continue }
+                let artistName = artist.name
+                guard !artistName.isEmpty else { continue }
                 results.append(SeedSearchResult(
                     id: UUID().uuidString,
                     musicToken: artist.value,
@@ -328,7 +330,8 @@ final class StationEditViewModel: ObservableObject, StationEditViewModelProtocol
         // Parse songs
         if let songs = userInfo["Songs"] as? [PandoraSearchResult] {
             for song in songs {
-                guard let songFullName = song.name else { continue }
+                let songFullName = song.name
+                guard !songFullName.isEmpty else { continue }
                 let components = songFullName.components(separatedBy: " - ")
                 let artistName = components.first ?? ""
                 let songName = components.count > 1 ? components.dropFirst().joined(separator: " - ") : songFullName

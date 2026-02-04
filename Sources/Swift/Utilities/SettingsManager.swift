@@ -101,7 +101,7 @@ final class SettingsManager: NSObject, ObservableObject {
         
         var image: NSImage?
         if let playbackController = MinimalAppDelegate.shared?.playbackController,
-           let imageData = playbackController.lastImg {
+           let imageData = playbackController.lastImg as Data? {
             image = NSImage(data: imageData)
         }
         

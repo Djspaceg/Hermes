@@ -11,15 +11,16 @@ import Combine
 
 /// Minimal AppDelegate for Objective-C business logic integration
 /// UI is completely managed by SwiftUI
+@MainActor
 @objc class MinimalAppDelegate: NSObject, NSApplicationDelegate {
     
     // MARK: - Properties
     
     private var cancellables = Set<AnyCancellable>()
     
-    // Expose controllers for Swift and Objective-C access
+    // Expose controllers for Swift access
     @objc static var shared: MinimalAppDelegate?
-    @objc private(set) var playbackController: PlaybackController?
+    private(set) var playbackController: PlaybackController?
     
     // MARK: - Application Lifecycle
     
@@ -197,7 +198,7 @@ import Combine
         
         if showAlbumArt {
             // Get current album art from playback and set as dock icon
-            if let imageData = playbackController?.lastImg,
+            if let imageData = playbackController?.lastImg as Data?,
                let image = NSImage(data: imageData) {
                 NSApp.applicationIconImage = image
             }
@@ -289,7 +290,7 @@ import Combine
         return (folder as NSString).appendingPathComponent(file)
     }
     
-    @objc func pandora() -> Pandora {
+    @objc func pandora() -> PandoraClient {
         // Return the shared Pandora instance
         // Use MainActor.assumeIsolated since this is called from main thread contexts
         return MainActor.assumeIsolated {

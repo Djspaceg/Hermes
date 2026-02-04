@@ -28,11 +28,11 @@ final class StationsViewModel: ObservableObject {
     /// Artwork loader for lazy loading station artwork
     let artworkLoader = StationArtworkLoader.shared
     
-    let pandora: Pandora
+    let pandora: PandoraClient
     private var cancellables = Set<AnyCancellable>()
     private var hasRestoredLastStation = false
     
-    init(pandora: Pandora) {
+    init(pandora: PandoraClient) {
         self.pandora = pandora
         
         // Configure artwork loader with Pandora instance
@@ -154,8 +154,8 @@ final class StationsViewModel: ObservableObject {
             return
         }
         
-        print("StationsViewModel: Calling controller.play() with station")
-        controller.play(station.station)
+        print("StationsViewModel: Calling controller.playStation() with station")
+        controller.playStation(station.station)
         playingStationId = station.id
         print("StationsViewModel: Set playingStationId to \(station.id)")
     }
@@ -205,7 +205,7 @@ extension StationsViewModel {
         stations: [StationModel] = [],
         playingStationId: String? = nil
     ) -> StationsViewModel {
-        let viewModel = StationsViewModel(pandora: Pandora())
+        let viewModel = StationsViewModel(pandora: PandoraClient())
         viewModel.stations = stations
         viewModel.playingStationId = playingStationId
         return viewModel

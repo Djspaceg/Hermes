@@ -15,9 +15,9 @@ final class LoginViewModelTests: XCTestCase {
     
     override func setUp() async throws {
         try await super.setUp()
-        // Use isolated Pandora instance to avoid keychain access
+        // Use isolated PandoraClient instance to avoid keychain access
         // Tests focus on validation logic, not Pandora API
-        sut = LoginViewModel(pandora: Pandora())
+        sut = LoginViewModel(pandora: PandoraClient())
     }
     
     override func tearDown() async throws {

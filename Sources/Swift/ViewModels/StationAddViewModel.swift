@@ -46,10 +46,10 @@ final class StationAddViewModel: ObservableObject, StationAddViewModelProtocol {
     }
     
     // MARK: - Dependencies
-    private let pandora: Pandora
+    private let pandora: PandoraClient
     private var cancellables = Set<AnyCancellable>()
     
-    init(pandora: Pandora) {
+    init(pandora: PandoraClient) {
         self.pandora = pandora
         setupSearchDebounce()
         setupNotificationObservers()
@@ -129,7 +129,8 @@ final class StationAddViewModel: ObservableObject, StationAddViewModelProtocol {
         // Parse artists
         if let artists = userInfo["Artists"] as? [PandoraSearchResult] {
             for artist in artists {
-                guard let artistName = artist.name else { continue }
+                let artistName = artist.name
+                guard !artistName.isEmpty else { continue }
                 
                 results.append(SearchResult(
                     id: UUID().uuidString,
@@ -144,7 +145,8 @@ final class StationAddViewModel: ObservableObject, StationAddViewModelProtocol {
         // Parse songs
         if let songs = userInfo["Songs"] as? [PandoraSearchResult] {
             for song in songs {
-                guard let songFullName = song.name else { continue }
+                let songFullName = song.name
+                guard !songFullName.isEmpty else { continue }
                 
                 // Song names from Pandora are in format "Artist - Song"
                 let components = songFullName.components(separatedBy: " - ")

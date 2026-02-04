@@ -23,7 +23,7 @@ final class AppState: ObservableObject {
     
     // MARK: - Dependencies
     
-    let pandora: Pandora
+    let pandora: PandoraClient
     let loginViewModel: LoginViewModel
     let playerViewModel: PlayerViewModel
     let stationsViewModel: StationsViewModel
@@ -41,7 +41,7 @@ final class AppState: ObservableObject {
         print("AppState: Arguments: \(ProcessInfo.processInfo.arguments)")
         
         // Initialize Pandora
-        self.pandora = Pandora()
+        self.pandora = PandoraClient()
         
         // Initialize view models
         self.loginViewModel = LoginViewModel(pandora: pandora)

@@ -4,12 +4,12 @@ XCB           = xcodebuild
 XCPIPE        =
 CONFIGURATION = Debug
 SCHEME        = Hermes
-HERMES        = ./build/$(CONFIGURATION)/Hermes.app/Contents/MacOS/Hermes
+DERIVED_DATA  = $(shell xcodebuild -project Hermes.xcodeproj -showBuildSettings 2>/dev/null | grep "BUILD_DIR" | head -1 | sed 's/.*= //' | xargs dirname | xargs dirname)
+HERMES        = $(DERIVED_DATA)/Build/Products/$(CONFIGURATION)/Hermes.app/Contents/MacOS/Hermes
 DEBUGGER      = lldb
 
-# For some reason the project's SYMROOT setting is ignored when we specify an
-# explicit -project option. The -project option is required when using xctool.
-COMMON_OPTS   = -project Hermes.xcodeproj SYMROOT=build
+# Build without custom SYMROOT to avoid SPM issues
+COMMON_OPTS   = -project Hermes.xcodeproj
 
 all: hermes
 
@@ -29,7 +29,7 @@ dbg: hermes
 install:
 	$(XCB) $(COMMON_OPTS) -configuration Release -scheme Hermes
 	rm -rf /Applications/Hermes.app
-	cp -a ./build/Release/Hermes.app /Applications/
+	cp -a $(DERIVED_DATA)/Build/Products/Release/Hermes.app /Applications/
 
 # Create an archive to share (for beta testing purposes).
 archive: CONFIGURATION = Release
@@ -49,6 +49,6 @@ test-verbose:
 
 clean:
 	$(XCB) $(COMMON_OPTS) -scheme $(SCHEME) clean
-	rm -rf build
+	rm -rf ~/Library/Developer/Xcode/DerivedData/Hermes-*
 
 .PHONY: all hermes travis run dbg archive clean install archive upload-release test test-verbose

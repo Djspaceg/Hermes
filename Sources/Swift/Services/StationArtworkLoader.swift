@@ -35,7 +35,7 @@ final class StationArtworkLoader: ObservableObject {
     private var pendingRequests: Set<String> = []
     private var stationNameToId: [String: String] = [:]
     private var cancellables = Set<AnyCancellable>()
-    private weak var pandora: Pandora?
+    private weak var pandora: PandoraClient?
     
     /// In-memory cache of station info (stationId -> CachedStationInfo)
     private var cache: [String: CachedStationInfo] = [:]
@@ -56,7 +56,7 @@ final class StationArtworkLoader: ObservableObject {
     // MARK: - Configuration
     
     /// Set the Pandora instance to use for API calls
-    func configure(with pandora: Pandora) {
+    func configure(with pandora: PandoraClient) {
         self.pandora = pandora
     }
     

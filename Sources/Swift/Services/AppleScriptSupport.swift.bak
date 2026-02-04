@@ -20,42 +20,39 @@ import Cocoa
 // MARK: - Command Classes
 
 /// Play command - Resume playing the current song
-@MainActor
 @objc(PlayCommand)
 class PlayCommand: NSScriptCommand {
     override func performDefaultImplementation() -> Any? {
         guard let playback = MinimalAppDelegate.shared?.playbackController else {
             return NSNumber(value: false)
         }
-        return DispatchQueue.main.sync {
+        return MainActor.assumeIsolated {
             NSNumber(value: playback.play())
         }
     }
 }
 
 /// Pause command - Pause the currently playing song
-@MainActor
 @objc(PauseCommand)
 class PauseCommand: NSScriptCommand {
     override func performDefaultImplementation() -> Any? {
         guard let playback = MinimalAppDelegate.shared?.playbackController else {
             return NSNumber(value: false)
         }
-        return DispatchQueue.main.sync {
+        return MainActor.assumeIsolated {
             NSNumber(value: playback.pause())
         }
     }
 }
 
 /// Play/Pause toggle command
-@MainActor
 @objc(PlayPauseCommand)
 class PlayPauseCommand: NSScriptCommand {
     override func performDefaultImplementation() -> Any? {
         guard let playback = MinimalAppDelegate.shared?.playbackController else {
             return self
         }
-        DispatchQueue.main.sync {
+        MainActor.assumeIsolated {
             playback.playpause()
         }
         return self
@@ -63,14 +60,13 @@ class PlayPauseCommand: NSScriptCommand {
 }
 
 /// Skip command - Skip to the next song
-@MainActor
 @objc(SkipCommand)
 class SkipCommand: NSScriptCommand {
     override func performDefaultImplementation() -> Any? {
         guard let playback = MinimalAppDelegate.shared?.playbackController else {
             return self
         }
-        DispatchQueue.main.sync {
+        MainActor.assumeIsolated {
             playback.next()
         }
         return self
@@ -78,14 +74,13 @@ class SkipCommand: NSScriptCommand {
 }
 
 /// Thumbs up command - Like the current song
-@MainActor
 @objc(ThumbsUpCommand)
 class ThumbsUpCommand: NSScriptCommand {
     override func performDefaultImplementation() -> Any? {
         guard let playback = MinimalAppDelegate.shared?.playbackController else {
             return self
         }
-        DispatchQueue.main.sync {
+        MainActor.assumeIsolated {
             playback.likeCurrent()
         }
         return self
@@ -93,14 +88,13 @@ class ThumbsUpCommand: NSScriptCommand {
 }
 
 /// Thumbs down command - Dislike the current song
-@MainActor
 @objc(ThumbsDownCommand)
 class ThumbsDownCommand: NSScriptCommand {
     override func performDefaultImplementation() -> Any? {
         guard let playback = MinimalAppDelegate.shared?.playbackController else {
             return self
         }
-        DispatchQueue.main.sync {
+        MainActor.assumeIsolated {
             playback.dislikeCurrent()
         }
         return self
@@ -108,14 +102,13 @@ class ThumbsDownCommand: NSScriptCommand {
 }
 
 /// Raise volume command - Increase playback volume
-@MainActor
 @objc(RaiseVolumeCommand)
 class RaiseVolumeCommand: NSScriptCommand {
     override func performDefaultImplementation() -> Any? {
         guard let playback = MinimalAppDelegate.shared?.playbackController else {
             return self
         }
-        DispatchQueue.main.sync {
+        MainActor.assumeIsolated {
             let currentVolume = playback.volume
             playback.volume = currentVolume + 7
             print("Raised volume to: \(playback.volume)")
@@ -125,14 +118,13 @@ class RaiseVolumeCommand: NSScriptCommand {
 }
 
 /// Lower volume command - Decrease playback volume
-@MainActor
 @objc(LowerVolumeCommand)
 class LowerVolumeCommand: NSScriptCommand {
     override func performDefaultImplementation() -> Any? {
         guard let playback = MinimalAppDelegate.shared?.playbackController else {
             return self
         }
-        DispatchQueue.main.sync {
+        MainActor.assumeIsolated {
             let currentVolume = playback.volume
             playback.volume = currentVolume - 7
             print("Lowered volume to: \(playback.volume)")
@@ -142,14 +134,13 @@ class LowerVolumeCommand: NSScriptCommand {
 }
 
 /// Full volume command - Set volume to maximum
-@MainActor
 @objc(FullVolumeCommand)
 class FullVolumeCommand: NSScriptCommand {
     override func performDefaultImplementation() -> Any? {
         guard let playback = MinimalAppDelegate.shared?.playbackController else {
             return self
         }
-        DispatchQueue.main.sync {
+        MainActor.assumeIsolated {
             playback.volume = 100
             print("Changed volume to: \(playback.volume)")
         }
@@ -158,14 +149,13 @@ class FullVolumeCommand: NSScriptCommand {
 }
 
 /// Mute command - Mute playback, saving current volume
-@MainActor
 @objc(MuteCommand)
 class MuteCommand: NSScriptCommand {
     override func performDefaultImplementation() -> Any? {
         guard let playback = MinimalAppDelegate.shared?.playbackController else {
             return self
         }
-        DispatchQueue.main.sync {
+        MainActor.assumeIsolated {
             AppleScriptSupport.savedVolume = playback.volume
             playback.volume = 0
             print("Changed volume to: \(playback.volume)")
@@ -175,14 +165,13 @@ class MuteCommand: NSScriptCommand {
 }
 
 /// Unmute command - Restore volume to pre-mute level
-@MainActor
 @objc(UnmuteCommand)
 class UnmuteCommand: NSScriptCommand {
     override func performDefaultImplementation() -> Any? {
         guard let playback = MinimalAppDelegate.shared?.playbackController else {
             return self
         }
-        DispatchQueue.main.sync {
+        MainActor.assumeIsolated {
             playback.volume = AppleScriptSupport.savedVolume
             print("Changed volume to: \(playback.volume)")
         }
@@ -191,14 +180,13 @@ class UnmuteCommand: NSScriptCommand {
 }
 
 /// Tired command - Mark current song as "tired of this song"
-@MainActor
 @objc(TiredCommand)
 class TiredCommand: NSScriptCommand {
     override func performDefaultImplementation() -> Any? {
         guard let playback = MinimalAppDelegate.shared?.playbackController else {
             return self
         }
-        DispatchQueue.main.sync {
+        MainActor.assumeIsolated {
             playback.tiredOfCurrent()
         }
         return self
@@ -225,7 +213,7 @@ extension NSApplication {
             guard let playback = MinimalAppDelegate.shared?.playbackController else {
                 return NSNumber(value: 0)
             }
-            return DispatchQueue.main.sync {
+            return MainActor.assumeIsolated {
                 NSNumber(value: playback.volume)
             }
         }
@@ -233,7 +221,7 @@ extension NSApplication {
             guard let playback = MinimalAppDelegate.shared?.playbackController else {
                 return
             }
-            DispatchQueue.main.sync {
+            MainActor.assumeIsolated {
                 playback.volume = newValue.intValue
             }
         }
@@ -246,7 +234,7 @@ extension NSApplication {
             guard let playback = MinimalAppDelegate.shared?.playbackController else {
                 return PlaybackState.stopped.rawValue
             }
-            return DispatchQueue.main.sync {
+            return MainActor.assumeIsolated {
                 guard let playing = playback.playing else {
                     return PlaybackState.stopped.rawValue
                 }
@@ -263,7 +251,7 @@ extension NSApplication {
                 return
             }
             
-            DispatchQueue.main.sync {
+            MainActor.assumeIsolated {
                 switch newValue {
                 case PlaybackState.stopped.rawValue, PlaybackState.paused.rawValue:
                     _ = playback.pause()
@@ -288,7 +276,8 @@ extension NSApplication {
                 return NSNumber(value: 0.0)
             }
             
-            let progress = playing.progress() ?? 0.0
+            var progress: Double = 0.0
+            playing.progress(&progress)
             return NSNumber(value: progress)
         }
     }
@@ -303,7 +292,8 @@ extension NSApplication {
                 return NSNumber(value: 0.0)
             }
             
-            let duration = playing.duration() ?? 0.0
+            var duration: Double = 0.0
+            playing.duration(&duration)
             return NSNumber(value: duration)
         }
     }
@@ -315,7 +305,7 @@ extension NSApplication {
             guard let playback = MinimalAppDelegate.shared?.playbackController else {
                 return nil
             }
-            return DispatchQueue.main.sync {
+            return MainActor.assumeIsolated {
                 playback.playing
             }
         }
@@ -325,7 +315,7 @@ extension NSApplication {
                 return
             }
             
-            DispatchQueue.main.sync {
+            MainActor.assumeIsolated {
                 // Play the selected station
                 playback.playStation(station)
                 
@@ -358,7 +348,7 @@ extension NSApplication {
         guard let playback = MinimalAppDelegate.shared?.playbackController else {
             return nil
         }
-        return DispatchQueue.main.sync {
+        return MainActor.assumeIsolated {
             guard let playing = playback.playing else {
                 return nil
             }

@@ -19,7 +19,7 @@ final class StationModel: ObservableObject, Identifiable, Hashable {
     var id: String { station.stationId }
     var token: String { station.token }
     var stationId: String { station.stationId }
-    var created: Date { Date(timeIntervalSince1970: TimeInterval(station.created)) }
+    var created: Date { Date(timeIntervalSince1970: TimeInterval(station.created) / 1000.0) }
     var shared: Bool { station.shared }
     var allowRename: Bool { station.allowRename }
     var allowAddMusic: Bool { station.allowAddMusic }
@@ -85,7 +85,7 @@ extension StationModel {
         station.name = name
         station.token = token
         station.stationId = stationId
-        station.created = UInt64(Date().timeIntervalSince1970)
+        station.created = UInt64(Date().timeIntervalSince1970 * 1000) // Convert to milliseconds
         return StationModel(station: station)
     }
 }

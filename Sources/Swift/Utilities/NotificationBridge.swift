@@ -46,7 +46,7 @@ extension NotificationCenter {
                 guard let streamer = notification.object as? AudioStreamer else {
                     return nil
                 }
-                return streamer.isPlaying()
+                return streamer.isPlaying
             }
             .removeDuplicates()
             .eraseToAnyPublisher()

@@ -119,7 +119,10 @@ struct MyView: View {
 ❌ **Don't** implement workarounds for SwiftUI limitations without exhausting native options  
 ❌ **Don't** mix AppKit and SwiftUI unless absolutely necessary  
 ❌ **Don't** use force unwrapping (`!`) except in truly safe contexts  
-❌ **Don't** ignore compiler warnings  
+❌ **Don't** ignore compiler warnings
+
+- NEVER use HEREDOC, multiline quote, cat, or pipe simply to insert content into
+  a document; INSTEAD use built-in file reading/writing APIs.
 
 ## What to Embrace
 

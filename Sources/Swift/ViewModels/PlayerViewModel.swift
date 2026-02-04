@@ -263,11 +263,11 @@ final class PlayerViewModel: ObservableObject, PlayerViewModelProtocol {
     
     private func handleStreamError(_ notification: Notification) {
         // Get error details from the station
-        let errorMessage: String
+        let errorMessage = "Stream connection failed"
+        
         if let station = playbackController?.playing {
-            errorMessage = station.streamNetworkError() ?? "Connection failed"
-        } else {
-            errorMessage = "Stream connection failed"
+            // Notify the station of the network error
+            station.streamNetworkError()
         }
         
         print("PlayerViewModel: Stream error - \(errorMessage)")

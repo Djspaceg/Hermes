@@ -8,6 +8,7 @@
 
 import Foundation
 import AppKit
+import CryptoSwift
 
 // MARK: - Scrobble State
 
@@ -84,8 +85,8 @@ final class LastFMService: ObservableObject {
     }
     
     @objc private func songPlayed(_ notification: Notification) {
-        guard let station = notification.object as? NSObject,
-              let playing = station.value(forKey: "playingSong") as? NSObject else {
+        guard let station = notification.object as? Station,
+              let playing = station.playingSong else {
             return
         }
         
@@ -95,11 +96,11 @@ final class LastFMService: ObservableObject {
     }
     
     @objc private func songRated(_ notification: Notification) {
-        guard let song = notification.object as? NSObject else {
+        guard let song = notification.object as? Song else {
             return
         }
         
-        if let nrating = song.value(forKey: "nrating") as? NSNumber {
+        if let nrating = song.nrating {
             let loved = nrating.intValue == 1
             Task {
                 await setPreference(song, loved: loved)
@@ -113,7 +114,7 @@ final class LastFMService: ObservableObject {
     /// - Parameters:
     ///   - song: The song to scrobble
     ///   - state: The playback state
-    func scrobble(_ song: NSObject, state: ScrobbleState) async {
+    func scrobble(_ song: Song, state: ScrobbleState) async {
         let settings = SettingsManager.shared
         
         // Check if scrobbling is enabled
@@ -121,7 +122,7 @@ final class LastFMService: ObservableObject {
         
         // Check if we should only scrobble liked songs
         if settings.onlyScrobbleLiked {
-            guard let nrating = song.value(forKey: "nrating") as? NSNumber,
+            guard let nrating = song.nrating,
                   nrating.intValue == 1 else {
                 return
             }
@@ -133,19 +134,12 @@ final class LastFMService: ObservableObject {
             return
         }
         
-        // Extract song properties
-        guard let title = song.value(forKey: "title") as? String,
-              let artist = song.value(forKey: "artist") as? String,
-              let album = song.value(forKey: "album") as? String else {
-            return
-        }
-        
         var parameters: [String: String] = [
             "sk": sessionToken,
             "api_key": apiKey,
-            "track": title,
-            "artist": artist,
-            "album": album,
+            "track": song.title,
+            "artist": song.artist,
+            "album": song.album,
             "chosenByUser": "0"
         ]
         
@@ -166,26 +160,21 @@ final class LastFMService: ObservableObject {
     /// - Parameters:
     ///   - song: The song to love/unlove
     ///   - loved: Whether the song should be loved
-    func setPreference(_ song: NSObject, loved: Bool) async {
+    func setPreference(_ song: Song, loved: Bool) async {
         let settings = SettingsManager.shared
         
         guard settings.enableScrobbling && settings.scrobbleLikes else { return }
         
         guard let sessionToken = sessionToken else {
-            await fetchSessionToken()
-            return
-        }
-        
-        guard let title = song.value(forKey: "title") as? String,
-              let artist = song.value(forKey: "artist") as? String else {
+            await fetchRequestToken()
             return
         }
         
         let parameters: [String: String] = [
             "sk": sessionToken,
             "api_key": apiKey,
-            "track": title,
-            "artist": artist
+            "track": song.title,
+            "artist": song.artist
         ]
         
         let method = loved ? "track.love" : "track.unlove"
@@ -411,18 +400,10 @@ enum LastFMError: Error, LocalizedError {
 
 // MARK: - String Extensions
 
-import CommonCrypto
-
 extension String {
+    /// Calculate MD5 hash using CryptoSwift
     func md5sum() -> String {
-        let data = Data(self.utf8)
-        var digest = [UInt8](repeating: 0, count: Int(CC_MD5_DIGEST_LENGTH))
-        
-        data.withUnsafeBytes { buffer in
-            _ = CC_MD5(buffer.baseAddress, CC_LONG(buffer.count), &digest)
-        }
-        
-        return digest.map { String(format: "%02hhx", $0) }.joined()
+        return self.md5()
     }
     
     func urlEncoded() -> String {

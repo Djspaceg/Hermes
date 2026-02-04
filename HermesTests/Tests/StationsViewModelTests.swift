@@ -15,9 +15,9 @@ final class StationsViewModelTests: XCTestCase {
     
     override func setUp() async throws {
         try await super.setUp()
-        // Use isolated Pandora instance to avoid keychain access
+        // Use isolated PandoraClient instance to avoid keychain access
         // Tests focus on state management and UI logic, not Pandora API
-        sut = StationsViewModel(pandora: Pandora())
+        sut = StationsViewModel(pandora: PandoraClient())
     }
     
     override func tearDown() async throws {
@@ -55,7 +55,7 @@ final class StationsViewModelTests: XCTestCase {
     
     // DISABLED: Triggers Pandora authentication - needs dependency injection refactoring
     // See: .kiro/specs/dependency-injection/requirements.md
-    func disabled_testSorting_ByName() {
+    func testSorting_ByName() {
         // Given
         let stationC = createMockStation(name: "Charlie Station", id: "c")
         let stationA = createMockStation(name: "Alpha Station", id: "a")
@@ -122,7 +122,7 @@ final class StationsViewModelTests: XCTestCase {
     
     // DISABLED: Triggers Pandora authentication - needs dependency injection refactoring
     // See: .kiro/specs/dependency-injection/requirements.md
-    func disabled_testSearch_EmptyString_ReturnsAll() {
+    func testSearch_EmptyString_ReturnsAll() {
         // Given
         let station1 = createMockStation(name: "Station 1", id: "1")
         let station2 = createMockStation(name: "Station 2", id: "2")
@@ -219,7 +219,7 @@ final class StationsViewModelTests: XCTestCase {
     
     // DISABLED: Triggers Pandora authentication - needs dependency injection refactoring
     // See: .kiro/specs/dependency-injection/requirements.md
-    func disabled_testStartRenameStation_SetsState() {
+    func testStartRenameStation_SetsState() {
         // Given
         let station = createMockStation(name: "Test Station", id: "test")
         let stationModel = StationModel(station: station)

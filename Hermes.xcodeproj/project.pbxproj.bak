@@ -11,10 +11,11 @@
 		16A03D4CD43741B4A5967EE7 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D19183DC23704102B6CFDB12 /* MenuBarView.swift */; };
 		3028D908ACEE48939E153EE8 /* SidebarWidthKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1C07AF1C3E448FDB3B2CA5E /* SidebarWidthKey.swift */; };
 		3BCBD3A909E5492F86A73181 /* ViewModifiers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AC8B812A0CC4AE0A4D40883 /* ViewModifiers.swift */; };
+		441C9F0E1CC80AA0000A0302 /* ASPlaylist.m in Sources */ = {isa = PBXBuildFile; fileRef = FA99E25A15E4B7EA005AB6E6 /* ASPlaylist.m */; };
+		441C9F161CC86A74000A0302 /* AudioStreamer.m in Sources */ = {isa = PBXBuildFile; fileRef = FACF0184149A713700D1FB73 /* AudioStreamer.m */; };
 		44310F8B18EB87AB0095359D /* Credits.rtf in Resources */ = {isa = PBXBuildFile; fileRef = 44310F8A18EB87AB0095359D /* Credits.rtf */; };
+		44411DA7190166FB00EC4E05 /* PandoraDevice.m in Sources */ = {isa = PBXBuildFile; fileRef = 44411DA6190166FB00EC4E05 /* PandoraDevice.m */; };
 		459A3DDA60B348F38426008C /* ImageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = B42501158E25473A9B5A38CF /* ImageCache.swift */; };
-		63198A802F327F7B0045FCD6 /* PandoraCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63198A7E2F327F7B0045FCD6 /* PandoraCrypto.swift */; };
-		63198A812F327F7B0045FCD6 /* PandoraClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63198A7D2F327F7B0045FCD6 /* PandoraClient.swift */; };
 		634D8E722F16EE7A0069FD8F /* PlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634D8E6A2F16EE7A0069FD8F /* PlayerView.swift */; };
 		634D8E732F16EE7A0069FD8F /* PlayerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634D8E622F16EE7A0069FD8F /* PlayerViewModel.swift */; };
 		634D8E752F16EE7A0069FD8F /* MinimalAppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634D8E702F16EE7A0069FD8F /* MinimalAppDelegate.swift */; };
@@ -48,29 +49,31 @@
 		634D910C2F19BCB10069FD8F /* Song.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634D910B2F19BCB10069FD8F /* Song.swift */; };
 		634D910D2F19BCB10069FD8F /* PandoraDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634D910A2F19BCB10069FD8F /* PandoraDevice.swift */; };
 		6D2D8B1F1FAD4654B364E77F /* StationArtworkLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD2036192DD64C5DB24413F7 /* StationArtworkLoader.swift */; };
-		728CC0A620A645A99CD50CA3 /* Station.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51F1E6C3C4541D59BFD58C3 /* Station.swift */; };
-		858B6A0B666B45AEB04409E7 /* Playlist.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63BF983767EE46E6AD891767 /* Playlist.swift */; };
 		8D11072B0486CEB800E47090 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 089C165CFE840E0CC02AAC07 /* InfoPlist.strings */; };
 		96BB97EF20A84DC8857739DC /* HTTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83CE1A66FC3E4E83B90BC42F /* HTTPClient.swift */; };
 		97177194159EAA7D00EE3355 /* cd.png in Resources */ = {isa = PBXBuildFile; fileRef = 97177193159EAA7D00EE3355 /* cd.png */; };
 		9717719A159EB0E200EE3355 /* music-note.png in Resources */ = {isa = PBXBuildFile; fileRef = 97177199159EB0E200EE3355 /* music-note.png */; };
 		97E0DA35159EDF7C00BEA465 /* radio.png in Resources */ = {isa = PBXBuildFile; fileRef = 97E0DA34159EDF7C00BEA465 /* radio.png */; };
 		9994CD5B5A274289862EBCEE /* NotificationNames.swift in Sources */ = {isa = PBXBuildFile; fileRef = 197AFF42DDEA46718095DC3F /* NotificationNames.swift */; };
-		9B2199F491AC4B3A813EDBC2 /* AudioStreamer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30C538E3D13F411B9994758E /* AudioStreamer.swift */; };
 		BCE59520F3E241C7A3A9BB47 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4912892BCD9F452D912F7C3E /* Constants.swift */; };
 		CDE16F7D896A4CA8A7CC428E /* IconMask.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFB0900750CF48EC8605E065 /* IconMask.swift */; };
-		CRYPTOSWIFT001 /* CryptoSwift in Frameworks */ = {isa = PBXBuildFile; productRef = CRYPTOSWIFT002 /* CryptoSwift */; };
 		E1C1EC121A1AE7E4001E4D8F /* Pandora-Menu-Dark-Play.pdf in Resources */ = {isa = PBXBuildFile; fileRef = E1C1EC101A1AE7E4001E4D8F /* Pandora-Menu-Dark-Play.pdf */; };
 		E1C1EC131A1AE7E4001E4D8F /* Pandora-Menu-Dark-Pause.pdf in Resources */ = {isa = PBXBuildFile; fileRef = E1C1EC111A1AE7E4001E4D8F /* Pandora-Menu-Dark-Pause.pdf */; };
-		EFF506A611DA461CB03497E8 /* PlaybackController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 457303C5850141E18298EAB9 /* PlaybackController.swift */; };
 		FA04AE9C14438F1000819310 /* thumbdown.png in Resources */ = {isa = PBXBuildFile; fileRef = FA04AE9A14438F1000819310 /* thumbdown.png */; };
 		FA04AE9D14438F1000819310 /* thumbup.png in Resources */ = {isa = PBXBuildFile; fileRef = FA04AE9B14438F1000819310 /* thumbup.png */; };
 		FA0E555A14784A3000C36794 /* Hermes.sdef in Resources */ = {isa = PBXBuildFile; fileRef = FA0E555914784A3000C36794 /* Hermes.sdef */; };
 		FA229D6514429E48008AB9FE /* history.png in Resources */ = {isa = PBXBuildFile; fileRef = FA229D6414429E48008AB9FE /* history.png */; };
+		FA2A3F80132BF97E0089AECC /* Pandora.m in Sources */ = {isa = PBXBuildFile; fileRef = FA2A3F78132BF97E0089AECC /* Pandora.m */; };
+		FA2A3F98132BF9F50089AECC /* Crypt.m in Sources */ = {isa = PBXBuildFile; fileRef = FA2A3F92132BF9F50089AECC /* Crypt.m */; };
+		FA2A3F9A132BF9F50089AECC /* Station.m in Sources */ = {isa = PBXBuildFile; fileRef = FA2A3F97132BF9F50089AECC /* Station.m */; };
 		FA3CFE29132F9D30003554E2 /* missing-album.png in Resources */ = {isa = PBXBuildFile; fileRef = FA3CFE28132F9D30003554E2 /* missing-album.png */; };
+		FA3CFF44132FC4CF003554E2 /* PlaybackController.m in Sources */ = {isa = PBXBuildFile; fileRef = FA3CFF43132FC4CF003554E2 /* PlaybackController.m */; };
+		FA454685156604D100EE98C7 /* blowfish.c in Sources */ = {isa = PBXBuildFile; fileRef = FA454683156604D100EE98C7 /* blowfish.c */; };
 		FA7BF0321331832E00E26ADA /* zzs.png in Resources */ = {isa = PBXBuildFile; fileRef = FA7BF0311331832E00E26ADA /* zzs.png */; };
 		FA7FD1E413325F6600DF66EB /* volume_up.png in Resources */ = {isa = PBXBuildFile; fileRef = FA7FD1E313325F6600DF66EB /* volume_up.png */; };
 		FA85E6CE1333B257005C96B8 /* volume_down.icns in Resources */ = {isa = PBXBuildFile; fileRef = FA85E6CD1333B257005C96B8 /* volume_down.icns */; };
+		FA94E6ED1368E5830063860C /* FMEngine.m in Sources */ = {isa = PBXBuildFile; fileRef = FA94E6E71368E5830063860C /* FMEngine.m */; };
+		FA94E6EF1368E5830063860C /* NSString+FMEngine.m in Sources */ = {isa = PBXBuildFile; fileRef = FA94E6EB1368E5830063860C /* NSString+FMEngine.m */; };
 		FAAB28CF1336FB0300FC04C4 /* pandora.icns in Resources */ = {isa = PBXBuildFile; fileRef = FAAB28CE1336FB0300FC04C4 /* pandora.icns */; };
 		FAD42FA4136790DE00E935CA /* dsa_pub.pem in Resources */ = {isa = PBXBuildFile; fileRef = FAD42FA3136790DE00E935CA /* dsa_pub.pem */; };
 		FAEFFBD5132CC0E2007DC6FB /* error_icon.png in Resources */ = {isa = PBXBuildFile; fileRef = FAEFFBD4132CC0E2007DC6FB /* error_icon.png */; };
@@ -121,14 +124,13 @@
 		089C165DFE840E0CC02AAC07 /* English */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = English; path = English.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		197AFF42DDEA46718095DC3F /* NotificationNames.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NotificationNames.swift; path = Sources/Swift/Utilities/NotificationNames.swift; sourceTree = SOURCE_ROOT; };
 		1DDD58150DA1D0A300B32029 /* English */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = English; path = English.lproj/MainMenu.xib; sourceTree = "<group>"; };
-		30C538E3D13F411B9994758E /* AudioStreamer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AudioStreamer.swift; path = Sources/Swift/Services/Audio/AudioStreamer.swift; sourceTree = SOURCE_ROOT; };
+		256AC3F00F4B6AF500CF3369 /* Hermes_Prefix.pch */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Hermes_Prefix.pch; sourceTree = "<group>"; };
 		44310F8A18EB87AB0095359D /* Credits.rtf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.rtf; path = Credits.rtf; sourceTree = "<group>"; };
-		457303C5850141E18298EAB9 /* PlaybackController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlaybackController.swift; path = Sources/Swift/Services/PlaybackController.swift; sourceTree = SOURCE_ROOT; };
+		44411DA5190166FB00EC4E05 /* PandoraDevice.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PandoraDevice.h; sourceTree = "<group>"; };
+		44411DA6190166FB00EC4E05 /* PandoraDevice.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PandoraDevice.m; sourceTree = "<group>"; };
 		4912892BCD9F452D912F7C3E /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Constants.swift; path = Sources/Swift/Utilities/Constants.swift; sourceTree = SOURCE_ROOT; };
 		4AC8B812A0CC4AE0A4D40883 /* ViewModifiers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ViewModifiers.swift; path = Sources/Swift/Utilities/ViewModifiers.swift; sourceTree = SOURCE_ROOT; };
 		4D276383AE2745A59B7165F6 /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NetworkMonitor.swift; path = Sources/Swift/Utilities/NetworkMonitor.swift; sourceTree = SOURCE_ROOT; };
-		63198A7D2F327F7B0045FCD6 /* PandoraClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PandoraClient.swift; sourceTree = "<group>"; };
-		63198A7E2F327F7B0045FCD6 /* PandoraCrypto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PandoraCrypto.swift; sourceTree = "<group>"; };
 		634D8E582F16EE7A0069FD8F /* SongModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongModel.swift; sourceTree = "<group>"; };
 		634D8E592F16EE7A0069FD8F /* StationModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StationModel.swift; sourceTree = "<group>"; };
 		634D8E5C2F16EE7A0069FD8F /* NotificationBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationBridge.swift; sourceTree = "<group>"; };
@@ -162,12 +164,15 @@
 		634D90E82F19AD5E0069FD8F /* LastFMService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastFMService.swift; sourceTree = "<group>"; };
 		634D910A2F19BCB10069FD8F /* PandoraDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PandoraDevice.swift; sourceTree = "<group>"; };
 		634D910B2F19BCB10069FD8F /* Song.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Song.swift; sourceTree = "<group>"; };
-		63BF983767EE46E6AD891767 /* Playlist.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Playlist.swift; path = Sources/Swift/Services/Audio/Playlist.swift; sourceTree = SOURCE_ROOT; };
 		83CE1A66FC3E4E83B90BC42F /* HTTPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HTTPClient.swift; path = Sources/Swift/Utilities/HTTPClient.swift; sourceTree = SOURCE_ROOT; };
+		843B578919660680000898F2 /* NSObject+SPInvocationGrabbing.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSObject+SPInvocationGrabbing.h"; sourceTree = "<group>"; };
+		843B578A19660680000898F2 /* NSObject+SPInvocationGrabbing.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSObject+SPInvocationGrabbing.m"; sourceTree = "<group>"; };
 		8D1107310486CEB800E47090 /* Hermes-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "Hermes-Info.plist"; sourceTree = "<group>"; };
 		8D1107320486CEB800E47090 /* Hermes.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Hermes.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		97177193159EAA7D00EE3355 /* cd.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = cd.png; sourceTree = "<group>"; };
 		97177199159EB0E200EE3355 /* music-note.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "music-note.png"; sourceTree = "<group>"; };
+		9728D898158C3DA500C078A4 /* SPMediaKeyTap.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SPMediaKeyTap.h; sourceTree = "<group>"; };
+		9728D899158C3DA500C078A4 /* SPMediaKeyTap.m */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 4; lastKnownFileType = sourcecode.c.objc; path = SPMediaKeyTap.m; sourceTree = "<group>"; tabWidth = 4; usesTabs = 1; };
 		97E0DA34159EDF7C00BEA465 /* radio.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = radio.png; sourceTree = "<group>"; };
 		B42501158E25473A9B5A38CF /* ImageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ImageCache.swift; path = Sources/Swift/Utilities/ImageCache.swift; sourceTree = SOURCE_ROOT; };
 		D19183DC23704102B6CFDB12 /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MenuBarView.swift; path = Sources/Swift/Views/MenuBarView.swift; sourceTree = SOURCE_ROOT; };
@@ -176,7 +181,6 @@
 		E1C07AF1C3E448FDB3B2CA5E /* SidebarWidthKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SidebarWidthKey.swift; path = Sources/Swift/Utilities/SidebarWidthKey.swift; sourceTree = SOURCE_ROOT; };
 		E1C1EC101A1AE7E4001E4D8F /* Pandora-Menu-Dark-Play.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = "Pandora-Menu-Dark-Play.pdf"; sourceTree = "<group>"; };
 		E1C1EC111A1AE7E4001E4D8F /* Pandora-Menu-Dark-Pause.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = "Pandora-Menu-Dark-Pause.pdf"; sourceTree = "<group>"; };
-		E51F1E6C3C4541D59BFD58C3 /* Station.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Station.swift; path = Sources/Swift/Models/Station.swift; sourceTree = SOURCE_ROOT; };
 		EFB0900750CF48EC8605E065 /* IconMask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = IconMask.swift; path = Sources/Swift/Utilities/IconMask.swift; sourceTree = SOURCE_ROOT; };
 		FA04AE9A14438F1000819310 /* thumbdown.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = thumbdown.png; sourceTree = "<group>"; };
 		FA04AE9B14438F1000819310 /* thumbup.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = thumbup.png; sourceTree = "<group>"; };
@@ -184,11 +188,29 @@
 		FA229D6414429E48008AB9FE /* history.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = history.png; sourceTree = "<group>"; };
 		FA24435E136B3D6C00E126D3 /* CHANGELOG.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = CHANGELOG.md; path = ../CHANGELOG.md; sourceTree = "<group>"; };
 		FA24435F136B3D6C00E126D3 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = README.md; path = ../README.md; sourceTree = "<group>"; };
+		FA2A3F77132BF97E0089AECC /* Pandora.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Pandora.h; sourceTree = "<group>"; };
+		FA2A3F78132BF97E0089AECC /* Pandora.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Pandora.m; sourceTree = "<group>"; };
+		FA2A3F91132BF9F50089AECC /* Crypt.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Crypt.h; sourceTree = "<group>"; };
+		FA2A3F92132BF9F50089AECC /* Crypt.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Crypt.m; sourceTree = "<group>"; };
+		FA2A3F96132BF9F50089AECC /* Station.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Station.h; sourceTree = "<group>"; };
+		FA2A3F97132BF9F50089AECC /* Station.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Station.m; sourceTree = "<group>"; };
 		FA3CFE28132F9D30003554E2 /* missing-album.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "missing-album.png"; sourceTree = "<group>"; };
+		FA3CFF42132FC4CF003554E2 /* PlaybackController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = PlaybackController.h; path = Controllers/PlaybackController.h; sourceTree = "<group>"; };
+		FA3CFF43132FC4CF003554E2 /* PlaybackController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = PlaybackController.m; path = Controllers/PlaybackController.m; sourceTree = "<group>"; };
+		FA454683156604D100EE98C7 /* blowfish.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = blowfish.c; sourceTree = "<group>"; };
+		FA454684156604D100EE98C7 /* blowfish.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = blowfish.h; sourceTree = "<group>"; };
 		FA7BF0311331832E00E26ADA /* zzs.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = zzs.png; sourceTree = "<group>"; };
 		FA7FD1E313325F6600DF66EB /* volume_up.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = volume_up.png; sourceTree = "<group>"; };
 		FA85E6CD1333B257005C96B8 /* volume_down.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = volume_down.icns; sourceTree = "<group>"; };
+		FA94E6E61368E5830063860C /* FMEngine.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FMEngine.h; sourceTree = "<group>"; };
+		FA94E6E71368E5830063860C /* FMEngine.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FMEngine.m; sourceTree = "<group>"; };
+		FA94E6EA1368E5830063860C /* NSString+FMEngine.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSString+FMEngine.h"; sourceTree = "<group>"; };
+		FA94E6EB1368E5830063860C /* NSString+FMEngine.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSString+FMEngine.m"; sourceTree = "<group>"; };
+		FA99E25915E4B7EA005AB6E6 /* ASPlaylist.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ASPlaylist.h; sourceTree = "<group>"; };
+		FA99E25A15E4B7EA005AB6E6 /* ASPlaylist.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ASPlaylist.m; sourceTree = "<group>"; };
 		FAAB28CE1336FB0300FC04C4 /* pandora.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = pandora.icns; sourceTree = "<group>"; };
+		FACF0183149A713700D1FB73 /* AudioStreamer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AudioStreamer.h; sourceTree = "<group>"; };
+		FACF0184149A713700D1FB73 /* AudioStreamer.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AudioStreamer.m; sourceTree = "<group>"; };
 		FAD42FA3136790DE00E935CA /* dsa_pub.pem */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = dsa_pub.pem; sourceTree = "<group>"; };
 		FAEFFBD4132CC0E2007DC6FB /* error_icon.png */ = {isa = PBXFileReference; explicitFileType = image.png; path = error_icon.png; sourceTree = "<group>"; };
 		FAEFFC4B132D6D2A007DC6FB /* pause.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = pause.png; sourceTree = "<group>"; };
@@ -213,7 +235,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CRYPTOSWIFT001 /* CryptoSwift in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -224,6 +245,10 @@
 			isa = PBXGroup;
 			children = (
 				634D8E712F16EE7A0069FD8F /* Swift */,
+				256AC3F00F4B6AF500CF3369 /* Hermes_Prefix.pch */,
+				FACF0180149A713700D1FB73 /* AudioStreamer */,
+				FA0E5568147855AB00C36794 /* Controllers */,
+				FA2A3F90132BF9F50089AECC /* Pandora */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -245,7 +270,6 @@
 				29B97317FDCFA39411CA2CEA /* Resources */,
 				634D8E982F187B0D0069FD8F /* HermesTests */,
 				19C28FACFE9D520D11CA2CBB /* Products */,
-				6319885E2F317D6D0045FCD6 /* Recovered References */,
 			);
 			indentWidth = 2;
 			name = Pithos;
@@ -273,26 +297,20 @@
 		4436BF6B18F4DBE600DDD578 /* ImportedSources */ = {
 			isa = PBXGroup;
 			children = (
+				4436BF6C18F4DC1F00DDD578 /* blowfish */,
+				FA94E6E31368E5830063860C /* FMEngine */,
+				9728D887158C3D3100C078A4 /* SPMediaKeyTap */,
 			);
 			path = ImportedSources;
 			sourceTree = "<group>";
 		};
-		6319885E2F317D6D0045FCD6 /* Recovered References */ = {
+		4436BF6C18F4DC1F00DDD578 /* blowfish */ = {
 			isa = PBXGroup;
 			children = (
-				30C538E3D13F411B9994758E /* AudioStreamer.swift */,
-				63BF983767EE46E6AD891767 /* Playlist.swift */,
+				FA454683156604D100EE98C7 /* blowfish.c */,
+				FA454684156604D100EE98C7 /* blowfish.h */,
 			);
-			name = "Recovered References";
-			sourceTree = "<group>";
-		};
-		63198A7F2F327F7B0045FCD6 /* Pandora */ = {
-			isa = PBXGroup;
-			children = (
-				63198A7D2F327F7B0045FCD6 /* PandoraClient.swift */,
-				63198A7E2F327F7B0045FCD6 /* PandoraCrypto.swift */,
-			);
-			path = Pandora;
+			path = blowfish;
 			sourceTree = "<group>";
 		};
 		634D8E5A2F16EE7A0069FD8F /* Models */ = {
@@ -302,7 +320,6 @@
 				634D910B2F19BCB10069FD8F /* Song.swift */,
 				634D8E582F16EE7A0069FD8F /* SongModel.swift */,
 				634D8E592F16EE7A0069FD8F /* StationModel.swift */,
-				E51F1E6C3C4541D59BFD58C3 /* Station.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -378,13 +395,68 @@
 		634D90E92F19AD5E0069FD8F /* Services */ = {
 			isa = PBXGroup;
 			children = (
-				63198A7F2F327F7B0045FCD6 /* Pandora */,
 				634D90E72F19AD5E0069FD8F /* AppleScriptSupport.swift */,
 				634D90E82F19AD5E0069FD8F /* LastFMService.swift */,
 				DD2036192DD64C5DB24413F7 /* StationArtworkLoader.swift */,
-				457303C5850141E18298EAB9 /* PlaybackController.swift */,
 			);
 			path = Services;
+			sourceTree = "<group>";
+		};
+		9728D887158C3D3100C078A4 /* SPMediaKeyTap */ = {
+			isa = PBXGroup;
+			children = (
+				843B578919660680000898F2 /* NSObject+SPInvocationGrabbing.h */,
+				843B578A19660680000898F2 /* NSObject+SPInvocationGrabbing.m */,
+				9728D898158C3DA500C078A4 /* SPMediaKeyTap.h */,
+				9728D899158C3DA500C078A4 /* SPMediaKeyTap.m */,
+			);
+			path = SPMediaKeyTap;
+			sourceTree = "<group>";
+		};
+		FA0E5568147855AB00C36794 /* Controllers */ = {
+			isa = PBXGroup;
+			children = (
+				FA3CFF42132FC4CF003554E2 /* PlaybackController.h */,
+				FA3CFF43132FC4CF003554E2 /* PlaybackController.m */,
+			);
+			name = Controllers;
+			sourceTree = "<group>";
+		};
+		FA2A3F90132BF9F50089AECC /* Pandora */ = {
+			isa = PBXGroup;
+			children = (
+				FA2A3F77132BF97E0089AECC /* Pandora.h */,
+				FA2A3F78132BF97E0089AECC /* Pandora.m */,
+				FA2A3F91132BF9F50089AECC /* Crypt.h */,
+				FA2A3F92132BF9F50089AECC /* Crypt.m */,
+				FA2A3F96132BF9F50089AECC /* Station.h */,
+				FA2A3F97132BF9F50089AECC /* Station.m */,
+				44411DA5190166FB00EC4E05 /* PandoraDevice.h */,
+				44411DA6190166FB00EC4E05 /* PandoraDevice.m */,
+			);
+			path = Pandora;
+			sourceTree = "<group>";
+		};
+		FA94E6E31368E5830063860C /* FMEngine */ = {
+			isa = PBXGroup;
+			children = (
+				FA94E6E61368E5830063860C /* FMEngine.h */,
+				FA94E6E71368E5830063860C /* FMEngine.m */,
+				FA94E6EA1368E5830063860C /* NSString+FMEngine.h */,
+				FA94E6EB1368E5830063860C /* NSString+FMEngine.m */,
+			);
+			path = FMEngine;
+			sourceTree = "<group>";
+		};
+		FACF0180149A713700D1FB73 /* AudioStreamer */ = {
+			isa = PBXGroup;
+			children = (
+				FACF0183149A713700D1FB73 /* AudioStreamer.h */,
+				FACF0184149A713700D1FB73 /* AudioStreamer.m */,
+				FA99E25915E4B7EA005AB6E6 /* ASPlaylist.h */,
+				FA99E25A15E4B7EA005AB6E6 /* ASPlaylist.m */,
+			);
+			path = AudioStreamer;
 			sourceTree = "<group>";
 		};
 		FAEFFBFF132D620B007DC6FB /* Icons */ = {
@@ -521,7 +593,6 @@
 			);
 			mainGroup = 29B97314FDCFA39411CA2CEA /* Pithos */;
 			packageReferences = (
-				CRYPTOSWIFT003 /* XCRemoteSwiftPackageReference "CryptoSwift" */,
 			);
 			projectDirPath = "";
 			projectRoot = "";
@@ -585,6 +656,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				441C9F0E1CC80AA0000A0302 /* ASPlaylist.m in Sources */,
+				FA2A3F80132BF97E0089AECC /* Pandora.m in Sources */,
+				FA2A3F98132BF9F50089AECC /* Crypt.m in Sources */,
+				FA2A3F9A132BF9F50089AECC /* Station.m in Sources */,
 				634D8E722F16EE7A0069FD8F /* PlayerView.swift in Sources */,
 				634D8E732F16EE7A0069FD8F /* PlayerViewModel.swift in Sources */,
 				634D8E962F171FFF0069FD8F /* PreviewMocks.swift in Sources */,
@@ -615,9 +690,13 @@
 				634D8E842F16EE7A0069FD8F /* SongModel.swift in Sources */,
 				634D8E852F16EE7A0069FD8F /* NotificationManager.swift in Sources */,
 				634D8E862F16EE7A0069FD8F /* ContentView.swift in Sources */,
-				63198A802F327F7B0045FCD6 /* PandoraCrypto.swift in Sources */,
-				63198A812F327F7B0045FCD6 /* PandoraClient.swift in Sources */,
 				634D8E902F1719EA0069FD8F /* StationEditView.swift in Sources */,
+				FA3CFF44132FC4CF003554E2 /* PlaybackController.m in Sources */,
+				FA94E6ED1368E5830063860C /* FMEngine.m in Sources */,
+				FA94E6EF1368E5830063860C /* NSString+FMEngine.m in Sources */,
+				44411DA7190166FB00EC4E05 /* PandoraDevice.m in Sources */,
+				441C9F161CC86A74000A0302 /* AudioStreamer.m in Sources */,
+				FA454685156604D100EE98C7 /* blowfish.c in Sources */,
 				634D8E8A2F1718050069FD8F /* StationAddViewModel.swift in Sources */,
 				BCE59520F3E241C7A3A9BB47 /* Constants.swift in Sources */,
 				459A3DDA60B348F38426008C /* ImageCache.swift in Sources */,
@@ -629,10 +708,6 @@
 				CDE16F7D896A4CA8A7CC428E /* IconMask.swift in Sources */,
 				16A03D4CD43741B4A5967EE7 /* MenuBarView.swift in Sources */,
 				3BCBD3A909E5492F86A73181 /* ViewModifiers.swift in Sources */,
-				EFF506A611DA461CB03497E8 /* PlaybackController.swift in Sources */,
-				728CC0A620A645A99CD50CA3 /* Station.swift in Sources */,
-				9B2199F491AC4B3A813EDBC2 /* AudioStreamer.swift in Sources */,
-				858B6A0B666B45AEB04409E7 /* Playlist.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -818,6 +893,7 @@
 					"\"$(SRCROOT)\"",
 					"\"$(SRCROOT)/Frameworks\"",
 				);
+				GCC_PREFIX_HEADER = Sources/Hermes_Prefix.pch;
 				HEADER_SEARCH_PATHS = (
 					"\"$(SRCROOT)\"",
 					"\"$(SRCROOT)/Sources\"/**",
@@ -859,6 +935,7 @@
 					"\"$(SRCROOT)\"",
 					"\"$(SRCROOT)/Frameworks\"",
 				);
+				GCC_PREFIX_HEADER = Sources/Hermes_Prefix.pch;
 				HEADER_SEARCH_PATHS = (
 					"\"$(SRCROOT)\"",
 					"\"$(SRCROOT)/Sources\"/**",
@@ -873,7 +950,6 @@
 				PRODUCT_NAME = Hermes;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				RUN_CLANG_STATIC_ANALYZER = YES;
-				SWIFT_VERSION = 5.0;
 				WARNING_CFLAGS = (
 					"-Wall",
 					"-Wextra",
@@ -928,6 +1004,7 @@
 				OTHER_CFLAGS = "-DDEBUG";
 				SDKROOT = macosx;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "Sources/Hermes-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
 				WARNING_CFLAGS = "-Wall";
@@ -1032,25 +1109,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		CRYPTOSWIFT003 /* XCRemoteSwiftPackageReference "CryptoSwift" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/krzyzanowskim/CryptoSwift.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.8.0;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		CRYPTOSWIFT002 /* CryptoSwift */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = CRYPTOSWIFT003 /* XCRemoteSwiftPackageReference "CryptoSwift" */;
-			productName = CryptoSwift;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 29B97313FDCFA39411CA2CEA /* Project object */;
 }

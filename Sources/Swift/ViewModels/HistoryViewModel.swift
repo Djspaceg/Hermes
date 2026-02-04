@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import AppKit
 import Combine
 
 @MainActor
@@ -61,12 +62,16 @@ final class HistoryViewModel: ObservableObject {
             do {
                 let data = try Data(contentsOf: URL(fileURLWithPath: saveStatePath))
                 
-                // Use NSKeyedUnarchiver to read Objective-C archived Song objects
+                // Use NSKeyedUnarchiver to read archived Song objects
                 if let songs = try NSKeyedUnarchiver.unarchivedObject(ofClasses: [NSArray.self, Song.self], from: data) as? [Song] {
                     historyItems = songs.map { SongModel(song: $0) }
                 }
             } catch {
-                print("HistoryViewModel: Failed to load saved history: \(error)")
+                print("HistoryViewModel: Failed to load saved history (likely old format): \(error)")
+                print("HistoryViewModel: Deleting old history file and starting fresh")
+                
+                // Delete the old incompatible history file
+                try? FileManager.default.removeItem(atPath: saveStatePath)
             }
         }
     }
