@@ -129,10 +129,7 @@ struct AlbumArtPreviewWindow: View {
                 .frame(minWidth: 600, minHeight: 600)
                 .ignoresSafeArea()
                 .onAppear {
-                    // Configure window for full-screen support
-                    if let window = NSApp.windows.first(where: { $0.title == "Album Art" }) {
-                        window.collectionBehavior.insert(.fullScreenPrimary)
-                    }
+                    configureWindowForFullscreen()
                 }
             } else {
                 // No song - close the window
@@ -142,6 +139,25 @@ struct AlbumArtPreviewWindow: View {
                         dismiss()
                     }
             }
+        }
+    }
+    
+    private func configureWindowForFullscreen() {
+        // Use DispatchQueue to ensure window is fully initialized
+        DispatchQueue.main.async {
+            guard let window = NSApp.windows.first(where: { 
+                $0.title == "Album Art" || $0.identifier?.rawValue == WindowID.artworkPreview
+            }) else { return }
+            
+            // Enable fullscreen support - .managed is required for SwiftUI windows
+            window.collectionBehavior = [.fullScreenPrimary, .managed]
+            
+            // Hide title but keep traffic lights visible
+            window.titleVisibility = .hidden
+            window.titlebarAppearsTransparent = true
+            
+            // Make content extend under titlebar
+            window.styleMask.insert(.fullSizeContentView)
         }
     }
 }

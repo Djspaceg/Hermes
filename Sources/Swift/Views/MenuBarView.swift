@@ -206,7 +206,7 @@ struct StatusBarWindowContent: View {
                 if let mainWindow = NSApp.windows.first(where: { $0.identifier?.rawValue == "main" || $0.title == "Hermes" }) {
                     mainWindow.makeKeyAndOrderFront(nil)
                 } else {
-                    openWindow(id: "main")
+                    openWindow(id: WindowID.main)
                 }
             } label: {
                 Label("Show Hermes", systemImage: "macwindow")

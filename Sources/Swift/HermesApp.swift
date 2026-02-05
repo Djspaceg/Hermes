@@ -18,7 +18,7 @@ struct HermesApp: App {
     // MARK: - Body
     
     var body: some Scene {
-        Window("Hermes", id: "main") {
+        Window("Hermes", id: WindowID.main) {
             ContentView(appState: appState)
                 .frame(minWidth: 300, minHeight: 300)
                 .sheet(isPresented: $showingNewStation) {
@@ -124,7 +124,7 @@ struct HermesApp: App {
                 }
         }
         
-        Window("Album Art", id: "artworkPreview") {
+        Window("Album Art", id: WindowID.artworkPreview) {
             AlbumArtPreviewWindow(playerViewModel: appState.playerViewModel)
                 .onAppear {
                     WindowTracker.shared.windowOpened("artworkPreview")
@@ -133,10 +133,8 @@ struct HermesApp: App {
                     WindowTracker.shared.windowClosed("artworkPreview")
                 }
         }
-        .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentMinSize)
         .defaultSize(width: 600, height: 600)
-        .windowToolbarStyle(.unified)
         
         MenuBarExtra {
             StatusBarWindowContent(

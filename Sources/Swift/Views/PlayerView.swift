@@ -50,7 +50,7 @@ struct PlayerView<ViewModel: PlayerViewModelProtocol & Observable>: View {
         AlbumArtworkView(
           song: song,
           artworkImage: viewModel.artworkImage,
-          onTap: { openWindow(id: "artworkPreview") }
+          onTap: { openWindow(id: WindowID.artworkPreview) }
         )
         .ignoresSafeArea()
 

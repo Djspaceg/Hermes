@@ -8,6 +8,14 @@
 
 import Foundation
 
+// MARK: - Window IDs
+
+/// Window identifiers used in SwiftUI Scene declarations
+enum WindowID {
+    static let main = "main"
+    static let artworkPreview = "artworkPreview"
+}
+
 // MARK: - Proxy Type
 
 /// Proxy configuration type for network connections

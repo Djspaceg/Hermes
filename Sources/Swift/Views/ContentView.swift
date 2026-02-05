@@ -63,7 +63,7 @@ struct ContentView: View {
                     AlbumArtworkView(
                         song: song,
                         artworkImage: playerViewModel.artworkImage,
-                        onTap: { openWindow(id: "artworkPreview") }
+                        onTap: { openWindow(id: WindowID.artworkPreview) }
                     )
                 }
                 .ignoresSafeArea()
@@ -84,7 +84,7 @@ struct ContentView: View {
                     } detail: {
                         PlayerControlsView(
                             viewModel: playerViewModel,
-                            onBackgroundTap: { openWindow(id: "artworkPreview") }
+                            onBackgroundTap: { openWindow(id: WindowID.artworkPreview) }
                         )
                         .navigationTitle("")
                         .toolbarTitleDisplayMode(.inline)
