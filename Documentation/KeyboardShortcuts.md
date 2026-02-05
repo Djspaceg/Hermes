@@ -1,25 +1,39 @@
 # Keyboard Shortcuts
 
-| Keystroke   | Action                                 |
-| ----------- | -------------------------------------- |
-| ⌘,          | Preferences                            |
-| ⌘H          | Hide Hermes                            |
-| ⌘Q          | Quit Hermes                            |
-| ⌘W          | Close the frontmost window             |
-| ⇧⌘S         | Hide/show drawer                       |
-| ⇧⌘H         | Show song history in drawer            |
-| ⇧⌘T         | Show station list in drawer            |
-| ⌥⌘T         | Hide/show toolbar                      |
-| ⌘N          | Create new station                     |
-| ⇧⌘D         | Edit selected station                  |
-| ⌘R          | Reload stations list                   |
-| ⇧⌘L         | Sign out                               |
-| Space       | Pause playback                         |
-| ⌘L          | Like current song                      |
-| ⌘D          | Dislike current song                   |
-| ⌘E          | Skip to next song                      |
-| ⌘T          | Tired of song (don't play for a month) |
-| ⌘↑          | Increase volume                        |
-| ⌘↓          | Decrease volume                        |
-| ⌘M          | Minimize window                        |
-| ⇧⌘?         | Focus menubar search                   |
+## Playback
+
+| Keystroke | Action |
+|-----------|--------|
+| Space | Play/Pause |
+| ⌘E | Next song |
+| ⌘L | Like current song |
+| ⌘D | Dislike current song (skips to next) |
+| ⌘T | Tired of song (skips to next) |
+| ⌘↑ | Increase volume |
+| ⌘↓ | Decrease volume |
+
+## Stations
+
+| Keystroke | Action |
+|-----------|--------|
+| ⌘N | Create new station |
+| ⌘R | Reload stations list |
+
+## Window
+
+| Keystroke | Action |
+|-----------|--------|
+| ⌘, | Preferences |
+| ⌘W | Close window |
+| ⌘M | Minimize window |
+| ⌘H | Hide Hermes |
+| ⌘Q | Quit Hermes |
+
+## Media Keys
+
+Hermes responds to standard media keys on Apple keyboards:
+
+- **Play/Pause** (F8 or ▶️⏸️)
+- **Next Track** (F9 or ⏭️)
+
+Media key support can be toggled in Preferences → General.

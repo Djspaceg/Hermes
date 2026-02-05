@@ -1,22 +1,109 @@
-Contributing
-============
+# Contributing to Hermes
 
-Style
------
+We welcome contributions! Here's how to get started.
 
-Follow the general style of Apple's official work. Some important points:
+## Development Setup
 
-* We use two-space indentation. Worry not, XCode knows!
-* Don't introduce unnecessary whitespace in message passing or function
-  declarations.
-* Add space after control statements (`if (aCondition)`, not
-  `if(aCondition)`).
-* Always include braces with control flow statements.
-* Prefer English readable variables to short single letters names — even for
-  throw away variables.
-* Do not use parenthesis in the `return` statement (`return playbackStatus;`,
-  not `return (playbackStatus);`).
-* Pointer operators have a space on their left, and the variable name on their
-  right (`NSString *userName`, not `NSString* userName`).
+1. Clone the repository:
 
-When in doubt, do what Apple does.
+   ```bash
+   git clone https://github.com/HermesApp/Hermes.git
+   cd Hermes
+   ```
+
+2. Open in Xcode or build from command line:
+
+   ```bash
+   make                    # Debug build
+   make CONFIGURATION=Release  # Release build
+   ```
+
+3. Run tests:
+
+   ```bash
+   make test
+   ```
+
+## Code Style
+
+### Swift
+
+- Use SwiftUI for all new UI code
+- Follow Apple's Swift API Design Guidelines
+- Use `@ObservableObject` view models with `@Published` properties
+- Prefer async/await over completion handlers
+- Use meaningful variable names over single letters
+
+### File Organization
+
+- One primary type per file
+- Group related code with `// MARK: - Section Name`
+- Order: properties → initializers → body/lifecycle → public methods → private methods
+
+### SwiftUI Views
+
+```swift
+struct MyView: View {
+    // MARK: - Properties
+    @ObservedObject var viewModel: MyViewModel
+    @State private var localState = false
+    
+    // MARK: - Body
+    var body: some View {
+        // Keep minimal and readable
+    }
+    
+    // MARK: - Subviews
+    private var headerView: some View {
+        // Extract complex sections
+    }
+}
+```
+
+## Architecture
+
+### Layers
+
+- **Views** (`Sources/Swift/Views/`) — SwiftUI views only
+- **View Models** (`Sources/Swift/ViewModels/`) — Business logic and state
+- **Services** (`Sources/Swift/Services/`) — Pandora API, audio, networking
+- **Models** (`Sources/Swift/Models/`) — Data structures
+
+### State Management
+
+- `AppState` singleton for app-wide state
+- View models for feature-specific state
+- `NotificationCenter` for cross-layer communication
+
+### Constants
+
+- Window IDs in `WindowID` enum (`Constants.swift`)
+- UserDefaults keys in `UserDefaultsKeys.swift`
+- Notification names in `NotificationNames.swift`
+
+## Testing
+
+- Add unit tests for new functionality in `HermesTests/Tests/`
+- Use mock objects from `HermesTests/Mocks/` or `PreviewMocks.swift`
+- Run tests before submitting PRs
+
+## Pull Request Guidelines
+
+1. Create a feature branch from `main`
+2. Make focused, atomic commits
+3. Write clear commit messages
+4. Ensure all tests pass
+5. Update documentation if needed
+6. Submit PR with description of changes
+
+## What We're Looking For
+
+- Bug fixes with test coverage
+- Performance improvements
+- Accessibility enhancements
+- Documentation improvements
+- New features that align with Hermes's purpose
+
+## Questions?
+
+Open an issue or start a discussion on GitHub.

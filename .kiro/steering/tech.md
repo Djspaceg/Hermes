@@ -1,5 +1,11 @@
 # Technology Stack
 
+## Development Workflow
+
+- **Building**: Use `make` or `make CONFIGURATION=Release` to build
+- **Testing**: Let the user launch and test the app manually — do not auto-launch
+- **Debugging**: User will report issues; use debug logging when needed
+
 ## Build System
 
 - **Xcode Project**: `Hermes.xcodeproj`

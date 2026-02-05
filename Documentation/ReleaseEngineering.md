@@ -2,58 +2,90 @@
 
 ## Requirements
 
-- The DSA private key to generate a signature. This signature is used by
-  Sparkle to prove the integrity and authenticity of the release archive (zip
-  file). The DSA private key should be accessible (can be a symlink) as
-  `~/Documents/hermes.key`.
-- S3 credentials to upload the release archive to Alex's S3 bucket.
-- Copies of HermesApp/Hermes (the app repo) and the
-  HermesApp/HermesApp.github.io (the GitHub pages repo) in the **same**
-  directory. The GitHub pages repo **must** be accessible as `hermes-pages`.
+- Xcode with macOS Tahoe (26.0) SDK
+- DSA private key for Sparkle signatures (`~/Documents/hermes.key`)
+- GitHub access token for releases
+- Local clones:
+  - `Hermes/` — the app repository
+  - `hermes-pages/` — the GitHub Pages site
 
-## The Process
+## Version Numbers
 
-1. Edit `Hermes/Resources/Info.plist`:
-   1. Increment "Bundle versions string, short"
-      (`CFBundleShortVersionString`).
-   2. Increment "Bundle version" (`CFBundleVersion`).
+Hermes uses Apple Generic Versioning (`agvtool`):
 
-2. Edit `Hermes/CHANGELOG.md` ensuring all significant improvements are noted,
-   and change the link to "Full Changelog" to the differences between last
-   release and the release that is about to be pushed to GitHub.
+- **Project version** (`CFBundleVersion`) — incrementing build number
+- **Marketing version** (`CFBundleShortVersionString`) — user-facing version like `2.0.0`
 
-3. Test everything, ensuring it's all working as expected. Once satisfied,
-   commit the changes made in the last two steps. Once committed, tag the
-   commit with the release version. For example:
+## Release Process
 
-       git tag v1.2.0 750f2de
+### 1. Bump Version
 
-4. Compile, archive, upload the new version, and edit the `hermes-pages` site:
+```bash
+cd Hermes/
+agvtool bump -all                    # Increment build number
+agvtool new-marketing-version 2.0.0  # Set marketing version
+```
 
-       make upload-release
+### 2. Update Changelog
 
-5. Ensure the GitHub pages repository was edited correctly:
-   1. Inspect `hermes-pages/_data/urls.yml` ensuring the URL for key
-      `hermes_download` is valid.
-   2. Ensure `hermes-pages/versions.xml` is valid XML.
-   3. Make sure `hermes-pages/CHANGELOG.md` looks like `Hermes/CHANGELOG.md`.
+Edit `CHANGELOG.md`:
 
-6. Commit changes in `hermes-pages` and push to GitHub:
+- Add release date
+- Update the comparison link to point to the new tag
+- Document all significant changes
 
-       cd hermes-pages
-       git add .
-       git commit -m v1.2.0
-       git push origin master
+### 3. Test
 
-7. Try updating from an old version of Hermes. From textual menus:
-   **Hermes → Check for Updates**; or from the statusbar icon: click on the
-   icon, then hold down option and click **Check for Updates**. If the update
-   results in an error, open `~/Library/Logs/SparkleUpdateLog.log` and find
-   out what went wrong. If necessary start over, preferrably removing the bad
-   commit in `github-pages` with command `git reset --hard HEAD^`.
+```bash
+make CONFIGURATION=Release
+make test
+```
 
-8. Push *both* Hermes/HermesApp's master branch and the newly made git tag:
+Build and test the archive manually before releasing.
 
-       cd Hermes
-       git push origin master
-       git push origin v1.2.0
+### 4. Create Release
+
+```bash
+make upload-release GITHUB_ACCESS_TOKEN=<token>
+```
+
+This will:
+
+- Build the release archive
+- Sign for Sparkle distribution
+- Create a GitHub release draft
+- Update the Sparkle appcast
+
+### 5. Publish
+
+1. Test the download from the GitHub draft release
+2. Commit and push the version bump
+3. Publish the release on GitHub (creates the git tag)
+4. Update and push `hermes-pages` for the website
+
+```bash
+git commit -am "v2.0.0"
+git push
+git pull -t  # Pull the new tag
+
+cd ../hermes-pages
+git add .
+git commit -m "v2.0.0"
+git push
+```
+
+## Build Commands
+
+```bash
+make                        # Debug build
+make CONFIGURATION=Release  # Release build
+make archive                # Create distributable .zip
+make test                   # Run unit tests
+make clean                  # Remove build artifacts
+```
+
+## Sparkle Updates
+
+- Public key: `Resources/dsa_pub.pem`
+- Private key: `hermes.key` (obtain from project admin)
+- Appcast: `hermes-pages/versions.xml`
