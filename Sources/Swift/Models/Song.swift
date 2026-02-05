@@ -91,6 +91,9 @@ final class Song: NSObject, Identifiable {
     /// The station ID this song belongs to
     var stationId: String?
     
+    /// The station token for API calls (needed for rating)
+    var stationToken: String?
+    
     /// URL for album information
     var albumUrl: String?
     
@@ -234,6 +237,7 @@ final class Song: NSObject, Identifiable {
         self.medUrl = coder.decodeObject(of: NSString.self, forKey: "medUrl") as String?
         self.lowUrl = coder.decodeObject(of: NSString.self, forKey: "lowUrl") as String?
         self.stationId = coder.decodeObject(of: NSString.self, forKey: "stationId") as String?
+        self.stationToken = coder.decodeObject(of: NSString.self, forKey: "stationToken") as String?
         // Decode rating from legacy nrating key for backward compatibility
         self.rating = (coder.decodeObject(of: NSNumber.self, forKey: "nrating") as NSNumber?)?.intValue ?? 0
         self.albumUrl = coder.decodeObject(of: NSString.self, forKey: "albumUrl") as String?
@@ -279,6 +283,7 @@ final class Song: NSObject, Identifiable {
         if let medUrl = medUrl { dict["medUrl"] = medUrl }
         if let highUrl = highUrl { dict["highUrl"] = highUrl }
         if let stationId = stationId { dict["stationId"] = stationId }
+        if let stationToken = stationToken { dict["stationToken"] = stationToken }
         if let nrating = nrating { dict["nrating"] = nrating }
         if let albumUrl = albumUrl { dict["albumUrl"] = albumUrl }
         if let artistUrl = artistUrl { dict["artistUrl"] = artistUrl }

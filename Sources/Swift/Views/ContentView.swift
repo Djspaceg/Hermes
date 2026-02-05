@@ -10,8 +10,9 @@ import SwiftUI
 struct ContentView: View {
     // MARK: - Properties
     
-    var appState: AppState
-    private var playerViewModel: PlayerViewModel
+    // Use @Bindable to properly observe @Observable AppState changes
+    @Bindable var appState: AppState
+    @Bindable private var playerViewModel: PlayerViewModel
     @ObservedObject private var settingsManager = SettingsManager.shared
     
     @State private var columnVisibility: NavigationSplitViewVisibility = .all

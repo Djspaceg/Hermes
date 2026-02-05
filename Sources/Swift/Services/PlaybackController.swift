@@ -506,7 +506,12 @@ extension PlaybackController {
     /// playbackController.rate(song, as: false)
     /// ```
     func rate(_ song: Song, as liked: Bool) {
-        guard let station = song.station(), !station.shared else { return }
+        // Check if the song's station is shared (can't rate shared station songs)
+        // Note: station() may return nil for history items - that's OK, we can still rate them
+        if let station = song.station(), station.shared {
+            logger.debug("Cannot rate song on shared station")
+            return
+        }
         
         var rating = liked ? 1 : -1
         

@@ -38,7 +38,8 @@ protocol PlayerViewModelProtocol: AnyObject {
 struct PlayerView<ViewModel: PlayerViewModelProtocol & Observable>: View {
   // MARK: - Properties
   
-  var viewModel: ViewModel
+  // Use @Bindable to properly observe @Observable ViewModel changes
+  @Bindable var viewModel: ViewModel
   @State private var isHovering = false
   @Environment(\.openWindow) private var openWindow
 

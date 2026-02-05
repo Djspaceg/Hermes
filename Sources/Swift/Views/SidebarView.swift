@@ -221,7 +221,9 @@ var toolbarIconButtonSize: CGFloat = 16
     }
     
     private var historyFooter: some View {
-        HStack(spacing: 4) {
+        let rating = historyViewModel.selectedItemRating
+        
+        return HStack(spacing: 4) {
             SidebarIconButton(
                 systemName: "music.note",
                 isEnabled: historyViewModel.selectedItem != nil,
@@ -257,19 +259,19 @@ var toolbarIconButtonSize: CGFloat = 16
             Spacer()
             
             SidebarIconButton(
-                systemName: historyViewModel.selectedItem?.rating == 1 ? "hand.thumbsup.fill" : "hand.thumbsup",
+                systemName: rating == 1 ? "hand.thumbsup.fill" : "hand.thumbsup",
                 isEnabled: historyViewModel.selectedItem != nil,
-                helpText: historyViewModel.selectedItem?.rating == 1 ? "Unlike" : "Like",
-                tintColor: historyViewModel.selectedItem?.rating == 1 ? .green : nil
+                helpText: rating == 1 ? "Unlike" : "Like",
+                tintColor: rating == 1 ? .green : nil
             ) {
                 historyViewModel.likeSelected()
             }
             
             SidebarIconButton(
-                systemName: historyViewModel.selectedItem?.rating == -1 ? "hand.thumbsdown.fill" : "hand.thumbsdown",
+                systemName: rating == -1 ? "hand.thumbsdown.fill" : "hand.thumbsdown",
                 isEnabled: historyViewModel.selectedItem != nil,
-                helpText: historyViewModel.selectedItem?.rating == -1 ? "Remove Dislike" : "Dislike",
-                tintColor: historyViewModel.selectedItem?.rating == -1 ? .red : nil
+                helpText: rating == -1 ? "Remove Dislike" : "Dislike",
+                tintColor: rating == -1 ? .red : nil
             ) {
                 historyViewModel.dislikeSelected()
             }

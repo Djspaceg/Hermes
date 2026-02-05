@@ -67,7 +67,8 @@ struct HistoryListView: View {
 struct HistoryRow: View {
     // MARK: - Properties
     
-    let song: Song
+    // Use @Bindable to properly observe @Observable Song changes
+    @Bindable var song: Song
     
     // MARK: - Body
     
@@ -107,17 +108,22 @@ struct HistoryRow: View {
             
             Spacer()
             
-            if song.rating == 1 {
-                Image(systemName: "hand.thumbsup.fill")
-                    .foregroundColor(.green)
-                    .font(.caption)
-            } else if song.rating == -1 {
-                Image(systemName: "hand.thumbsdown.fill")
-                    .foregroundColor(.red)
-                    .font(.caption)
-            }
+            ratingIndicator
         }
         .contentShape(Rectangle())
+    }
+    
+    @ViewBuilder
+    private var ratingIndicator: some View {
+        if song.rating == 1 {
+            Image(systemName: "hand.thumbsup.fill")
+                .foregroundColor(.green)
+                .font(.caption)
+        } else if song.rating == -1 {
+            Image(systemName: "hand.thumbsdown.fill")
+                .foregroundColor(.red)
+                .font(.caption)
+        }
     }
 }
 

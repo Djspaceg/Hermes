@@ -75,6 +75,34 @@ final class StationsViewModel {
                 }
             }
             .store(in: &cancellables)
+        
+        // Station renamed - trigger UI update
+        // The Station object is already updated, but we need to trigger a view refresh
+        NotificationCenter.default.publisher(for: .pandoraDidRenameStation)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                // Force array update to trigger SwiftUI refresh
+                // This is needed because Station.name change may not propagate to List
+                guard let self = self else { return }
+                let current = self.stations
+                self.stations = current
+            }
+            .store(in: &cancellables)
+        
+        // Station deleted - reload stations list
+        NotificationCenter.default.publisher(for: .pandoraDidDeleteStation)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] notification in
+                guard let self = self else { return }
+                // Remove the deleted station from our list
+                if let deletedStation = notification.object as? Station {
+                    self.stations.removeAll { $0.id == deletedStation.id }
+                } else {
+                    // Fallback: reload all stations
+                    self.loadStations()
+                }
+            }
+            .store(in: &cancellables)
     }
     
     private func loadStations() {

@@ -34,7 +34,9 @@ extension NotificationCenter {
                 }
                 return station.playingSong
             }
-            .removeDuplicates { $0.title == $1.title && $0.artist == $1.artist }
+            // Deduplicate by token (unique song ID) instead of title/artist
+            // This allows the same song to be tracked if it plays again
+            .removeDuplicates { $0.token == $1.token }
             .eraseToAnyPublisher()
     }
     

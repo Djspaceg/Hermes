@@ -57,6 +57,7 @@ extension PandoraClient {
                 song.album = item["albumName"] as? String ?? ""
                 song.art = item["albumArtUrl"] as? String
                 song.stationId = item["stationId"] as? String
+                song.stationToken = station.token  // Store station token for rating API
                 song.token = item["trackToken"] as? String
                 song.nrating = item["songRating"] as? NSNumber
                 song.albumUrl = item["albumDetailUrl"] as? String
@@ -149,7 +150,7 @@ extension PandoraClient {
         var dict = defaultRequestDictionary()
         dict["trackToken"] = song.token
         dict["isPositive"] = liked
-        dict["stationToken"] = song.station()?.token
+        dict["stationToken"] = song.stationToken
         
         let request = defaultRequest(method: "station.addFeedback")
         request.request = dict
@@ -191,7 +192,7 @@ extension PandoraClient {
         song.nrating = NSNumber(value: 0)
         
         var dict = defaultRequestDictionary()
-        dict["stationToken"] = song.station()?.token
+        dict["stationToken"] = song.stationToken
         dict["includeExtendedAttributes"] = true
         
         let request = defaultRequest(method: "station.getStation")

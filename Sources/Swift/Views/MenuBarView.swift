@@ -10,7 +10,8 @@ import SwiftUI
 // MARK: - Status Bar Icon
 
 struct StatusBarIcon: View {
-    var playerViewModel: PlayerViewModel
+    // Use @Bindable to properly observe @Observable PlayerViewModel changes
+    @Bindable var playerViewModel: PlayerViewModel
     @ObservedObject private var settings = SettingsManager.shared
     
     var body: some View {
@@ -58,8 +59,9 @@ struct StatusBarIcon: View {
 // MARK: - Status Bar Window Content
 
 struct StatusBarWindowContent: View {
-    var playerViewModel: PlayerViewModel
-    var stationsViewModel: StationsViewModel
+    // Use @Bindable to properly observe @Observable view model changes
+    @Bindable var playerViewModel: PlayerViewModel
+    @Bindable var stationsViewModel: StationsViewModel
     @Environment(\.openSettings) private var openSettings
     @Environment(\.openWindow) private var openWindow
     

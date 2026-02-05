@@ -27,6 +27,11 @@ final class HistoryViewModel {
     @ObservationIgnored
     private let distributedNotificationName = "hermes.song"
     
+    // Track selected item's rating to trigger view updates
+    var selectedItemRating: Int {
+        selectedItem?.rating ?? 0
+    }
+    
     init() {
         // Set up save state path in application support directory
         let folder = ("~/Library/Application Support/Hermes/" as NSString).expandingTildeInPath
@@ -41,6 +46,30 @@ final class HistoryViewModel {
         NotificationCenter.default.songPlayingPublisher
             .sink { [weak self] song in
                 self?.addToHistory(song)
+            }
+            .store(in: &cancellables)
+        
+        // Listen for rating changes to update UI
+        NotificationCenter.default.publisher(for: .pandoraDidRateSong)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] notification in
+                guard let self = self,
+                      let ratedSong = notification.object as? Song else { return }
+                
+                // Update the rating in our history items
+                if let index = self.historyItems.firstIndex(where: { $0.token == ratedSong.token }) {
+                    self.historyItems[index].rating = ratedSong.rating
+                }
+                
+                // If the selected item was rated, trigger a view update
+                if let selected = self.selectedItem,
+                   selected.token == ratedSong.token {
+                    // Force SwiftUI to notice the change by reassigning
+                    self.selectedItem = selected
+                }
+                
+                // Save updated history
+                _ = self.saveHistory()
             }
             .store(in: &cancellables)
     }

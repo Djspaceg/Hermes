@@ -11,6 +11,8 @@ struct AlbumArtPreviewView: View {
     
     // MARK: - Properties
     
+    // Song is optional - we can't use @Bindable with optionals
+    // The parent view should handle observation of the Song
     let song: Song?
     let artworkImage: NSImage?
     @Binding var isPresented: Bool
@@ -73,6 +75,18 @@ struct AlbumArtPreviewView: View {
     }
     
     private func detailsOverlay(for song: Song) -> some View {
+        // Use SongDetailsOverlay to properly observe the song's rating changes
+        SongDetailsOverlay(song: song)
+    }
+}
+
+// MARK: - Song Details Overlay
+
+/// Separate view to properly observe @Observable Song changes
+private struct SongDetailsOverlay: View {
+    @Bindable var song: Song
+    
+    var body: some View {
         VStack(spacing: 0) {
             Spacer()
             
@@ -81,6 +95,9 @@ struct AlbumArtPreviewView: View {
                     if song.rating == 1 {
                         Image(systemName: "hand.thumbsup.fill")
                             .foregroundColor(.green)
+                    } else if song.rating == -1 {
+                        Image(systemName: "hand.thumbsdown.fill")
+                            .foregroundColor(.red)
                     }
                     
                     Text(song.title)
@@ -115,7 +132,8 @@ struct AlbumArtPreviewView: View {
 // MARK: - Preview Window
 
 struct AlbumArtPreviewWindow: View {
-    var playerViewModel: PlayerViewModel
+    // Use @Bindable to properly observe @Observable PlayerViewModel changes
+    @Bindable var playerViewModel: PlayerViewModel
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {

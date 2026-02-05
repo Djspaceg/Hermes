@@ -110,7 +110,8 @@ private struct StationsListContent: View {
 }
 
 struct StationRow: View {
-    let station: Station
+    // Use @Bindable to properly observe @Observable Station changes
+    @Bindable var station: Station
     let isPlaying: Bool
     let showThumbnail: Bool
     let onAppear: (Station) -> Void
