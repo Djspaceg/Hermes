@@ -8,18 +8,24 @@
 
 import SwiftUI
 
+// MARK: - Sidebar Selection
+
 enum SidebarSelection {
     case stations
     case history
 }
 
+// MARK: - Sidebar View
+
 struct SidebarView: View {
-    @ObservedObject var stationsViewModel: StationsViewModel
-    @ObservedObject var historyViewModel: HistoryViewModel
+    // MARK: - Properties
+    
+    @Bindable var stationsViewModel: StationsViewModel
+    @Bindable var historyViewModel: HistoryViewModel
     @Binding var columnVisibility: NavigationSplitViewVisibility
     
     @State private var selectedView: SidebarSelection = .stations
-    @State private var selectedStation: StationModel?
+    @State private var selectedStation: Station?
     @State private var sortOrder: StationsViewModel.SortOrder = .dateCreated
     @State private var sidebarWidth: CGFloat = 250
     
@@ -60,7 +66,7 @@ struct SidebarView: View {
         .sheet(item: $stationsViewModel.stationToEdit) { station in
             StationEditView(
                 viewModel: StationEditViewModel(
-                    station: station.station,
+                    station: station,
                     pandora: stationsViewModel.pandora
                 )
             )
@@ -82,7 +88,7 @@ struct SidebarView: View {
                 WindowTracker.shared.windowClosed("newStation")
             }
         }
-        .onReceive(stationsViewModel.$selectedStationId) { stationId in
+        .onChange(of: stationsViewModel.selectedStationId) { _, stationId in
             // Sync selection from view model (e.g., when restoring last played station)
             if let stationId = stationId,
                selectedStation?.id != stationId,
@@ -322,7 +328,7 @@ struct SidebarIconButton: View {
 
 // MARK: - Preview
 
-#Preview {
+#Preview("Sidebar") {
     SidebarView(
         stationsViewModel: .mock(
             stations: [

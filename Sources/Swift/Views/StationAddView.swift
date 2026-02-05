@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct StationAddView<ViewModel: StationAddViewModelProtocol>: View {
-    @ObservedObject var viewModel: ViewModel
+    @Bindable var viewModel: ViewModel
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
@@ -68,6 +68,9 @@ struct StationAddView<ViewModel: StationAddViewModelProtocol>: View {
                     .foregroundColor(.secondary)
                 TextField("Search artists or songs...", text: $viewModel.searchQuery)
                     .textFieldStyle(.plain)
+                    .onChange(of: viewModel.searchQuery) { _, newValue in
+                        viewModel.searchQueryChanged(newValue)
+                    }
                 if viewModel.isSearching {
                     ProgressView()
                         .controlSize(.small)
@@ -214,6 +217,6 @@ struct SearchResultRow: View {
 
 // MARK: - Preview
 
-#Preview {
+#Preview("Add Station") {
     StationAddView(viewModel: PreviewNewStationViewModel())
 }

@@ -11,21 +11,21 @@ import Combine
 
 extension NotificationCenter {
     var pandoraAuthenticatedPublisher: AnyPublisher<Void, Never> {
-        publisher(for: Notification.Name("PandoraDidAuthenticateNotification"))
+        publisher(for: .pandoraDidAuthenticate)
             .receive(on: DispatchQueue.main)
             .map { _ in () }
             .eraseToAnyPublisher()
     }
     
     var pandoraStationsLoadedPublisher: AnyPublisher<Void, Never> {
-        publisher(for: Notification.Name("PandoraDidLoadStationsNotification"))
+        publisher(for: .pandoraDidLoadStations)
             .receive(on: DispatchQueue.main)
             .map { _ in () }
             .eraseToAnyPublisher()
     }
     
     var songPlayingPublisher: AnyPublisher<Song, Never> {
-        publisher(for: Notification.Name("StationDidPlaySongNotification"))
+        publisher(for: .stationDidPlaySong)
             .receive(on: DispatchQueue.main)
             .compactMap { notification -> Song? in
                 // The notification object is the Station
@@ -39,7 +39,8 @@ extension NotificationCenter {
     }
     
     var playbackStatePublisher: AnyPublisher<Bool, Never> {
-        publisher(for: Notification.Name("ASStatusChangedNotification"))
+        publisher(for: .audioStatusChanged)
+            .debounce(for: .milliseconds(100), scheduler: DispatchQueue.main)
             .receive(on: DispatchQueue.main)
             .compactMap { notification -> Bool? in
                 // The notification object is the AudioStreamer
@@ -53,7 +54,7 @@ extension NotificationCenter {
     }
     
     var pandoraErrorPublisher: AnyPublisher<String, Never> {
-        publisher(for: Notification.Name("PandoraDidErrorNotification"))
+        publisher(for: .pandoraDidError)
             .receive(on: DispatchQueue.main)
             .compactMap { notification -> String? in
                 // Pandora.m uses "err" key for error message

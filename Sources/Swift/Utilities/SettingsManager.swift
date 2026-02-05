@@ -135,7 +135,7 @@ final class SettingsManager: NSObject, ObservableObject {
     
     private func setupPlaybackStateObserver() {
         // Update dock icon when artwork loads
-        NotificationCenter.default.publisher(for: Notification.Name("PlaybackArtDidLoadNotification"))
+        NotificationCenter.default.publisher(for: .playbackArtDidLoad)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.applyDockIcon()
@@ -143,7 +143,9 @@ final class SettingsManager: NSObject, ObservableObject {
             .store(in: &cancellables)
         
         // Update dock icon when playback state changes (for play/pause overlay)
-        NotificationCenter.default.publisher(for: Notification.Name("ASStatusChangedNotification"))
+        // Debounce to avoid excessive dock icon updates
+        NotificationCenter.default.publisher(for: .audioStatusChanged)
+            .debounce(for: .milliseconds(100), scheduler: DispatchQueue.main)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.applyDockIcon()
@@ -152,14 +154,14 @@ final class SettingsManager: NSObject, ObservableObject {
     }
     
     private func setupScreensaverObservers() {
-        DistributedNotificationCenter.default().publisher(for: Notification.Name("com.apple.screensaver.didstart"))
+        DistributedNotificationCenter.default().publisher(for: .screensaverDidStart)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.handleScreensaverStart()
             }
             .store(in: &cancellables)
         
-        DistributedNotificationCenter.default().publisher(for: Notification.Name("com.apple.screensaver.didstop"))
+        DistributedNotificationCenter.default().publisher(for: .screensaverDidStop)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.handleScreensaverStop()
@@ -180,14 +182,14 @@ final class SettingsManager: NSObject, ObservableObject {
     // MARK: - Screen Lock Observers
     
     private func setupScreenLockObservers() {
-        DistributedNotificationCenter.default().publisher(for: Notification.Name("com.apple.screenIsLocked"))
+        DistributedNotificationCenter.default().publisher(for: .screenIsLocked)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.handleScreenLock()
             }
             .store(in: &cancellables)
         
-        DistributedNotificationCenter.default().publisher(for: Notification.Name("com.apple.screenIsUnlocked"))
+        DistributedNotificationCenter.default().publisher(for: .screenIsUnlocked)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.handleScreenUnlock()

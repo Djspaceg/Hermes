@@ -7,30 +7,112 @@
 
 import Foundation
 import Combine
+import Observation
 
+// MARK: - ViewState
+
+/// Represents the current view state of the application
+enum ViewState: Equatable {
+    /// Login screen - user needs to authenticate
+    case login
+    
+    /// Loading screen - waiting for data
+    case loading
+    
+    /// Main player view - authenticated and ready
+    case player
+    
+    /// Error state with message
+    case error(String)
+}
+
+/// Central state manager providing a single source of truth for application state.
+///
+/// `AppState` is a singleton that manages the global state of the Hermes application,
+/// including authentication status, current view, and references to all view models.
+/// It uses the `@Observable` macro for automatic SwiftUI state tracking.
+///
+/// ## Topics
+///
+/// ### Accessing the Shared Instance
+/// - ``shared``
+///
+/// ### View State
+/// - ``currentView``
+/// - ``ViewState``
+/// - ``isSidebarVisible``
+///
+/// ### Authentication
+/// - ``isAuthenticated``
+///
+/// ### View Models
+/// - ``pandora``
+/// - ``loginViewModel``
+/// - ``playerViewModel``
+/// - ``stationsViewModel``
+/// - ``historyViewModel``
+///
+/// ### Actions
+/// - ``toggleSidebar()``
+/// - ``retry()``
+///
+/// ## Usage
+///
+/// ```swift
+/// // Access the shared instance
+/// let appState = AppState.shared
+///
+/// // Check authentication status
+/// if appState.isAuthenticated {
+///     // Show player view
+/// }
+///
+/// // Toggle sidebar visibility
+/// appState.toggleSidebar()
+/// ```
 @MainActor
-final class AppState: ObservableObject {
+@Observable
+final class AppState {
+    /// Shared singleton instance of AppState
+    ///
+    /// This is the single source of truth for application-wide state.
+    /// All views and view models should access state through this instance.
     static let shared: AppState = {
         print("AppState.shared: Creating singleton instance")
         return AppState()
     }()
     
-    // MARK: - Published Properties
+    // MARK: - Observable Properties
     
-    @Published var currentView: ViewState = .login
-    @Published var isSidebarVisible: Bool = true
-    @Published var isAuthenticated: Bool = false
+    /// The current view state of the application
+    var currentView: ViewState = .login
+    
+    /// Whether the sidebar is currently visible
+    var isSidebarVisible: Bool = true
+    
+    /// Whether the user is authenticated with Pandora
+    var isAuthenticated: Bool = false
     
     // MARK: - Dependencies
     
+    /// The Pandora API client
     let pandora: PandoraClient
+    
+    /// View model for the login screen
     let loginViewModel: LoginViewModel
+    
+    /// View model for the player interface
     let playerViewModel: PlayerViewModel
+    
+    /// View model for station management
     let stationsViewModel: StationsViewModel
+    
+    /// View model for listening history
     let historyViewModel: HistoryViewModel
     
     // MARK: - Private Properties
     
+    @ObservationIgnored
     private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Initialization
@@ -128,7 +210,7 @@ final class AppState: ObservableObject {
     // MARK: - Saved Credentials
     
     private func checkSavedCredentials() {
-        if let username = UserDefaults.standard.string(forKey: "pandora.username"),
+        if let username = UserDefaults.standard.string(forKey: UserDefaultsKeys.username),
            let password = try? KeychainManager.shared.retrievePassword(username: username),
            !username.isEmpty && !password.isEmpty {
             print("AppState: Found saved credentials, auto-authenticating")
@@ -147,10 +229,18 @@ final class AppState: ObservableObject {
     
     // MARK: - Public Methods
     
+    /// Toggles the sidebar visibility
+    ///
+    /// Call this method to show or hide the stations/history sidebar.
     func toggleSidebar() {
         isSidebarVisible.toggle()
     }
     
+    /// Retries the last failed operation
+    ///
+    /// Handles retry logic based on the current view state:
+    /// - If in error state and not authenticated: returns to login
+    /// - If in error state and authenticated: refreshes stations
     func retry() {
         switch currentView {
         case .error:
@@ -165,16 +255,5 @@ final class AppState: ObservableObject {
         default:
             break
         }
-    }
-}
-
-// MARK: - View State
-
-extension AppState {
-    enum ViewState: Equatable {
-        case login
-        case loading
-        case player
-        case error(String)
     }
 }

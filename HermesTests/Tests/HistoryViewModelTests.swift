@@ -324,7 +324,7 @@ final class HistoryViewModelTests: XCTestCase {
         titleUrl: String = "",
         artistUrl: String = "",
         albumUrl: String = ""
-    ) -> SongModel {
+    ) -> Song {
         let song = Song()
         song.title = title
         song.artist = artist
@@ -333,6 +333,6 @@ final class HistoryViewModelTests: XCTestCase {
         song.titleUrl = titleUrl.isEmpty ? nil : titleUrl
         song.artistUrl = artistUrl.isEmpty ? nil : artistUrl
         song.albumUrl = albumUrl.isEmpty ? nil : albumUrl
-        return SongModel(song: song)
+        return song
     }
 }

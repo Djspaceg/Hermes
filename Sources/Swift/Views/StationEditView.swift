@@ -8,12 +8,16 @@
 import SwiftUI
 
 struct StationEditView<ViewModel: StationEditViewModelProtocol>: View {
-    @ObservedObject var viewModel: ViewModel
+    // MARK: - Properties
+    
+    @Bindable var viewModel: ViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var isEditingName = false
     @State private var editedName = ""
     @State private var selectedTab: Tab = .likes
 
+    // MARK: - Types
+    
     enum Tab: String, CaseIterable {
         case likes = "Likes"
         case dislikes = "Dislikes"
@@ -158,6 +162,9 @@ struct StationEditView<ViewModel: StationEditViewModelProtocol>: View {
                     .foregroundColor(.secondary)
                 TextField("Add artist or song...", text: $viewModel.seedSearchQuery)
                     .textFieldStyle(.plain)
+                    .onChange(of: viewModel.seedSearchQuery) { _, newValue in
+                        viewModel.seedSearchQueryChanged(newValue)
+                    }
                 if viewModel.isSearchingSeeds {
                     ProgressView()
                         .scaleEffect(0.7)
@@ -362,7 +369,7 @@ struct FeedbackRow: View {
 
 // MARK: - Preview
 
-#Preview {
+#Preview("Edit Station") {
     StationEditView(
         viewModel: PreviewStationEditViewModel()
     )

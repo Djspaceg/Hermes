@@ -11,7 +11,7 @@ struct AlbumArtPreviewView: View {
     
     // MARK: - Properties
     
-    let song: SongModel?
+    let song: Song?
     let artworkImage: NSImage?
     @Binding var isPresented: Bool
     
@@ -72,7 +72,7 @@ struct AlbumArtPreviewView: View {
         .padding(8)
     }
     
-    private func detailsOverlay(for song: SongModel) -> some View {
+    private func detailsOverlay(for song: Song) -> some View {
         VStack(spacing: 0) {
             Spacer()
             
@@ -115,7 +115,7 @@ struct AlbumArtPreviewView: View {
 // MARK: - Preview Window
 
 struct AlbumArtPreviewWindow: View {
-    @ObservedObject var playerViewModel: PlayerViewModel
+    var playerViewModel: PlayerViewModel
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
@@ -148,7 +148,7 @@ struct AlbumArtPreviewWindow: View {
 
 // MARK: - Preview
 
-#Preview {
+#Preview("Album Art Preview") {
     AlbumArtPreviewView(
         song: .mock(title: "Bohemian Rhapsody", artist: "Queen", album: "A Night at the Opera"),
         artworkImage: nil,

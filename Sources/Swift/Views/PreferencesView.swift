@@ -8,7 +8,11 @@
 import SwiftUI
 
 struct PreferencesView: View {
+    // MARK: - Properties
+    
     @State private var selectedTab = 0
+    
+    // MARK: - Body
     
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -38,8 +42,12 @@ struct PreferencesView: View {
 // MARK: - General Preferences
 
 struct GeneralPreferencesView: View {
+    // MARK: - Properties
+    
     @ObservedObject private var settings = SettingsManager.shared
     @State private var menuBarIconType: MenuBarIconType = .color
+    
+    // MARK: - Types
     
     enum MenuBarIconType: Int {
         case color = 0

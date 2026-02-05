@@ -8,6 +8,8 @@
 import Foundation
 
 struct PandoraDevice {
+    // MARK: - Properties
+    
     let username: String
     let password: String
     let deviceID: String
@@ -57,6 +59,8 @@ struct PandoraDevice {
         ]
     }
     
+    // MARK: - Initialization
+    
     init(username: String, password: String, deviceID: String, encryptKey: String, decryptKey: String, apiHost: String) {
         self.username = username
         self.password = password
@@ -89,6 +93,8 @@ struct PandoraDevice {
 
 @objc(PandoraDeviceBridge)
 final class PandoraDeviceBridge: NSObject {
+    // MARK: - Public Methods
+    
     @objc static func iPhone() -> [String: String] {
         return PandoraDevice.iPhone.toDictionary()
     }

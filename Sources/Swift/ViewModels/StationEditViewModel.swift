@@ -8,11 +8,12 @@
 import Foundation
 import AppKit
 import Combine
+import Observation
 
 // MARK: - Protocol
 
 @MainActor
-protocol StationEditViewModelProtocol: ObservableObject {
+protocol StationEditViewModelProtocol: AnyObject, Observable {
     var stationName: String { get set }
     var stationCreated: String { get set }
     var stationGenres: String { get set }
@@ -32,37 +33,44 @@ protocol StationEditViewModelProtocol: ObservableObject {
     func addSeed(_ result: SeedSearchResult)
     func deleteSeed(_ seed: Seed)
     func deleteFeedback(_ item: FeedbackItem)
+    func seedSearchQueryChanged(_ query: String)
 }
 
 // MARK: - View Model
 
 @MainActor
-final class StationEditViewModel: ObservableObject, StationEditViewModelProtocol {
-    // MARK: - Published Properties
+@Observable
+final class StationEditViewModel: StationEditViewModelProtocol {
+    // MARK: - Observable Properties
     
-    @Published var stationName: String = ""
-    @Published var stationCreated: String = ""
-    @Published var stationGenres: String = ""
-    @Published var artworkURL: URL?
-    @Published var stationURL: String = ""
+    var stationName: String = ""
+    var stationCreated: String = ""
+    var stationGenres: String = ""
+    var artworkURL: URL?
+    var stationURL: String = ""
     
-    @Published var seeds: [Seed] = []
-    @Published var likes: [FeedbackItem] = []
-    @Published var dislikes: [FeedbackItem] = []
+    var seeds: [Seed] = []
+    var likes: [FeedbackItem] = []
+    var dislikes: [FeedbackItem] = []
     
-    @Published var seedSearchQuery: String = ""
-    @Published var seedSearchResults: [SeedSearchResult] = []
-    @Published var isSearchingSeeds: Bool = false
+    var seedSearchQuery: String = ""
+    var seedSearchResults: [SeedSearchResult] = []
+    var isSearchingSeeds: Bool = false
     
-    @Published var isLoading: Bool = false
-    @Published var isSaving: Bool = false
-    @Published var errorMessage: String?
+    var isLoading: Bool = false
+    var isSaving: Bool = false
+    var errorMessage: String?
     
     // MARK: - Private Properties
     
+    @ObservationIgnored
     private let station: Station
+    @ObservationIgnored
     private let pandora: PandoraClient
+    @ObservationIgnored
     private var cancellables = Set<AnyCancellable>()
+    @ObservationIgnored
+    private var seedSearchDebounceTask: Task<Void, Never>?
     
     // MARK: - Initialization
     
@@ -87,7 +95,7 @@ final class StationEditViewModel: ObservableObject, StationEditViewModelProtocol
     
     private func setupNotificationObservers() {
         // Station info loaded
-        NotificationCenter.default.publisher(for: Notification.Name("PandoraDidLoadStationInfoNotification"))
+        NotificationCenter.default.publisher(for: .pandoraDidLoadStationInfo)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] notification in
                 self?.handleStationInfo(notification)
@@ -95,7 +103,7 @@ final class StationEditViewModel: ObservableObject, StationEditViewModelProtocol
             .store(in: &cancellables)
         
         // Station renamed
-        NotificationCenter.default.publisher(for: Notification.Name("PandoraDidRenameStationNotification"))
+        NotificationCenter.default.publisher(for: .pandoraDidRenameStation)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.handleStationRenamed()
@@ -103,7 +111,7 @@ final class StationEditViewModel: ObservableObject, StationEditViewModelProtocol
             .store(in: &cancellables)
         
         // Seed search results
-        NotificationCenter.default.publisher(for: Notification.Name("PandoraDidLoadSearchResultsNotification"))
+        NotificationCenter.default.publisher(for: .pandoraDidLoadSearchResults)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] notification in
                 self?.handleSeedSearchResults(notification)
@@ -111,7 +119,7 @@ final class StationEditViewModel: ObservableObject, StationEditViewModelProtocol
             .store(in: &cancellables)
         
         // Seed added
-        NotificationCenter.default.publisher(for: Notification.Name("PandoraDidAddSeedNotification"))
+        NotificationCenter.default.publisher(for: .pandoraDidAddSeed)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] notification in
                 self?.handleSeedAdded(notification)
@@ -119,7 +127,7 @@ final class StationEditViewModel: ObservableObject, StationEditViewModelProtocol
             .store(in: &cancellables)
         
         // Seed deleted
-        NotificationCenter.default.publisher(for: Notification.Name("PandoraDidDeleteSeedNotification"))
+        NotificationCenter.default.publisher(for: .pandoraDidDeleteSeed)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.handleSeedDeleted()
@@ -127,7 +135,7 @@ final class StationEditViewModel: ObservableObject, StationEditViewModelProtocol
             .store(in: &cancellables)
         
         // Feedback deleted
-        NotificationCenter.default.publisher(for: Notification.Name("PandoraDidDeleteFeedbackNotification"))
+        NotificationCenter.default.publisher(for: .pandoraDidDeleteFeedback)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] notification in
                 self?.handleFeedbackDeleted(notification)
@@ -135,7 +143,7 @@ final class StationEditViewModel: ObservableObject, StationEditViewModelProtocol
             .store(in: &cancellables)
         
         // Errors
-        NotificationCenter.default.publisher(for: Notification.Name("PandoraDidErrorNotification"))
+        NotificationCenter.default.publisher(for: .pandoraDidError)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] notification in
                 self?.handleError(notification)
@@ -289,14 +297,25 @@ final class StationEditViewModel: ObservableObject, StationEditViewModelProtocol
     // MARK: - Seed Search
     
     private func setupSeedSearchDebounce() {
-        $seedSearchQuery
-            .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
-            .removeDuplicates()
-            .filter { !$0.isEmpty }
-            .sink { [weak self] query in
-                self?.searchSeeds(query)
-            }
-            .store(in: &cancellables)
+        // With @Observable, we use Task-based debouncing
+        // The debouncing will be handled via seedSearchQueryChanged
+    }
+    
+    func seedSearchQueryChanged(_ query: String) {
+        // Cancel any existing debounce task
+        seedSearchDebounceTask?.cancel()
+        
+        guard !query.isEmpty else {
+            seedSearchResults = []
+            return
+        }
+        
+        // Create a new debounce task
+        seedSearchDebounceTask = Task {
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            searchSeeds(query)
+        }
     }
     
     func searchSeeds(_ query: String) {

@@ -8,35 +8,27 @@
 import Foundation
 import AppKit
 import Combine
+import Observation
 
 @MainActor
-final class HistoryViewModel: ObservableObject {
-    @Published var historyItems: [SongModel] = []
-    @Published var selectedItem: SongModel? {
-        didSet {
-            // When selection changes, observe the new item's rating changes
-            selectedItemRatingCancellable?.cancel()
-            if let selectedItem = selectedItem {
-                selectedItemRatingCancellable = selectedItem.$rating
-                    .sink { [weak self] _ in
-                        // Trigger view update by reassigning selectedItem
-                        // This forces SwiftUI to re-evaluate the footer buttons
-                        self?.objectWillChange.send()
-                    }
-            }
-        }
-    }
+@Observable
+final class HistoryViewModel {
+    var historyItems: [Song] = []
+    var selectedItem: Song?
     
+    @ObservationIgnored
     private var cancellables = Set<AnyCancellable>()
-    private var selectedItemRatingCancellable: AnyCancellable?
-    private let maxHistoryItems = 20 // Match Objective-C HISTORY_LIMIT
+    @ObservationIgnored
+    private let maxHistoryItems = 20 // Maximum number of history items to retain
+    @ObservationIgnored
     private let saveStatePath: String
     
-    // Distributed notification name (matches Objective-C constant)
+    // Distributed notification name for external app integration
+    @ObservationIgnored
     private let distributedNotificationName = "hermes.song"
     
     init() {
-        // Set up save state path (matches Objective-C stateDirectory)
+        // Set up save state path in application support directory
         let folder = ("~/Library/Application Support/Hermes/" as NSString).expandingTildeInPath
         try? FileManager.default.createDirectory(atPath: folder, withIntermediateDirectories: true)
         saveStatePath = (folder as NSString).appendingPathComponent("history.savestate")
@@ -48,7 +40,7 @@ final class HistoryViewModel: ObservableObject {
     private func setupNotificationSubscriptions() {
         NotificationCenter.default.songPlayingPublisher
             .sink { [weak self] song in
-                self?.addToHistory(SongModel(song: song))
+                self?.addToHistory(song)
             }
             .store(in: &cancellables)
     }
@@ -58,41 +50,48 @@ final class HistoryViewModel: ObservableObject {
     private func loadSavedHistory() {
         guard FileManager.default.fileExists(atPath: saveStatePath) else { return }
         
-        Task {
+        Task.detached(priority: .utility) {
             do {
-                let data = try Data(contentsOf: URL(fileURLWithPath: saveStatePath))
+                let url = URL(fileURLWithPath: self.saveStatePath)
+                let data = try Data(contentsOf: url)
                 
                 // Use NSKeyedUnarchiver to read archived Song objects
                 if let songs = try NSKeyedUnarchiver.unarchivedObject(ofClasses: [NSArray.self, Song.self], from: data) as? [Song] {
-                    historyItems = songs.map { SongModel(song: $0) }
+                    await MainActor.run {
+                        self.historyItems = songs
+                    }
                 }
             } catch {
                 print("HistoryViewModel: Failed to load saved history (likely old format): \(error)")
                 print("HistoryViewModel: Deleting old history file and starting fresh")
                 
                 // Delete the old incompatible history file
-                try? FileManager.default.removeItem(atPath: saveStatePath)
+                try? FileManager.default.removeItem(atPath: self.saveStatePath)
             }
         }
     }
     
     func saveHistory() -> Bool {
-        // Convert SongModel back to Song objects for NSKeyedArchiver
-        let songs = historyItems.map { $0.song }
+        // Song objects are directly archivable via NSSecureCoding
+        let songs = historyItems
+        let path = saveStatePath
         
-        do {
-            let data = try NSKeyedArchiver.archivedData(withRootObject: songs, requiringSecureCoding: false)
-            try data.write(to: URL(fileURLWithPath: saveStatePath))
-            return true
-        } catch {
-            print("HistoryViewModel: Failed to save history: \(error)")
-            return false
+        // Save asynchronously on background thread
+        Task.detached(priority: .utility) {
+            do {
+                let data = try NSKeyedArchiver.archivedData(withRootObject: songs, requiringSecureCoding: false)
+                try data.write(to: URL(fileURLWithPath: path))
+            } catch {
+                print("HistoryViewModel: Failed to save history: \(error)")
+            }
         }
+        
+        return true
     }
     
     // MARK: - History Management
     
-    func addToHistory(_ song: SongModel) {
+    func addToHistory(_ song: Song) {
         // Avoid duplicates
         if let existingIndex = historyItems.firstIndex(where: { $0.id == song.id }) {
             historyItems.remove(at: existingIndex)
@@ -112,19 +111,19 @@ final class HistoryViewModel: ObservableObject {
         _ = saveHistory()
     }
     
-    private func postDistributedNotification(for song: SongModel) {
+    private func postDistributedNotification(for song: Song) {
         // Create dictionary matching Song's toDictionary format
         let userInfo: [String: Any] = [
             "artist": song.artist,
             "title": song.title,
             "album": song.album,
-            "art": song.song.art ?? "",
-            "stationId": song.song.stationId ?? "",
-            "nrating": song.song.nrating ?? NSNumber(value: 0),
-            "albumUrl": song.song.albumUrl ?? "",
-            "artistUrl": song.song.artistUrl ?? "",
-            "titleUrl": song.song.titleUrl ?? "",
-            "token": song.song.token ?? ""
+            "art": song.art ?? "",
+            "stationId": song.stationId ?? "",
+            "nrating": song.nrating ?? NSNumber(value: 0),
+            "albumUrl": song.albumUrl ?? "",
+            "artistUrl": song.artistUrl ?? "",
+            "titleUrl": song.titleUrl ?? "",
+            "token": song.token ?? ""
         ]
         
         DistributedNotificationCenter.default().postNotificationName(
@@ -144,7 +143,7 @@ final class HistoryViewModel: ObservableObject {
     
     func openSongOnPandora() {
         guard let song = selectedItem else { return }
-        if let urlString = song.song.titleUrl,
+        if let urlString = song.titleUrl,
            !urlString.isEmpty,
            let url = URL(string: urlString) {
             NSWorkspace.shared.open(url)
@@ -153,7 +152,7 @@ final class HistoryViewModel: ObservableObject {
     
     func openArtistOnPandora() {
         guard let song = selectedItem else { return }
-        if let urlString = song.song.artistUrl,
+        if let urlString = song.artistUrl,
            !urlString.isEmpty,
            let url = URL(string: urlString) {
             NSWorkspace.shared.open(url)
@@ -162,7 +161,7 @@ final class HistoryViewModel: ObservableObject {
     
     func openAlbumOnPandora() {
         guard let song = selectedItem else { return }
-        if let urlString = song.song.albumUrl,
+        if let urlString = song.albumUrl,
            !urlString.isEmpty,
            let url = URL(string: urlString) {
             NSWorkspace.shared.open(url)
@@ -180,17 +179,17 @@ final class HistoryViewModel: ObservableObject {
     
     func likeSelected() {
         guard let song = selectedItem else { return }
-        MinimalAppDelegate.shared?.playbackController?.rate(song.song, as: true)
+        MinimalAppDelegate.shared?.playbackController?.rate(song, as: true)
     }
     
     func dislikeSelected() {
         guard let song = selectedItem else { return }
-        MinimalAppDelegate.shared?.playbackController?.rate(song.song, as: false)
+        MinimalAppDelegate.shared?.playbackController?.rate(song, as: false)
     }
     
     // MARK: - Song Actions (for context menu and double-click)
     
-    func playSong(_ song: SongModel) {
+    func playSong(_ song: Song) {
         // History items can't be directly played - they're past songs
         // But we can create a station from the song
         print("HistoryViewModel: playSong called for '\(song.title)' - creating station")
@@ -198,12 +197,12 @@ final class HistoryViewModel: ObservableObject {
         selectedItem = song
     }
     
-    func likeSong(_ song: SongModel) {
-        MinimalAppDelegate.shared?.playbackController?.rate(song.song, as: true)
+    func likeSong(_ song: Song) {
+        MinimalAppDelegate.shared?.playbackController?.rate(song, as: true)
     }
     
-    func dislikeSong(_ song: SongModel) {
-        MinimalAppDelegate.shared?.playbackController?.rate(song.song, as: false)
+    func dislikeSong(_ song: Song) {
+        MinimalAppDelegate.shared?.playbackController?.rate(song, as: false)
     }
 }
 
@@ -211,7 +210,7 @@ final class HistoryViewModel: ObservableObject {
 
 extension HistoryViewModel {
     /// Creates a mock HistoryViewModel for SwiftUI previews
-    static func mock(items: [SongModel] = []) -> HistoryViewModel {
+    static func mock(items: [Song] = []) -> HistoryViewModel {
         let viewModel = HistoryViewModel()
         viewModel.historyItems = items
         return viewModel

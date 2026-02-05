@@ -8,23 +8,25 @@
 import Foundation
 import Combine
 import AppKit
+import Observation
 
 @MainActor
-final class PlayerViewModel: ObservableObject, PlayerViewModelProtocol {
+@Observable
+final class PlayerViewModel: PlayerViewModelProtocol {
     
-    // MARK: - Published Properties
+    // MARK: - Observable Properties
     
-    @Published var currentSong: SongModel?
-    @Published var isPlaying: Bool = false
-    @Published var playbackPosition: TimeInterval = 0
-    @Published var duration: TimeInterval = 0
-    @Published var volume: Double = 1.0
-    @Published var isLiked: Bool = false
-    @Published var artworkImage: NSImage?
-    @Published var menuBarThumbnail: NSImage?  // Pre-cached small thumbnail for MenuBarExtra
-    @Published var menuBarIconThumbnail: NSImage?  // Pre-cached tiny thumbnail for menu bar icon
-    @Published var streamError: StreamError?
-    @Published var isRetrying: Bool = false
+    var currentSong: Song?
+    var isPlaying: Bool = false
+    var playbackPosition: TimeInterval = 0
+    var duration: TimeInterval = 0
+    var volume: Double = 1.0
+    var isLiked: Bool = false
+    var artworkImage: NSImage?
+    var menuBarThumbnail: NSImage?  // Pre-cached small thumbnail for MenuBarExtra
+    var menuBarIconThumbnail: NSImage?  // Pre-cached tiny thumbnail for menu bar icon
+    var streamError: StreamError?
+    var isRetrying: Bool = false
     
     // MARK: - Stream Error Type
     
@@ -43,13 +45,20 @@ final class PlayerViewModel: ObservableObject, PlayerViewModelProtocol {
     
     // MARK: - Private Properties
     
+    @ObservationIgnored
     private var cancellables = Set<AnyCancellable>()
+    @ObservationIgnored
     private var retryCount = 0
+    @ObservationIgnored
     private let maxAutoRetries = 2
+    @ObservationIgnored
     private var periodicRetryTask: Task<Void, Never>?
+    @ObservationIgnored
+    private var volumeLoaded = false
     
     // MARK: - Computed Properties
     
+    @ObservationIgnored
     private var playbackController: PlaybackController? {
         MinimalAppDelegate.shared?.playbackController
     }
@@ -69,7 +78,7 @@ final class PlayerViewModel: ObservableObject, PlayerViewModelProtocol {
     
     private func setupNotificationSubscriptions() {
         // Listen for playback controller ready to load initial volume
-        NotificationCenter.default.publisher(for: Notification.Name("PlaybackControllerReady"))
+        NotificationCenter.default.publisher(for: .playbackControllerReady)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.loadInitialVolume()
@@ -77,7 +86,7 @@ final class PlayerViewModel: ObservableObject, PlayerViewModelProtocol {
             .store(in: &cancellables)
         
         // Also try loading volume when state changes (fallback)
-        NotificationCenter.default.publisher(for: Notification.Name("PlaybackStateDidChangeNotification"))
+        NotificationCenter.default.publisher(for: .playbackStateDidChange)
             .first() // Only need to do this once
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
@@ -88,7 +97,7 @@ final class PlayerViewModel: ObservableObject, PlayerViewModelProtocol {
         let center = NotificationCenter.default
         
         // New song started - deduplicate rapid notifications
-        center.publisher(for: Notification.Name("StationDidPlaySongNotification"))
+        center.publisher(for: .stationDidPlaySong)
             .debounce(for: .milliseconds(100), scheduler: DispatchQueue.main)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
@@ -97,7 +106,7 @@ final class PlayerViewModel: ObservableObject, PlayerViewModelProtocol {
             .store(in: &cancellables)
         
         // Song rating changed - update like state
-        center.publisher(for: Notification.Name("PandoraDidRateSongNotification"))
+        center.publisher(for: .pandoraDidRateSong)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] notification in
                 self?.handleSongRatingChanged(notification)
@@ -105,7 +114,7 @@ final class PlayerViewModel: ObservableObject, PlayerViewModelProtocol {
             .store(in: &cancellables)
         
         // Playback state changed (play/pause/stop) - deduplicate rapid changes
-        center.publisher(for: Notification.Name("PlaybackStateDidChangeNotification"))
+        center.publisher(for: .playbackStateDidChange)
             .debounce(for: .milliseconds(50), scheduler: DispatchQueue.main)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
@@ -113,8 +122,9 @@ final class PlayerViewModel: ObservableObject, PlayerViewModelProtocol {
             }
             .store(in: &cancellables)
         
-        // Progress update
-        center.publisher(for: Notification.Name("PlaybackProgressDidChangeNotification"))
+        // Progress update - debounce to reduce UI update frequency
+        center.publisher(for: .playbackProgressDidChange)
+            .debounce(for: .milliseconds(100), scheduler: DispatchQueue.main)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] notification in
                 self?.handleProgressUpdate(notification)
@@ -122,7 +132,7 @@ final class PlayerViewModel: ObservableObject, PlayerViewModelProtocol {
             .store(in: &cancellables)
         
         // Album art loaded - this is the proper time to update artwork
-        center.publisher(for: Notification.Name("PlaybackArtDidLoadNotification"))
+        center.publisher(for: .playbackArtDidLoad)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.updateArtwork()
@@ -130,7 +140,7 @@ final class PlayerViewModel: ObservableObject, PlayerViewModelProtocol {
             .store(in: &cancellables)
         
         // Stream error - network failure or timeout
-        center.publisher(for: Notification.Name("ASStreamError"))
+        center.publisher(for: .audioStreamError)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] notification in
                 self?.handleStreamError(notification)
@@ -138,15 +148,13 @@ final class PlayerViewModel: ObservableObject, PlayerViewModelProtocol {
             .store(in: &cancellables)
         
         // New song attempting - clear error state
-        center.publisher(for: Notification.Name("ASAttemptingNewSong"))
+        center.publisher(for: .audioAttemptingNewSong)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.clearStreamError()
             }
             .store(in: &cancellables)
     }
-    
-    private var volumeLoaded = false
     
     private func loadInitialVolume() {
         guard !volumeLoaded, let controller = playbackController else { return }
@@ -175,7 +183,7 @@ final class PlayerViewModel: ObservableObject, PlayerViewModelProtocol {
         
         print("PlayerViewModel: Song changed - \(song.title) by \(song.artist)")
         let previousSong = currentSong
-        currentSong = SongModel(song: song)
+        currentSong = song
         isLiked = (song.nrating?.intValue ?? 0) == 1
         
         // Don't call updateArtwork() here - it will be called when PlaybackArtDidLoadNotification fires
@@ -223,15 +231,15 @@ final class PlayerViewModel: ObservableObject, PlayerViewModelProtocol {
         guard let ratedSong = notification.object as? Song else { return }
         
         // Check if this is the currently playing song
-        if let currentSongToken = currentSong?.song.token,
+        if let currentSongToken = currentSong?.token,
            let ratedSongToken = ratedSong.token,
            currentSongToken == ratedSongToken {
-            let newRating = ratedSong.nrating?.intValue ?? 0
+            let newRating = ratedSong.rating
             isLiked = (newRating == 1)
             print("PlayerViewModel: Rating changed for current song - isLiked: \(isLiked)")
             
-            // Update the current song model's rating too
-            currentSong?.song.nrating = ratedSong.nrating
+            // Update the current song's rating too
+            currentSong?.rating = ratedSong.rating
         }
     }
     
@@ -400,7 +408,7 @@ extension PlayerViewModel {
     /// Creates a mock PlayerViewModel for SwiftUI previews
     /// This creates a real instance but with mock data - still subscribes to notifications
     static func mock(
-        song: SongModel? = .mock(),
+        song: Song? = .mock(),
         isPlaying: Bool = true,
         playbackPosition: TimeInterval = 125.5,
         duration: TimeInterval = 245.0,
@@ -430,25 +438,26 @@ extension PlayerViewModel {
 
 /// A completely isolated mock for previews that doesn't connect to any live data
 @MainActor
-final class PreviewPlayerViewModel: ObservableObject, PlayerViewModelProtocol {
+@Observable
+final class PreviewPlayerViewModel: PlayerViewModelProtocol {
     struct PreviewError: Identifiable {
         let id = UUID()
         let message: String
     }
     
-    @Published var currentSong: SongModel?
-    @Published var isPlaying: Bool = false
-    @Published var playbackPosition: TimeInterval = 0
-    @Published var duration: TimeInterval = 0
-    @Published var volume: Double = 1.0
-    @Published var isLiked: Bool = false
-    @Published var artworkImage: NSImage?
-    @Published var menuBarThumbnail: NSImage?
-    @Published var streamError: PreviewError?
-    @Published var isRetrying: Bool = false
+    var currentSong: Song?
+    var isPlaying: Bool = false
+    var playbackPosition: TimeInterval = 0
+    var duration: TimeInterval = 0
+    var volume: Double = 1.0
+    var isLiked: Bool = false
+    var artworkImage: NSImage?
+    var menuBarThumbnail: NSImage?
+    var streamError: PreviewError?
+    var isRetrying: Bool = false
     
     init(
-        song: SongModel? = .mock(),
+        song: Song? = .mock(),
         isPlaying: Bool = true,
         playbackPosition: TimeInterval = 125.5,
         duration: TimeInterval = 245.0,

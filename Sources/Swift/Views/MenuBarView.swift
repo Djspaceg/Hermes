@@ -10,7 +10,7 @@ import SwiftUI
 // MARK: - Status Bar Icon
 
 struct StatusBarIcon: View {
-    @ObservedObject var playerViewModel: PlayerViewModel
+    var playerViewModel: PlayerViewModel
     @ObservedObject private var settings = SettingsManager.shared
     
     var body: some View {
@@ -58,8 +58,8 @@ struct StatusBarIcon: View {
 // MARK: - Status Bar Window Content
 
 struct StatusBarWindowContent: View {
-    @ObservedObject var playerViewModel: PlayerViewModel
-    @ObservedObject var stationsViewModel: StationsViewModel
+    var playerViewModel: PlayerViewModel
+    var stationsViewModel: StationsViewModel
     @Environment(\.openSettings) private var openSettings
     @Environment(\.openWindow) private var openWindow
     
@@ -95,7 +95,7 @@ struct StatusBarWindowContent: View {
     // MARK: - Now Playing Section
     
     @ViewBuilder
-    private func nowPlayingSection(song: SongModel) -> some View {
+    private func nowPlayingSection(song: Song) -> some View {
         VStack(spacing: 8) {
             // Album artwork - use pre-cached thumbnail to avoid main thread work
             if let thumbnail = playerViewModel.menuBarThumbnail {

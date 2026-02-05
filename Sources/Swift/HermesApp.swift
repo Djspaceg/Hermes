@@ -9,9 +9,13 @@ import SwiftUI
 
 @main
 struct HermesApp: App {
-    @StateObject private var appState = AppState.shared
+    // MARK: - Properties
+    
+    @State private var appState = AppState.shared
     @NSApplicationDelegateAdaptor(MinimalAppDelegate.self) var appDelegate
     @State private var showingNewStation = false
+    
+    // MARK: - Body
     
     var body: some Scene {
         Window("Hermes", id: "main") {

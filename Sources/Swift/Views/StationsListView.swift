@@ -10,8 +10,10 @@ import SwiftUI
 // MARK: - Outer View (Dependency Injection)
 
 struct StationsListView: View {
-    @ObservedObject var viewModel: StationsViewModel
-    @Binding var selectedStation: StationModel?
+    // MARK: - Properties
+    
+    @Bindable var viewModel: StationsViewModel
+    @Binding var selectedStation: Station?
     @Binding var sortOrder: StationsViewModel.SortOrder
     @Environment(\.sidebarWidth) private var sidebarWidth
     
@@ -66,15 +68,15 @@ struct StationsListView: View {
 // MARK: - Inner View (Pure Presentation)
 
 private struct StationsListContent: View {
-    let stations: [StationModel]
-    @Binding var selectedStation: StationModel?
+    let stations: [Station]
+    @Binding var selectedStation: Station?
     let playingStationId: String?
     let showThumbnails: Bool
     let onRowAppear: (Station) -> Void
-    let onPlay: (StationModel) -> Void
-    let onEdit: (StationModel) -> Void
-    let onRename: (StationModel) -> Void
-    let onDelete: (StationModel) -> Void
+    let onPlay: (Station) -> Void
+    let onEdit: (Station) -> Void
+    let onRename: (Station) -> Void
+    let onDelete: (Station) -> Void
     let onRefresh: () async -> Void
     
     var body: some View {
@@ -88,7 +90,7 @@ private struct StationsListContent: View {
             .tag(station)
         }
         .listStyle(.sidebar)
-        .contextMenu(forSelectionType: StationModel.self) { stations in
+        .contextMenu(forSelectionType: Station.self) { stations in
             if let station = stations.first {
                 Button("Play") { onPlay(station) }
                 Button("Edit...") { onEdit(station) }
@@ -108,7 +110,7 @@ private struct StationsListContent: View {
 }
 
 struct StationRow: View {
-    @ObservedObject var station: StationModel
+    let station: Station
     let isPlaying: Bool
     let showThumbnail: Bool
     let onAppear: (Station) -> Void
@@ -139,9 +141,9 @@ struct StationRow: View {
                 }
                 
                 // Genre badges (no scroller - just show up to 3)
-                if !station.genres.isEmpty {
+                if !station.genresList.isEmpty {
                     HStack(spacing: 4) {
-                        ForEach(station.genres.prefix(3), id: \.self) { genre in
+                        ForEach(station.genresList.prefix(3), id: \.self) { genre in
                             Text(genre)
                                 .font(.caption2)
                                 .padding(.horizontal, 5)
@@ -158,7 +160,7 @@ struct StationRow: View {
         .animation(.easeInOut(duration: 0.2), value: showThumbnail)
         .contentShape(Rectangle())
         .onAppear {
-            onAppear(station.station)
+            onAppear(station)
             Task { await loadArtwork() }
         }
         .onChange(of: station.artworkURL) { _, _ in
@@ -255,9 +257,9 @@ struct RenameStationSheet: View {
 }
 
 private struct StationsListContentPreview: View {
-    @State private var selectedStation: StationModel?
+    @State private var selectedStation: Station?
     
-    private let mockStations: [StationModel] = [
+    private let mockStations: [Station] = [
         .mock(name: "Rock Classics", stationId: "1"),
         .mock(name: "Chill Vibes", stationId: "2"),
         .mock(name: "90s Alternative", stationId: "3")

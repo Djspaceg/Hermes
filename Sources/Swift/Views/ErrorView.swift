@@ -8,8 +8,12 @@
 import SwiftUI
 
 struct ErrorView: View {
+    // MARK: - Properties
+    
     let errorMessage: String
     let onRetry: () -> Void
+    
+    // MARK: - Body
     
     var body: some View {
         VStack(spacing: 24) {
@@ -40,7 +44,7 @@ struct ErrorView: View {
 
 // MARK: - Preview
 
-#Preview {
+#Preview("Error View") {
     ErrorView(errorMessage: "Failed to connect to Pandora servers. Please check your internet connection and try again.") {
         print("Retry tapped")
     }

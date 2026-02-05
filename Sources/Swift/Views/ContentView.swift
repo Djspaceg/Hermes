@@ -8,8 +8,10 @@
 import SwiftUI
 
 struct ContentView: View {
-    @ObservedObject var appState: AppState
-    @ObservedObject private var playerViewModel: PlayerViewModel
+    // MARK: - Properties
+    
+    var appState: AppState
+    private var playerViewModel: PlayerViewModel
     @ObservedObject private var settingsManager = SettingsManager.shared
     
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
@@ -21,10 +23,14 @@ struct ContentView: View {
     
     private let sidebarToggleWidth: CGFloat = 500
     
+    // MARK: - Initialization
+    
     init(appState: AppState) {
         self.appState = appState
         self.playerViewModel = appState.playerViewModel
     }
+    
+    // MARK: - Body
     
     var body: some View {
         Group {
@@ -42,7 +48,7 @@ struct ContentView: View {
         .onAppear {
             // Initial view state logged for debugging if needed
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenSettingsRequested"))) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: .openSettingsRequested)) { _ in
             openSettings()
         }
     }
@@ -54,7 +60,7 @@ struct ContentView: View {
             // Album art background - always visible, covers entire window
             if let song = playerViewModel.currentSong {
                 GeometryReader { geo in
-                    AlbumArtView(
+                    AlbumArtworkView(
                         song: song,
                         artworkImage: playerViewModel.artworkImage,
                         onTap: { openWindow(id: "artworkPreview") }

@@ -61,60 +61,11 @@ enum StationSortOrder: Int, CaseIterable {
     }
 }
 
-// MARK: - UserDefaults Keys
-
-/// Type-safe UserDefaults keys matching HermesConstants.h macros
-struct UserDefaultsKeys {
-    private init() {}
-    
-    // MARK: Proxy Settings
-    static let enabledProxy = "enabledProxy"
-    static let httpProxyHost = "httpProxyHost"
-    static let httpProxyPort = "httpProxyPort"
-    static let socksProxyHost = "socksProxyHost"
-    static let socksProxyPort = "socksProxyPort"
-    static let proxyAudio = "proxyAudio"
-    
-    // MARK: Audio Quality
-    static let audioQuality = "audioQuality"
-    
-    // MARK: Last.fm Scrobbling
-    static let pleaseScrobble = "pleaseScrobble"
-    static let pleaseScrobbleLikes = "pleaseScrobbleLikes"
-    static let onlyScrobbleLiked = "onlyScrobbleLiked"
-    
-    // MARK: Station Sorting
-    static let sortStations = "sortStations"
-    
-    // MARK: Playback Settings
-    static let lastStation = "lastStation"
-    static let pauseOnScreensaverStart = "pauseOnScreensaverStart"
-    static let playOnScreensaverStop = "playOnScreensaverStop"
-    static let pauseOnScreenLock = "pauseOnScreenLock"
-    static let playOnScreenUnlock = "playOnScreenUnlock"
-    static let playAutomaticallyOnLaunch = "playAutomaticallyOnLaunch"
-    
-    // MARK: UI Settings
-    static let pleaseBindMedia = "pleaseBindMedia"
-    static let statusBarIcon = "statusBarIcon"
-    static let dockIconAlbumArt = "dockIconAlbumArt"
-    static let albumArtPlayPause = "albumArtPlayPause"
-    static let alwaysOnTop = "alwaysOnTop"
-    static let statusBarShowSongTitle = "statusBarShowSongTitle"
-    static let statusBarIconBlackWhite = "statusBarIconBlackWhite"
-    static let statusBarIconAlbumArt = "statusBarIconAlbumArt"
-    
-    // MARK: Notification Settings
-    static let pleaseGrowl = "pleaseGrowl"
-    static let notificationType = "notificationType"
-    static let pleaseGrowlNew = "pleaseGrowlNew"
-    static let pleaseGrowlPlay = "pleaseGrowlPlay"
-}
-
 // MARK: - Objective-C Compatibility
 
 /// Objective-C compatible wrapper for Swift constants
 /// Use this class when Objective-C code needs access to Swift-defined constants
+/// Note: For UserDefaults keys, use UserDefaultsKeys.swift directly
 @objc(HermesSwiftConstants)
 @objcMembers
 final class HermesSwiftConstants: NSObject {
@@ -134,41 +85,6 @@ final class HermesSwiftConstants: NSObject {
     static let sortDateDescending: Int = StationSortOrder.dateDescending.rawValue
     static let sortNameAscending: Int = StationSortOrder.nameAscending.rawValue
     static let sortNameDescending: Int = StationSortOrder.nameDescending.rawValue
-    
-    // MARK: UserDefaults Keys
-    static let keyEnabledProxy: String = UserDefaultsKeys.enabledProxy
-    static let keyHttpProxyHost: String = UserDefaultsKeys.httpProxyHost
-    static let keyHttpProxyPort: String = UserDefaultsKeys.httpProxyPort
-    static let keySocksProxyHost: String = UserDefaultsKeys.socksProxyHost
-    static let keySocksProxyPort: String = UserDefaultsKeys.socksProxyPort
-    static let keyProxyAudio: String = UserDefaultsKeys.proxyAudio
-    static let keyAudioQuality: String = UserDefaultsKeys.audioQuality
-    static let keyPleaseScrobble: String = UserDefaultsKeys.pleaseScrobble
-    static let keyPleaseScrobbleLikes: String = UserDefaultsKeys.pleaseScrobbleLikes
-    static let keyOnlyScrobbleLiked: String = UserDefaultsKeys.onlyScrobbleLiked
-    static let keySortStations: String = UserDefaultsKeys.sortStations
-    static let keyLastStation: String = UserDefaultsKeys.lastStation
-    static let keyPauseOnScreensaverStart: String = UserDefaultsKeys.pauseOnScreensaverStart
-    static let keyPlayOnScreensaverStop: String = UserDefaultsKeys.playOnScreensaverStop
-    static let keyPauseOnScreenLock: String = UserDefaultsKeys.pauseOnScreenLock
-    static let keyPlayOnScreenUnlock: String = UserDefaultsKeys.playOnScreenUnlock
-    static let keyPlayAutomaticallyOnLaunch: String = UserDefaultsKeys.playAutomaticallyOnLaunch
-    
-    // MARK: UI Settings Keys
-    static let keyPleaseBindMedia: String = UserDefaultsKeys.pleaseBindMedia
-    static let keyStatusBarIcon: String = UserDefaultsKeys.statusBarIcon
-    static let keyDockIconAlbumArt: String = UserDefaultsKeys.dockIconAlbumArt
-    static let keyAlbumArtPlayPause: String = UserDefaultsKeys.albumArtPlayPause
-    static let keyAlwaysOnTop: String = UserDefaultsKeys.alwaysOnTop
-    static let keyStatusBarShowSongTitle: String = UserDefaultsKeys.statusBarShowSongTitle
-    static let keyStatusBarIconBlackWhite: String = UserDefaultsKeys.statusBarIconBlackWhite
-    static let keyStatusBarIconAlbumArt: String = UserDefaultsKeys.statusBarIconAlbumArt
-    
-    // MARK: Notification Settings Keys
-    static let keyPleaseGrowl: String = UserDefaultsKeys.pleaseGrowl
-    static let keyNotificationType: String = UserDefaultsKeys.notificationType
-    static let keyPleaseGrowlNew: String = UserDefaultsKeys.pleaseGrowlNew
-    static let keyPleaseGrowlPlay: String = UserDefaultsKeys.pleaseGrowlPlay
     
     private override init() {
         super.init()

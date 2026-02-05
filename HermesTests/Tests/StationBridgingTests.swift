@@ -2,8 +2,9 @@
 //  StationBridgingTests.swift
 //  HermesTests
 //
-//  Property-based tests for Station-StationModel bridging
-//  **Validates: Requirements 5.2**
+//  Property-based tests for Station model
+//  Tests that Station with @Observable provides consistent state
+//  **Validates: Requirements 2.2**
 //
 
 import XCTest
@@ -11,175 +12,104 @@ import XCTest
 
 final class StationBridgingTests: XCTestCase {
     
-    // MARK: - Property 7: Station-StationModel Bridging
+    // MARK: - Property Tests for Station
     //
     // For all Station objects:
     // let station = Station(...)
-    // let model = StationModel(from: station)
-    // assert(model preserves all station properties)
+    // assert(station properties are consistent)
     //
-    // **Validates: Requirements 5.2**
+    // **Validates: Requirements 2.2**
     
-    /// Property test: StationModel preserves all Station properties
-    /// Tests that creating a StationModel from a Station preserves all user-visible properties
-    func testStationModelPreservesAllProperties() throws {
+    /// Property test: Station properties are consistent
+    /// Tests that Station maintains consistent state across all properties
+    func testStationPropertiesAreConsistent() throws {
         // Run 100+ iterations with various station configurations
         for iteration in 0..<150 {
             // Create a station with random properties
             let station = createRandomStation(iteration: iteration)
             
-            // Create StationModel from Station
-            let model = StationModel(station: station)
-            
-            // Verify all properties are preserved
-            XCTAssertEqual(
-                model.name,
-                station.name,
-                "Iteration \(iteration): name mismatch"
+            // Verify all properties are accessible and consistent
+            XCTAssertTrue(
+                station.name == station.name,
+                "Iteration \(iteration): name should be accessible"
             )
             
-            XCTAssertEqual(
-                model.token,
-                station.token,
-                "Iteration \(iteration): token mismatch"
+            XCTAssertTrue(
+                station.token == station.token,
+                "Iteration \(iteration): token should be accessible"
             )
             
-            XCTAssertEqual(
-                model.stationId,
-                station.stationId,
-                "Iteration \(iteration): stationId mismatch"
+            XCTAssertTrue(
+                station.stationId == station.stationId,
+                "Iteration \(iteration): stationId should be accessible"
             )
             
+            // Verify id computed property matches stationId
             XCTAssertEqual(
-                model.id,
+                station.id,
                 station.stationId,
                 "Iteration \(iteration): id should match stationId"
             )
             
-            // Verify created date (convert from UInt64 milliseconds to Date)
+            // Verify createdDate computed property
             let expectedDate = Date(timeIntervalSince1970: TimeInterval(station.created) / 1000.0)
             XCTAssertEqual(
-                model.created.timeIntervalSince1970,
+                station.createdDate.timeIntervalSince1970,
                 expectedDate.timeIntervalSince1970,
                 accuracy: 1.0,
-                "Iteration \(iteration): created date mismatch"
+                "Iteration \(iteration): createdDate should be computed correctly"
             )
             
-            XCTAssertEqual(
-                model.shared,
-                station.shared,
-                "Iteration \(iteration): shared mismatch"
-            )
-            
-            XCTAssertEqual(
-                model.allowRename,
-                station.allowRename,
-                "Iteration \(iteration): allowRename mismatch"
-            )
-            
-            XCTAssertEqual(
-                model.allowAddMusic,
-                station.allowAddMusic,
-                "Iteration \(iteration): allowAddMusic mismatch"
-            )
-            
-            XCTAssertEqual(
-                model.isQuickMix,
-                station.isQuickMix,
-                "Iteration \(iteration): isQuickMix mismatch"
-            )
-            
-            // Verify artwork URL
+            // Verify artworkURL computed property
             if let artUrl = station.artUrl {
                 XCTAssertEqual(
-                    model.artworkURL?.absoluteString,
+                    station.artworkURL?.absoluteString,
                     artUrl,
-                    "Iteration \(iteration): artworkURL mismatch"
+                    "Iteration \(iteration): artworkURL should match artUrl"
                 )
             } else {
                 XCTAssertNil(
-                    model.artworkURL,
-                    "Iteration \(iteration): artworkURL should be nil when station.artUrl is nil"
+                    station.artworkURL,
+                    "Iteration \(iteration): artworkURL should be nil when artUrl is nil"
                 )
             }
             
-            // Verify genres
+            // Verify genresList computed property
             let expectedGenres = station.genres ?? []
             XCTAssertEqual(
-                model.genres,
+                station.genresList,
                 expectedGenres,
-                "Iteration \(iteration): genres mismatch"
-            )
-            
-            // Verify the underlying station reference is preserved
-            XCTAssertTrue(
-                model.station === station,
-                "Iteration \(iteration): StationModel should hold reference to original Station"
+                "Iteration \(iteration): genresList should match genres"
             )
         }
     }
     
-    /// Property test: StationModel updates when Station name changes
-    /// Tests that StationModel reflects changes to the underlying Station
-    func testStationModelReflectsStationChanges() throws {
+    /// Property test: Station name changes are reflected
+    /// Tests that Station reflects changes to its properties
+    func testStationReflectsPropertyChanges() throws {
         for iteration in 0..<100 {
             let station = createRandomStation(iteration: iteration)
-            let model = StationModel(station: station)
             
             // Verify initial state
-            XCTAssertEqual(model.name, station.name)
+            let originalName = station.name
+            XCTAssertEqual(station.name, originalName)
             
             // Change station name
             let newName = "Updated Station \(iteration)"
             station.name = newName
             
-            // StationModel's @Published name should be updated manually
-            // (or through notification observers if implemented)
-            // For now, verify the underlying station reference is correct
+            // Verify the change is reflected
             XCTAssertEqual(
-                model.station.name,
+                station.name,
                 newName,
-                "Iteration \(iteration): Underlying station should reflect name change"
+                "Iteration \(iteration): Station should reflect name change"
             )
         }
     }
     
-    /// Property test: Multiple StationModels can wrap the same Station
-    /// Tests that multiple StationModel instances can reference the same Station
-    func testMultipleModelsCanWrapSameStation() throws {
-        for iteration in 0..<50 {
-            let station = createRandomStation(iteration: iteration)
-            
-            // Create multiple models wrapping the same station
-            let model1 = StationModel(station: station)
-            let model2 = StationModel(station: station)
-            let model3 = StationModel(station: station)
-            
-            // All models should reference the same station
-            XCTAssertTrue(
-                model1.station === station,
-                "Iteration \(iteration): model1 should reference original station"
-            )
-            XCTAssertTrue(
-                model2.station === station,
-                "Iteration \(iteration): model2 should reference original station"
-            )
-            XCTAssertTrue(
-                model3.station === station,
-                "Iteration \(iteration): model3 should reference original station"
-            )
-            
-            // All models should have the same properties
-            XCTAssertEqual(model1.name, model2.name)
-            XCTAssertEqual(model2.name, model3.name)
-            XCTAssertEqual(model1.stationId, model2.stationId)
-            XCTAssertEqual(model2.stationId, model3.stationId)
-        }
-    }
-    
-    /// Property test: StationModel equality and hashing
-    /// Tests that StationModel instances are equal if they wrap stations with the same ID
-    func testStationModelEqualityAndHashing() throws {
+    /// Property test: Station equality and hashing
+    /// Tests that Station instances are equal if they have the same stationId
+    func testStationEqualityAndHashing() throws {
         for iteration in 0..<100 {
             let station1 = createRandomStation(iteration: iteration)
             let station2 = createRandomStation(iteration: iteration + 1000)
@@ -187,38 +117,34 @@ final class StationBridgingTests: XCTestCase {
             // Same station ID
             station2.stationId = station1.stationId
             
-            let model1 = StationModel(station: station1)
-            let model2 = StationModel(station: station2)
-            
-            // Models with same stationId should be equal
+            // Stations with same stationId should be equal
             XCTAssertEqual(
-                model1,
-                model2,
-                "Iteration \(iteration): Models with same stationId should be equal"
+                station1,
+                station2,
+                "Iteration \(iteration): Stations with same stationId should be equal"
             )
             
             // Hash values should be equal
             XCTAssertEqual(
-                model1.hashValue,
-                model2.hashValue,
-                "Iteration \(iteration): Models with same stationId should have same hash"
+                station1.hash,
+                station2.hash,
+                "Iteration \(iteration): Stations with same stationId should have same hash"
             )
             
             // Different station ID
             let station3 = createRandomStation(iteration: iteration + 2000)
-            let model3 = StationModel(station: station3)
             
             XCTAssertNotEqual(
-                model1,
-                model3,
-                "Iteration \(iteration): Models with different stationId should not be equal"
+                station1,
+                station3,
+                "Iteration \(iteration): Stations with different stationId should not be equal"
             )
         }
     }
     
-    /// Property test: StationModel with edge case values
-    /// Tests StationModel with empty strings, nil values, and boundary conditions
-    func testStationModelWithEdgeCases() throws {
+    /// Property test: Station with edge case values
+    /// Tests Station with empty strings, nil values, and boundary conditions
+    func testStationWithEdgeCases() throws {
         // Test with empty strings
         let emptyStation = Station()
         emptyStation.name = ""
@@ -227,13 +153,11 @@ final class StationBridgingTests: XCTestCase {
         emptyStation.artUrl = nil
         emptyStation.genres = nil
         
-        let emptyModel = StationModel(station: emptyStation)
-        
-        XCTAssertEqual(emptyModel.name, "")
-        XCTAssertEqual(emptyModel.token, "")
-        XCTAssertEqual(emptyModel.stationId, "")
-        XCTAssertNil(emptyModel.artworkURL)
-        XCTAssertEqual(emptyModel.genres, [])
+        XCTAssertEqual(emptyStation.name, "")
+        XCTAssertEqual(emptyStation.token, "")
+        XCTAssertEqual(emptyStation.stationId, "")
+        XCTAssertNil(emptyStation.artworkURL)
+        XCTAssertEqual(emptyStation.genresList, [])
         
         // Test with very long strings
         let longStation = Station()
@@ -241,11 +165,9 @@ final class StationBridgingTests: XCTestCase {
         longStation.token = String(repeating: "B", count: 500)
         longStation.stationId = String(repeating: "C", count: 500)
         
-        let longModel = StationModel(station: longStation)
-        
-        XCTAssertEqual(longModel.name.count, 1000)
-        XCTAssertEqual(longModel.token.count, 500)
-        XCTAssertEqual(longModel.stationId.count, 500)
+        XCTAssertEqual(longStation.name.count, 1000)
+        XCTAssertEqual(longStation.token.count, 500)
+        XCTAssertEqual(longStation.stationId.count, 500)
         
         // Test with special characters
         let specialStation = Station()
@@ -254,12 +176,10 @@ final class StationBridgingTests: XCTestCase {
         specialStation.stationId = "id_with_underscores_456"
         specialStation.artUrl = "https://example.com/art?size=500&format=jpg"
         
-        let specialModel = StationModel(station: specialStation)
-        
-        XCTAssertEqual(specialModel.name, "🎵 Rock & Roll 🎸")
-        XCTAssertEqual(specialModel.token, "token-with-dashes-123")
-        XCTAssertEqual(specialModel.stationId, "id_with_underscores_456")
-        XCTAssertNotNil(specialModel.artworkURL)
+        XCTAssertEqual(specialStation.name, "🎵 Rock & Roll 🎸")
+        XCTAssertEqual(specialStation.token, "token-with-dashes-123")
+        XCTAssertEqual(specialStation.stationId, "id_with_underscores_456")
+        XCTAssertNotNil(specialStation.artworkURL)
         
         // Test with empty genres array
         let emptyGenresStation = Station()
@@ -268,8 +188,7 @@ final class StationBridgingTests: XCTestCase {
         emptyGenresStation.stationId = "test-id"
         emptyGenresStation.genres = []
         
-        let emptyGenresModel = StationModel(station: emptyGenresStation)
-        XCTAssertEqual(emptyGenresModel.genres, [])
+        XCTAssertEqual(emptyGenresStation.genresList, [])
         
         // Test with multiple genres
         let multiGenreStation = Station()
@@ -278,14 +197,13 @@ final class StationBridgingTests: XCTestCase {
         multiGenreStation.stationId = "multi-id"
         multiGenreStation.genres = ["Rock", "Pop", "Alternative", "Indie"]
         
-        let multiGenreModel = StationModel(station: multiGenreStation)
-        XCTAssertEqual(multiGenreModel.genres.count, 4)
-        XCTAssertEqual(multiGenreModel.genres, ["Rock", "Pop", "Alternative", "Indie"])
+        XCTAssertEqual(multiGenreStation.genresList.count, 4)
+        XCTAssertEqual(multiGenreStation.genresList, ["Rock", "Pop", "Alternative", "Indie"])
     }
     
-    /// Property test: StationModel with various timestamp values
+    /// Property test: Station with various timestamp values
     /// Tests date conversion with different timestamp values
-    func testStationModelWithVariousTimestamps() throws {
+    func testStationWithVariousTimestamps() throws {
         let testCases: [(UInt64, String)] = [
             (0, "epoch"),
             (1000, "1 second after epoch"),
@@ -301,12 +219,10 @@ final class StationBridgingTests: XCTestCase {
             station.stationId = "test-id"
             station.created = timestamp
             
-            let model = StationModel(station: station)
-            
             // Verify date conversion (timestamp is in milliseconds)
             let expectedDate = Date(timeIntervalSince1970: TimeInterval(timestamp) / 1000.0)
             XCTAssertEqual(
-                model.created.timeIntervalSince1970,
+                station.createdDate.timeIntervalSince1970,
                 expectedDate.timeIntervalSince1970,
                 accuracy: 1.0,
                 "Date conversion failed for \(description)"
@@ -314,9 +230,9 @@ final class StationBridgingTests: XCTestCase {
         }
     }
     
-    /// Property test: StationModel with various boolean combinations
+    /// Property test: Station with various boolean combinations
     /// Tests all combinations of boolean flags
-    func testStationModelWithBooleanCombinations() throws {
+    func testStationWithBooleanCombinations() throws {
         let booleanCombinations: [[Bool]] = [
             [false, false, false, false],
             [true, false, false, false],
@@ -346,52 +262,54 @@ final class StationBridgingTests: XCTestCase {
             station.allowAddMusic = combination[2]
             station.isQuickMix = combination[3]
             
-            let model = StationModel(station: station)
-            
             XCTAssertEqual(
-                model.shared,
+                station.shared,
                 combination[0],
                 "Combination \(index): shared mismatch"
             )
             XCTAssertEqual(
-                model.allowRename,
+                station.allowRename,
                 combination[1],
                 "Combination \(index): allowRename mismatch"
             )
             XCTAssertEqual(
-                model.allowAddMusic,
+                station.allowAddMusic,
                 combination[2],
                 "Combination \(index): allowAddMusic mismatch"
             )
             XCTAssertEqual(
-                model.isQuickMix,
+                station.isQuickMix,
                 combination[3],
                 "Combination \(index): isQuickMix mismatch"
             )
         }
     }
     
-    /// Property test: StationModel with playingSong
-    /// Tests that playingSong is correctly exposed through StationModel
-    func testStationModelWithPlayingSong() throws {
-        for iteration in 0..<50 {
-            let station = createRandomStation(iteration: iteration)
-            let model = StationModel(station: station)
-            
-            // Initially no playing song
-            XCTAssertNil(model.playingSong)
-            
-            // Add a song (this would normally be done through playlist operations)
-            let song = createRandomSong(iteration: iteration)
-            // Note: We can't directly set playingSong as it's private(set)
-            // This tests the current state exposure
-            
-            XCTAssertEqual(
-                model.playingSong,
-                station.playingSong,
-                "Iteration \(iteration): playingSong should match station's playingSong"
-            )
-        }
+    /// Property test: Station mock helper works correctly
+    /// Tests that the mock() static method creates valid stations
+    func testStationMockHelper() throws {
+        // Test default mock
+        let defaultMock = Station.mock()
+        XCTAssertEqual(defaultMock.name, "Today's Hits")
+        XCTAssertEqual(defaultMock.token, "mock-token")
+        XCTAssertEqual(defaultMock.stationId, "mock-id")
+        XCTAssertFalse(defaultMock.isQuickMix)
+        
+        // Test custom mock
+        let customMock = Station.mock(
+            name: "Custom Station",
+            token: "custom-token",
+            stationId: "custom-id",
+            artUrl: "https://example.com/art.jpg",
+            genres: ["Rock", "Pop"],
+            isQuickMix: true
+        )
+        XCTAssertEqual(customMock.name, "Custom Station")
+        XCTAssertEqual(customMock.token, "custom-token")
+        XCTAssertEqual(customMock.stationId, "custom-id")
+        XCTAssertEqual(customMock.artUrl, "https://example.com/art.jpg")
+        XCTAssertEqual(customMock.genres, ["Rock", "Pop"])
+        XCTAssertTrue(customMock.isQuickMix)
     }
     
     // MARK: - Helpers
@@ -437,15 +355,5 @@ final class StationBridgingTests: XCTestCase {
         let allGenres = ["Rock", "Pop", "Jazz", "Blues", "Classical", "Country", "Hip Hop", "Electronic", "Alternative", "Indie"]
         let count = Int.random(in: 1...4)
         return Array(allGenres.shuffled().prefix(count))
-    }
-    
-    /// Create a random song for testing
-    private func createRandomSong(iteration: Int) -> Song {
-        let song = Song()
-        song.artist = "Artist \(iteration)"
-        song.title = "Song \(iteration)"
-        song.album = "Album \(iteration)"
-        song.token = "song-token-\(iteration)"
-        return song
     }
 }

@@ -7,11 +7,12 @@
 
 import Foundation
 import Combine
+import Observation
 
 // MARK: - Protocol
 
 @MainActor
-protocol StationAddViewModelProtocol: ObservableObject {
+protocol StationAddViewModelProtocol: AnyObject, Observable {
     var searchQuery: String { get set }
     var searchResults: [SearchResult] { get set }
     var genres: [GenreCategory] { get set }
@@ -24,21 +25,23 @@ protocol StationAddViewModelProtocol: ObservableObject {
     func loadGenres()
     func createStation(from result: SearchResult)
     func createStation(fromGenre genre: Genre)
+    func searchQueryChanged(_ query: String)
 }
 
 // MARK: - View Model
 
 @MainActor
-final class StationAddViewModel: ObservableObject, StationAddViewModelProtocol {
-    // MARK: - Published Properties
-    @Published var searchQuery: String = ""
-    @Published var searchResults: [SearchResult] = []
-    @Published var genres: [GenreCategory] = []
-    @Published var isSearching: Bool = false
-    @Published var isCreating: Bool = false
-    @Published var errorMessage: String?
-    @Published var selectedTab: Tab = .search
-    @Published var stationCreated: Bool = false
+@Observable
+final class StationAddViewModel: StationAddViewModelProtocol {
+    // MARK: - Observable Properties
+    var searchQuery: String = ""
+    var searchResults: [SearchResult] = []
+    var genres: [GenreCategory] = []
+    var isSearching: Bool = false
+    var isCreating: Bool = false
+    var errorMessage: String?
+    var selectedTab: Tab = .search
+    var stationCreated: Bool = false
     
     enum Tab: String, CaseIterable {
         case search = "Search"
@@ -46,8 +49,12 @@ final class StationAddViewModel: ObservableObject, StationAddViewModelProtocol {
     }
     
     // MARK: - Dependencies
+    @ObservationIgnored
     private let pandora: PandoraClient
+    @ObservationIgnored
     private var cancellables = Set<AnyCancellable>()
+    @ObservationIgnored
+    private var searchDebounceTask: Task<Void, Never>?
     
     init(pandora: PandoraClient) {
         self.pandora = pandora
@@ -58,7 +65,7 @@ final class StationAddViewModel: ObservableObject, StationAddViewModelProtocol {
     // MARK: - Notification Observers
     private func setupNotificationObservers() {
         // Search results
-        NotificationCenter.default.publisher(for: Notification.Name("PandoraDidLoadSearchResultsNotification"))
+        NotificationCenter.default.publisher(for: .pandoraDidLoadSearchResults)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] notification in
                 Task { @MainActor in
@@ -68,7 +75,7 @@ final class StationAddViewModel: ObservableObject, StationAddViewModelProtocol {
             .store(in: &cancellables)
         
         // Genre stations loaded
-        NotificationCenter.default.publisher(for: Notification.Name("PandoraDidLoadGenreStationsNotification"))
+        NotificationCenter.default.publisher(for: .pandoraDidLoadGenreStations)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] notification in
                 Task { @MainActor in
@@ -78,7 +85,7 @@ final class StationAddViewModel: ObservableObject, StationAddViewModelProtocol {
             .store(in: &cancellables)
         
         // Station created
-        NotificationCenter.default.publisher(for: Notification.Name("PandoraDidCreateStationNotification"))
+        NotificationCenter.default.publisher(for: .pandoraDidCreateStation)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 Task { @MainActor in
@@ -88,7 +95,7 @@ final class StationAddViewModel: ObservableObject, StationAddViewModelProtocol {
             .store(in: &cancellables)
         
         // Errors
-        NotificationCenter.default.publisher(for: Notification.Name("PandoraDidErrorNotification"))
+        NotificationCenter.default.publisher(for: .pandoraDidError)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] notification in
                 Task { @MainActor in
@@ -100,14 +107,25 @@ final class StationAddViewModel: ObservableObject, StationAddViewModelProtocol {
     
     // MARK: - Search
     private func setupSearchDebounce() {
-        $searchQuery
-            .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
-            .removeDuplicates()
-            .filter { !$0.isEmpty }
-            .sink { [weak self] query in
-                self?.performSearch(query)
-            }
-            .store(in: &cancellables)
+        // With @Observable, we use withObservationTracking or manual debouncing
+        // The debouncing will be handled in the view using onChange
+    }
+    
+    func searchQueryChanged(_ query: String) {
+        // Cancel any existing debounce task
+        searchDebounceTask?.cancel()
+        
+        guard !query.isEmpty else {
+            searchResults = []
+            return
+        }
+        
+        // Create a new debounce task
+        searchDebounceTask = Task {
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            performSearch(query)
+        }
     }
     
     func performSearch(_ query: String) {

@@ -7,21 +7,23 @@
 
 import SwiftUI
 import Combine
+import Observation
 
 // MARK: - Preview History View Model
 
 @MainActor
-final class PreviewHistoryViewModel: ObservableObject {
-    @Published var historyItems: [SongModel] = []
-    @Published var selectedItem: SongModel?
+@Observable
+final class PreviewHistoryViewModel {
+    var historyItems: [Song] = []
+    var selectedItem: Song?
     
-    init(items: [SongModel] = []) {
+    init(items: [Song] = []) {
         self.historyItems = items
     }
     
-    func likeSong(_ song: SongModel) {}
-    func dislikeSong(_ song: SongModel) {}
-    func playSong(_ song: SongModel) {}
+    func likeSong(_ song: Song) {}
+    func dislikeSong(_ song: Song) {}
+    func playSong(_ song: Song) {}
     func openArtistOnPandora() {}
     func openSongOnPandora() {}
     func openAlbumOnPandora() {}
@@ -33,33 +35,35 @@ final class PreviewHistoryViewModel: ObservableObject {
 // MARK: - Preview Stations View Model
 
 @MainActor
-final class PreviewStationsViewModel: ObservableObject {
-    @Published var stations: [StationModel] = []
-    @Published var playingStationId: String?
-    @Published var selectedStationId: String?
-    @Published var showDeleteConfirmation = false
-    @Published var stationToDelete: StationModel?
-    @Published var showRenameDialog = false
-    @Published var newStationName = ""
-    @Published var stationToEdit: StationModel?
-    @Published var showAddStationSheet = false
+@Observable
+final class PreviewStationsViewModel {
+    var stations: [Station] = []
+    var playingStationId: String?
+    var selectedStationId: String?
+    var showDeleteConfirmation = false
+    var stationToDelete: Station?
+    var showRenameDialog = false
+    var newStationName = ""
+    var stationToEdit: Station?
+    var showAddStationSheet = false
     
+    @ObservationIgnored
     let pandora: PandoraClient
     let artworkLoader = StationArtworkLoader.shared
     
-    init(stations: [StationModel] = [], pandora: PandoraClient = PandoraClient()) {
+    init(stations: [Station] = [], pandora: PandoraClient = PandoraClient()) {
         self.stations = stations
         self.pandora = pandora
     }
     
-    func sortedStations(by order: StationsViewModel.SortOrder) -> [StationModel] {
+    func sortedStations(by order: StationsViewModel.SortOrder) -> [Station] {
         stations
     }
     
-    func playStation(_ station: StationModel) {}
-    func editStation(_ station: StationModel) {}
-    func startRenameStation(_ station: StationModel) {}
-    func confirmDeleteStation(_ station: StationModel) {}
+    func playStation(_ station: Station) {}
+    func editStation(_ station: Station) {}
+    func startRenameStation(_ station: Station) {}
+    func confirmDeleteStation(_ station: Station) {}
     func performDeleteStation() {}
     func performRenameStation() {}
     func showAddStation() {
@@ -71,11 +75,12 @@ final class PreviewStationsViewModel: ObservableObject {
 // MARK: - Preview Login View Model
 
 @MainActor
-final class PreviewLoginViewModel: ObservableObject {
-    @Published var username = ""
-    @Published var password = ""
-    @Published var isLoading = false
-    @Published var errorMessage: String?
+@Observable
+final class PreviewLoginViewModel {
+    var username = ""
+    var password = ""
+    var isLoading = false
+    var errorMessage: String?
     
     var canSubmit: Bool {
         !username.isEmpty && !password.isEmpty && !isLoading
@@ -87,16 +92,17 @@ final class PreviewLoginViewModel: ObservableObject {
 // MARK: - Preview New Station View Model
 
 @MainActor
-final class PreviewNewStationViewModel: ObservableObject, StationAddViewModelProtocol {
-    @Published var selectedTab: StationAddViewModel.Tab = .search
-    @Published var searchQuery = ""
-    @Published var searchResults: [SearchResult] = [
+@Observable
+final class PreviewNewStationViewModel: StationAddViewModelProtocol {
+    var selectedTab: StationAddViewModel.Tab = .search
+    var searchQuery = ""
+    var searchResults: [SearchResult] = [
         SearchResult(id: "1", musicToken: "token1", name: "Radiohead", artist: nil, type: .artist),
         SearchResult(id: "2", musicToken: "token2", name: "Creep", artist: "Radiohead", type: .song),
         SearchResult(id: "3", musicToken: "token3", name: "Karma Police", artist: "Radiohead", type: .song)
     ]
-    @Published var isSearching = false
-    @Published var genres: [GenreCategory] = [
+    var isSearching = false
+    var genres: [GenreCategory] = [
         GenreCategory(id: "rock", name: "Rock", genres: [
             Genre(id: "g1", name: "Classic Rock", stationToken: "t1"),
             Genre(id: "g2", name: "Alternative Rock", stationToken: "t2"),
@@ -107,31 +113,33 @@ final class PreviewNewStationViewModel: ObservableObject, StationAddViewModelPro
             Genre(id: "g5", name: "Indie Pop", stationToken: "t5")
         ])
     ]
-    @Published var isCreating = false
-    @Published var errorMessage: String?
-    @Published var stationCreated = false
+    var isCreating = false
+    var errorMessage: String?
+    var stationCreated = false
     
     func loadGenres() {}
     func createStation(from result: SearchResult) {}
     func createStation(fromGenre genre: Genre) {}
+    func searchQueryChanged(_ query: String) {}
 }
 
 // MARK: - Preview Station Editor View Model
 
 @MainActor
-final class PreviewStationEditViewModel: ObservableObject, StationEditViewModelProtocol {
-    @Published var isLoading = false
-    @Published var isSaving = false
-    @Published var stationName = "My Station"
-    @Published var stationCreated = "January 1, 2024"
-    @Published var stationGenres = "Rock, Alternative"
-    @Published var artworkURL: URL?
-    @Published var seeds: [Seed] = []
-    @Published var likes: [FeedbackItem] = []
-    @Published var dislikes: [FeedbackItem] = []
-    @Published var seedSearchQuery = ""
-    @Published var seedSearchResults: [SeedSearchResult] = []
-    @Published var isSearchingSeeds = false
+@Observable
+final class PreviewStationEditViewModel: StationEditViewModelProtocol {
+    var isLoading = false
+    var isSaving = false
+    var stationName = "My Station"
+    var stationCreated = "January 1, 2024"
+    var stationGenres = "Rock, Alternative"
+    var artworkURL: URL?
+    var seeds: [Seed] = []
+    var likes: [FeedbackItem] = []
+    var dislikes: [FeedbackItem] = []
+    var seedSearchQuery = ""
+    var seedSearchResults: [SeedSearchResult] = []
+    var isSearchingSeeds = false
     
     func loadDetailsIfNeeded() {}
     func renameStation(to name: String) {}
@@ -139,4 +147,5 @@ final class PreviewStationEditViewModel: ObservableObject, StationEditViewModelP
     func addSeed(_ result: SeedSearchResult) {}
     func deleteSeed(_ seed: Seed) {}
     func deleteFeedback(_ item: FeedbackItem) {}
+    func seedSearchQueryChanged(_ query: String) {}
 }

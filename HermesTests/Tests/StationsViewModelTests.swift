@@ -22,7 +22,7 @@ final class StationsViewModelTests: XCTestCase {
     
     override func tearDown() async throws {
         // Clean up UserDefaults to prevent test pollution
-        UserDefaults.standard.removeObject(forKey: "hermes.last-station")
+        UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStation)
         sut = nil
         try await super.tearDown()
     }
@@ -43,7 +43,7 @@ final class StationsViewModelTests: XCTestCase {
         let station2 = createMockStation(name: "Jazz Station", id: "jazz456")
         
         // Manually set stations for testing
-        sut.stations = [StationModel(station: station1), StationModel(station: station2)]
+        sut.stations = [station1, station2]
         
         // Then
         XCTAssertEqual(sut.stations.count, 2)
@@ -53,14 +53,12 @@ final class StationsViewModelTests: XCTestCase {
     
     // MARK: - Sorting Tests (from StationsController sortStations)
     
-    // DISABLED: Triggers Pandora authentication - needs dependency injection refactoring
-    // See: .kiro/specs/dependency-injection/requirements.md
     func testSorting_ByName() {
         // Given
         let stationC = createMockStation(name: "Charlie Station", id: "c")
         let stationA = createMockStation(name: "Alpha Station", id: "a")
         let stationB = createMockStation(name: "Bravo Station", id: "b")
-        sut.stations = [stationC, stationA, stationB].map { StationModel(station: $0) }
+        sut.stations = [stationC, stationA, stationB]
         
         // When
         let sorted = sut.sortedStations(by: .name)
@@ -77,7 +75,7 @@ final class StationsViewModelTests: XCTestCase {
         let station1 = createMockStation(name: "Newest", id: "1", created: now)
         let station2 = createMockStation(name: "Middle", id: "2", created: now - 86400)
         let station3 = createMockStation(name: "Oldest", id: "3", created: now - 172800)
-        sut.stations = [station2, station3, station1].map { StationModel(station: $0) }
+        sut.stations = [station2, station3, station1]
         
         // When
         let sorted = sut.sortedStations(by: .dateCreated)
@@ -95,7 +93,7 @@ final class StationsViewModelTests: XCTestCase {
         let rock = createMockStation(name: "Rock Station", id: "1")
         let jazz = createMockStation(name: "Jazz Station", id: "2")
         let rockClassic = createMockStation(name: "Classic Rock", id: "3")
-        sut.stations = [rock, jazz, rockClassic].map { StationModel(station: $0) }
+        sut.stations = [rock, jazz, rockClassic]
         
         // When
         sut.searchText = "rock"
@@ -110,7 +108,7 @@ final class StationsViewModelTests: XCTestCase {
     func testSearch_CaseInsensitive() {
         // Given
         let station = createMockStation(name: "Rock Station", id: "1")
-        sut.stations = [StationModel(station: station)]
+        sut.stations = [station]
         
         // When
         sut.searchText = "ROCK"
@@ -120,13 +118,11 @@ final class StationsViewModelTests: XCTestCase {
         XCTAssertEqual(filtered.count, 1, "Search should be case-insensitive")
     }
     
-    // DISABLED: Triggers Pandora authentication - needs dependency injection refactoring
-    // See: .kiro/specs/dependency-injection/requirements.md
     func testSearch_EmptyString_ReturnsAll() {
         // Given
         let station1 = createMockStation(name: "Station 1", id: "1")
         let station2 = createMockStation(name: "Station 2", id: "2")
-        sut.stations = [station1, station2].map { StationModel(station: $0) }
+        sut.stations = [station1, station2]
         
         // When
         sut.searchText = ""
@@ -141,12 +137,11 @@ final class StationsViewModelTests: XCTestCase {
     func testPlayStation_SetsPlayingStationId() {
         // Given
         let station = createMockStation(name: "Test Station", id: "test123")
-        let stationModel = StationModel(station: station)
         
         // When - Manually set playingStationId (simulating successful play)
         // Note: We don't call playStation() to avoid triggering real PlaybackController
         // which would save to UserDefaults
-        sut.playingStationId = stationModel.id
+        sut.playingStationId = station.id
         
         // Then
         XCTAssertEqual(sut.playingStationId, "test123")
@@ -158,7 +153,7 @@ final class StationsViewModelTests: XCTestCase {
         // Given
         let station1 = createMockStation(name: "Keep", id: "keep")
         let station2 = createMockStation(name: "Delete", id: "delete")
-        sut.stations = [station1, station2].map { StationModel(station: $0) }
+        sut.stations = [station1, station2]
         
         // When
         let toDelete = sut.stations.first { $0.id == "delete" }!
@@ -174,10 +169,9 @@ final class StationsViewModelTests: XCTestCase {
     func testConfirmDeleteStation_SetsState() {
         // Given
         let station = createMockStation(name: "Test", id: "test")
-        let stationModel = StationModel(station: station)
         
         // When
-        sut.confirmDeleteStation(stationModel)
+        sut.confirmDeleteStation(station)
         
         // Then
         XCTAssertNotNil(sut.stationToDelete)
@@ -188,7 +182,7 @@ final class StationsViewModelTests: XCTestCase {
     func testPerformDeleteStation_DeletesAndClearsState() {
         // Given
         let station = createMockStation(name: "Test", id: "test")
-        sut.stations = [StationModel(station: station)]
+        sut.stations = [station]
         sut.stationToDelete = sut.stations[0]
         
         // When - Manually simulate deletion
@@ -207,25 +201,21 @@ final class StationsViewModelTests: XCTestCase {
     func testRenameStation_UpdatesName() {
         // Given
         let station = createMockStation(name: "Old Name", id: "test")
-        let stationModel = StationModel(station: station)
-        sut.stations = [stationModel]
+        sut.stations = [station]
         
         // When - Manually update name (simulating successful rename)
-        stationModel.name = "New Name"
+        station.name = "New Name"
         
         // Then
-        XCTAssertEqual(stationModel.name, "New Name")
+        XCTAssertEqual(station.name, "New Name")
     }
     
-    // DISABLED: Triggers Pandora authentication - needs dependency injection refactoring
-    // See: .kiro/specs/dependency-injection/requirements.md
     func testStartRenameStation_SetsState() {
         // Given
         let station = createMockStation(name: "Test Station", id: "test")
-        let stationModel = StationModel(station: station)
         
         // When
-        sut.startRenameStation(stationModel)
+        sut.startRenameStation(station)
         
         // Then
         XCTAssertNotNil(sut.stationToRename)
@@ -236,9 +226,8 @@ final class StationsViewModelTests: XCTestCase {
     func testPerformRenameStation_RenamesAndClearsState() {
         // Given
         let station = createMockStation(name: "Old Name", id: "test")
-        let stationModel = StationModel(station: station)
-        sut.stations = [stationModel]
-        sut.stationToRename = stationModel
+        sut.stations = [station]
+        sut.stationToRename = station
         sut.newStationName = "New Name"
         
         // When - Manually simulate rename
@@ -249,7 +238,7 @@ final class StationsViewModelTests: XCTestCase {
         }
         
         // Then
-        XCTAssertEqual(stationModel.name, "New Name")
+        XCTAssertEqual(station.name, "New Name")
         XCTAssertNil(sut.stationToRename)
         XCTAssertEqual(sut.newStationName, "")
     }
@@ -288,11 +277,11 @@ final class StationsViewModelTests: XCTestCase {
     func testRestoreLastStation_LoadsFromUserDefaults() {
         // Given
         let station = createMockStation(name: "Last Played", id: "last123")
-        sut.stations = [StationModel(station: station)]
-        UserDefaults.standard.set("last123", forKey: "hermes.last-station")
+        sut.stations = [station]
+        UserDefaults.standard.set("last123", forKey: UserDefaultsKeys.lastStation)
         
         // When - Manually restore from UserDefaults (simulating the restoration logic)
-        if let lastStationId = UserDefaults.standard.string(forKey: "hermes.last-station"),
+        if let lastStationId = UserDefaults.standard.string(forKey: UserDefaultsKeys.lastStation),
            sut.stations.contains(where: { $0.id == lastStationId }) {
             sut.selectedStationId = lastStationId
         }
@@ -304,8 +293,8 @@ final class StationsViewModelTests: XCTestCase {
     func testRestoreLastStation_OnlyRunsOnce() {
         // Given
         let station = createMockStation(name: "Last Played", id: "last123")
-        sut.stations = [StationModel(station: station)]
-        UserDefaults.standard.set("last123", forKey: "hermes.last-station")
+        sut.stations = [station]
+        UserDefaults.standard.set("last123", forKey: UserDefaultsKeys.lastStation)
         
         // When - Post notification twice
         NotificationCenter.default.post(name: Notification.Name("hermes.stations"), object: nil)
@@ -321,10 +310,9 @@ final class StationsViewModelTests: XCTestCase {
     func testEditStation_SetsState() {
         // Given
         let station = createMockStation(name: "Test", id: "test")
-        let stationModel = StationModel(station: station)
         
         // When
-        sut.editStation(stationModel)
+        sut.editStation(station)
         
         // Then
         XCTAssertNotNil(sut.stationToEdit)

@@ -302,4 +302,200 @@ final class NotificationConsistencyTests: XCTestCase {
             "All notification names should be unique"
         )
     }
+    
+    // MARK: - Typed Notification Usage Tests
+    
+    /// **Validates: Requirements 4.1, 4.2**
+    /// Verifies that all notification names are defined as typed constants in NotificationNames.swift
+    func testAllNotificationNamesAreTypedConstants() {
+        // All notification names that should be defined as typed constants
+        // These are the canonical notification names used throughout the app
+        let expectedTypedNotifications: [Notification.Name] = [
+            // Distributed Notifications
+            .historyDidPlaySong,
+            .screensaverDidStart,
+            .screensaverDidStop,
+            .screenIsLocked,
+            .screenIsUnlocked,
+            
+            // Pandora API Notifications
+            .pandoraDidError,
+            .pandoraDidAuthenticate,
+            .pandoraDidLogOut,
+            .pandoraDidRateSong,
+            .pandoraDidTireSong,
+            .pandoraDidLoadStations,
+            .pandoraDidCreateStation,
+            .pandoraDidDeleteStation,
+            .pandoraDidRenameStation,
+            .pandoraDidLoadStationInfo,
+            .pandoraDidAddSeed,
+            .pandoraDidDeleteSeed,
+            .pandoraDidDeleteFeedback,
+            .pandoraDidLoadSearchResults,
+            .pandoraDidLoadGenreStations,
+            
+            // Playback Notifications
+            .stationDidPlaySong,
+            .playbackStateDidChange,
+            .playbackSongDidChange,
+            .playbackProgressDidChange,
+            .playbackArtDidLoad,
+            .playbackControllerReady,
+            
+            // Audio Streamer Notifications
+            .audioBitrateReady,
+            .audioStatusChanged,
+            .audioStateDistributed,
+            .audioNewSongPlaying,
+            .audioNoSongsLeft,
+            .audioRunningOutOfSongs,
+            .audioCreatedNewStream,
+            .audioStreamError,
+            .audioAttemptingNewSong,
+            
+            // Network Notifications
+            .proxyValidityChanged,
+            
+            // UI Notifications
+            .openSettingsRequested,
+            .stationsRefreshRequested,
+            
+            // Preference Change Notifications
+            .preferenceAlwaysOnTopChanged,
+            .preferenceMediaKeysChanged,
+            .preferenceDockIconChanged,
+            .preferenceStatusBarChanged
+        ]
+        
+        // Verify all expected notifications are accessible as typed constants
+        for notification in expectedTypedNotifications {
+            XCTAssertFalse(
+                notification.rawValue.isEmpty,
+                "Notification \(notification) should have a non-empty raw value"
+            )
+        }
+        
+        // Verify count matches expected
+        XCTAssertEqual(
+            expectedTypedNotifications.count,
+            42,
+            "Should have 42 typed notification constants defined"
+        )
+    }
+    
+    /// **Validates: Requirements 4.1, 4.2**
+    /// Verifies that notification raw values follow consistent naming patterns
+    func testNotificationNamingConventions() {
+        // Pandora notifications should end with "Notification"
+        let pandoraNotifications: [Notification.Name] = [
+            .pandoraDidError,
+            .pandoraDidAuthenticate,
+            .pandoraDidLogOut,
+            .pandoraDidRateSong,
+            .pandoraDidTireSong,
+            .pandoraDidLoadStations,
+            .pandoraDidCreateStation,
+            .pandoraDidDeleteStation,
+            .pandoraDidRenameStation,
+            .pandoraDidLoadStationInfo,
+            .pandoraDidAddSeed,
+            .pandoraDidDeleteSeed,
+            .pandoraDidDeleteFeedback,
+            .pandoraDidLoadSearchResults,
+            .pandoraDidLoadGenreStations
+        ]
+        
+        for notification in pandoraNotifications {
+            XCTAssertTrue(
+                notification.rawValue.hasSuffix("Notification"),
+                "Pandora notification '\(notification.rawValue)' should end with 'Notification'"
+            )
+        }
+        
+        // Playback notifications should end with "Notification"
+        let playbackNotifications: [Notification.Name] = [
+            .stationDidPlaySong,
+            .playbackStateDidChange,
+            .playbackSongDidChange,
+            .playbackProgressDidChange,
+            .playbackArtDidLoad
+        ]
+        
+        for notification in playbackNotifications {
+            XCTAssertTrue(
+                notification.rawValue.hasSuffix("Notification"),
+                "Playback notification '\(notification.rawValue)' should end with 'Notification'"
+            )
+        }
+        
+        // System notifications should use reverse-DNS notation
+        let systemNotifications: [Notification.Name] = [
+            .screensaverDidStart,
+            .screensaverDidStop,
+            .screenIsLocked,
+            .screenIsUnlocked
+        ]
+        
+        for notification in systemNotifications {
+            XCTAssertTrue(
+                notification.rawValue.hasPrefix("com.apple."),
+                "System notification '\(notification.rawValue)' should use com.apple. prefix"
+            )
+        }
+        
+        // Hermes distributed notifications should use hermes. prefix
+        let hermesDistributedNotifications: [Notification.Name] = [
+            .historyDidPlaySong,
+            .audioStateDistributed
+        ]
+        
+        for notification in hermesDistributedNotifications {
+            XCTAssertTrue(
+                notification.rawValue.hasPrefix("hermes."),
+                "Hermes distributed notification '\(notification.rawValue)' should use hermes. prefix"
+            )
+        }
+    }
+    
+    /// **Validates: Requirements 4.1, 4.2**
+    /// Verifies that Objective-C compatibility constants match Swift constants
+    func testObjCCompatibilityConstants() {
+        // Verify HermesNotifications class provides matching raw values
+        XCTAssertEqual(
+            HermesNotifications.pandoraDidAuthenticate,
+            Notification.Name.pandoraDidAuthenticate.rawValue,
+            "ObjC constant should match Swift constant"
+        )
+        
+        XCTAssertEqual(
+            HermesNotifications.pandoraDidError,
+            Notification.Name.pandoraDidError.rawValue,
+            "ObjC constant should match Swift constant"
+        )
+        
+        XCTAssertEqual(
+            HermesNotifications.pandoraDidLoadStations,
+            Notification.Name.pandoraDidLoadStations.rawValue,
+            "ObjC constant should match Swift constant"
+        )
+        
+        XCTAssertEqual(
+            HermesNotifications.stationDidPlaySong,
+            Notification.Name.stationDidPlaySong.rawValue,
+            "ObjC constant should match Swift constant"
+        )
+        
+        XCTAssertEqual(
+            HermesNotifications.playbackStateDidChange,
+            Notification.Name.playbackStateDidChange.rawValue,
+            "ObjC constant should match Swift constant"
+        )
+        
+        XCTAssertEqual(
+            HermesNotifications.audioStatusChanged,
+            Notification.Name.audioStatusChanged.rawValue,
+            "ObjC constant should match Swift constant"
+        )
+    }
 }

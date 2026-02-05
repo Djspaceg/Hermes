@@ -81,6 +81,63 @@ extension Notification.Name {
     /// Station started playing a song
     static let stationDidPlaySong = Notification.Name("StationDidPlaySongNotification")
     
+    /// Playback state changed (playing/paused/stopped)
+    static let playbackStateDidChange = Notification.Name("PlaybackStateDidChangeNotification")
+    
+    /// A new song started playing
+    static let playbackSongDidChange = Notification.Name("PlaybackSongDidChangeNotification")
+    
+    /// Song progress updated
+    static let playbackProgressDidChange = Notification.Name("PlaybackProgressDidChangeNotification")
+    
+    /// Album art was loaded
+    static let playbackArtDidLoad = Notification.Name("PlaybackArtDidLoadNotification")
+    
+    /// Playback controller is ready
+    static let playbackControllerReady = Notification.Name("PlaybackControllerReady")
+    
+    // MARK: - Audio Streamer Notifications
+    
+    /// Audio streamer bitrate is available
+    static let audioBitrateReady = Notification.Name("ASBitrateReadyNotification")
+    
+    /// Audio streamer status changed
+    static let audioStatusChanged = Notification.Name("ASStatusChangedNotification")
+    
+    /// Audio streamer state changed (distributed notification)
+    static let audioStateDistributed = Notification.Name("hermes.state")
+    
+    /// New song started playing in playlist
+    static let audioNewSongPlaying = Notification.Name("ASNewSongPlaying")
+    
+    /// No songs left in queue
+    static let audioNoSongsLeft = Notification.Name("ASNoSongsLeft")
+    
+    /// Queue is running low on songs
+    static let audioRunningOutOfSongs = Notification.Name("ASRunningOutOfSongs")
+    
+    /// New audio stream was created
+    static let audioCreatedNewStream = Notification.Name("ASCreatedNewStream")
+    
+    /// Stream error occurred
+    static let audioStreamError = Notification.Name("ASStreamError")
+    
+    /// Attempting to play a new song
+    static let audioAttemptingNewSong = Notification.Name("ASAttemptingNewSong")
+    
+    // MARK: - Network Notifications
+    
+    /// Proxy validity changed
+    static let proxyValidityChanged = Notification.Name("URLConnectionProxyValidityChangedNotification")
+    
+    // MARK: - UI Notifications
+    
+    /// Request to open settings window
+    static let openSettingsRequested = Notification.Name("OpenSettingsRequested")
+    
+    /// Request to refresh stations list
+    static let stationsRefreshRequested = Notification.Name("StationsRefreshRequested")
+    
     // MARK: - Preference Change Notifications
     
     /// "Always on top" preference changed
@@ -131,6 +188,32 @@ extension Notification.Name {
     // MARK: - Playback Notifications
     
     @objc public static let stationDidPlaySong = Notification.Name.stationDidPlaySong.rawValue
+    @objc public static let playbackStateDidChange = Notification.Name.playbackStateDidChange.rawValue
+    @objc public static let playbackSongDidChange = Notification.Name.playbackSongDidChange.rawValue
+    @objc public static let playbackProgressDidChange = Notification.Name.playbackProgressDidChange.rawValue
+    @objc public static let playbackArtDidLoad = Notification.Name.playbackArtDidLoad.rawValue
+    @objc public static let playbackControllerReady = Notification.Name.playbackControllerReady.rawValue
+    
+    // MARK: - Audio Streamer Notifications
+    
+    @objc public static let audioBitrateReady = Notification.Name.audioBitrateReady.rawValue
+    @objc public static let audioStatusChanged = Notification.Name.audioStatusChanged.rawValue
+    @objc public static let audioStateDistributed = Notification.Name.audioStateDistributed.rawValue
+    @objc public static let audioNewSongPlaying = Notification.Name.audioNewSongPlaying.rawValue
+    @objc public static let audioNoSongsLeft = Notification.Name.audioNoSongsLeft.rawValue
+    @objc public static let audioRunningOutOfSongs = Notification.Name.audioRunningOutOfSongs.rawValue
+    @objc public static let audioCreatedNewStream = Notification.Name.audioCreatedNewStream.rawValue
+    @objc public static let audioStreamError = Notification.Name.audioStreamError.rawValue
+    @objc public static let audioAttemptingNewSong = Notification.Name.audioAttemptingNewSong.rawValue
+    
+    // MARK: - Network Notifications
+    
+    @objc public static let proxyValidityChanged = Notification.Name.proxyValidityChanged.rawValue
+    
+    // MARK: - UI Notifications
+    
+    @objc public static let openSettingsRequested = Notification.Name.openSettingsRequested.rawValue
+    @objc public static let stationsRefreshRequested = Notification.Name.stationsRefreshRequested.rawValue
     
     // MARK: - Preference Change Notifications
     

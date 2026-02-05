@@ -7,29 +7,34 @@
 
 import Foundation
 import Combine
+import Observation
 
 @MainActor
-final class StationsViewModel: ObservableObject {
-    @Published var stations: [StationModel] = []
-    @Published var playingStationId: String?
-    @Published var selectedStationId: String?
-    @Published var sortOrder: SortOrder = .dateCreated
-    @Published var isLoading: Bool = false
-    @Published var searchText: String = ""
-    @Published var stationToEdit: StationModel?
-    @Published var stationToDelete: StationModel?
-    @Published var showDeleteConfirmation = false
-    @Published var stationToRename: StationModel?
-    @Published var showRenameDialog = false
-    @Published var newStationName = ""
-    @Published var isRefreshing = false
-    @Published var showAddStationSheet = false
+@Observable
+final class StationsViewModel {
+    var stations: [Station] = []
+    var playingStationId: String?
+    var selectedStationId: String?
+    var sortOrder: SortOrder = .dateCreated
+    var isLoading: Bool = false
+    var searchText: String = ""
+    var stationToEdit: Station?
+    var stationToDelete: Station?
+    var showDeleteConfirmation = false
+    var stationToRename: Station?
+    var showRenameDialog = false
+    var newStationName = ""
+    var isRefreshing = false
+    var showAddStationSheet = false
     
     /// Artwork loader for lazy loading station artwork
     let artworkLoader = StationArtworkLoader.shared
     
+    @ObservationIgnored
     let pandora: PandoraClient
+    @ObservationIgnored
     private var cancellables = Set<AnyCancellable>()
+    @ObservationIgnored
     private var hasRestoredLastStation = false
     
     init(pandora: PandoraClient) {
@@ -62,7 +67,7 @@ final class StationsViewModel: ObservableObject {
             .store(in: &cancellables)
         
         // Station created - reload stations list
-        NotificationCenter.default.publisher(for: Notification.Name("PandoraDidCreateStationNotification"))
+        NotificationCenter.default.publisher(for: .pandoraDidCreateStation)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 Task { @MainActor in
@@ -74,7 +79,7 @@ final class StationsViewModel: ObservableObject {
     
     private func loadStations() {
         guard let objcStations = pandora.stations as? [Station] else { return }
-        stations = objcStations.map { StationModel(station: $0) }
+        stations = objcStations
     }
     
     /// Restore and optionally play the last played station
@@ -109,7 +114,7 @@ final class StationsViewModel: ObservableObject {
         }
     }
     
-    func sortedStations(by order: SortOrder) -> [StationModel] {
+    func sortedStations(by order: SortOrder) -> [Station] {
         var result = stations
         
         if !searchText.isEmpty {
@@ -132,7 +137,7 @@ final class StationsViewModel: ObservableObject {
         // isRefreshing will be set to false by the notification handler
     }
     
-    func startRenameStation(_ station: StationModel) {
+    func startRenameStation(_ station: Station) {
         stationToRename = station
         newStationName = station.name
         showRenameDialog = true
@@ -145,7 +150,7 @@ final class StationsViewModel: ObservableObject {
         newStationName = ""
     }
     
-    func playStation(_ station: StationModel) {
+    func playStation(_ station: Station) {
         print("StationsViewModel: playStation called for '\(station.name)'")
         print("StationsViewModel: PlaybackController = \(String(describing: MinimalAppDelegate.shared?.playbackController))")
         
@@ -155,34 +160,34 @@ final class StationsViewModel: ObservableObject {
         }
         
         print("StationsViewModel: Calling controller.playStation() with station")
-        controller.playStation(station.station)
+        controller.playStation(station)
         playingStationId = station.id
         print("StationsViewModel: Set playingStationId to \(station.id)")
     }
     
-    func confirmDeleteStation(_ station: StationModel) {
+    func confirmDeleteStation(_ station: Station) {
         stationToDelete = station
         showDeleteConfirmation = true
     }
     
     func performDeleteStation() {
         guard let station = stationToDelete else { return }
-        _ = pandora.removeStation(station.station.token)
+        _ = pandora.removeStation(station.token)
         stations.removeAll { $0.id == station.id }
         stationToDelete = nil
     }
     
-    func deleteStation(_ station: StationModel) {
-        _ = pandora.removeStation(station.station.token)
+    func deleteStation(_ station: Station) {
+        _ = pandora.removeStation(station.token)
         stations.removeAll { $0.id == station.id }
     }
     
-    func renameStation(_ station: StationModel, to name: String) {
-        _ = pandora.renameStation(station.station.token, to: name)
+    func renameStation(_ station: Station, to name: String) {
+        _ = pandora.renameStation(station.token, to: name)
         station.name = name
     }
     
-    func editStation(_ station: StationModel) {
+    func editStation(_ station: Station) {
         stationToEdit = station
     }
     
@@ -202,7 +207,7 @@ final class StationsViewModel: ObservableObject {
 extension StationsViewModel {
     /// Creates a mock StationsViewModel for SwiftUI previews
     static func mock(
-        stations: [StationModel] = [],
+        stations: [Station] = [],
         playingStationId: String? = nil
     ) -> StationsViewModel {
         let viewModel = StationsViewModel(pandora: PandoraClient())

@@ -83,7 +83,7 @@ final class StationArtworkLoader: ObservableObject {
             station.genres = cached.genres
             loadedStations.insert(stationId)
             
-            // Post notification so StationModel updates its artworkURL
+            // Post notification so Station updates its artworkURL
             // Build userInfo carefully to avoid nil values
             var userInfo: [String: Any] = [
                 "name": stationName,
@@ -94,7 +94,7 @@ final class StationArtworkLoader: ObservableObject {
             }
             
             NotificationCenter.default.post(
-                name: Notification.Name("PandoraDidLoadStationInfoNotification"),
+                name: .pandoraDidLoadStationInfo,
                 object: "cache",
                 userInfo: userInfo
             )
@@ -133,38 +133,51 @@ final class StationArtworkLoader: ObservableObject {
     // MARK: - Cache Persistence
     
     private func loadCacheFromDisk() {
-        guard FileManager.default.fileExists(atPath: cacheFileURL.path) else {
-            print("StationArtworkLoader: No cache file found at \(cacheFileURL.path)")
+        let cacheURL = cacheFileURL
+        
+        guard FileManager.default.fileExists(atPath: cacheURL.path) else {
+            print("StationArtworkLoader: No cache file found at \(cacheURL.path)")
             return
         }
         
-        do {
-            let data = try Data(contentsOf: cacheFileURL)
-            cache = try JSONDecoder().decode([String: CachedStationInfo].self, from: data)
-            print("StationArtworkLoader: Loaded \(cache.count) cached stations from disk")
-        } catch {
-            print("StationArtworkLoader: Failed to load cache: \(error)")
+        Task.detached(priority: .utility) {
+            do {
+                let data = try Data(contentsOf: cacheURL)
+                let loadedCache = try JSONDecoder().decode([String: CachedStationInfo].self, from: data)
+                
+                await MainActor.run {
+                    self.cache = loadedCache
+                    print("StationArtworkLoader: Loaded \(loadedCache.count) cached stations from disk")
+                }
+            } catch {
+                print("StationArtworkLoader: Failed to load cache: \(error)")
+            }
         }
     }
     
     private func saveCacheToDisk() {
-        do {
-            // Ensure directory exists
-            let directory = cacheFileURL.deletingLastPathComponent()
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            
-            let data = try JSONEncoder().encode(cache)
-            try data.write(to: cacheFileURL, options: .atomic)
-            print("StationArtworkLoader: Saved \(cache.count) stations to cache")
-        } catch {
-            print("StationArtworkLoader: Failed to save cache: \(error)")
+        let cacheURL = cacheFileURL
+        let cacheToSave = cache
+        
+        Task.detached(priority: .utility) {
+            do {
+                // Ensure directory exists
+                let directory = cacheURL.deletingLastPathComponent()
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                
+                let data = try JSONEncoder().encode(cacheToSave)
+                try data.write(to: cacheURL, options: .atomic)
+                print("StationArtworkLoader: Saved \(cacheToSave.count) stations to cache")
+            } catch {
+                print("StationArtworkLoader: Failed to save cache: \(error)")
+            }
         }
     }
     
     // MARK: - Notification Handling
     
     private func setupNotificationObservers() {
-        NotificationCenter.default.publisher(for: Notification.Name("PandoraDidLoadStationInfoNotification"))
+        NotificationCenter.default.publisher(for: .pandoraDidLoadStationInfo)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] notification in
                 self?.handleStationInfoLoaded(notification)

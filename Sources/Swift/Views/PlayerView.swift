@@ -10,10 +10,10 @@ import SwiftUI
 // MARK: - Player View Model Protocol
 
 @MainActor
-protocol PlayerViewModelProtocol: ObservableObject {
+protocol PlayerViewModelProtocol: AnyObject {
   associatedtype ErrorType: Identifiable
 
-  var currentSong: SongModel? { get }
+  var currentSong: Song? { get }
   var isPlaying: Bool { get }
   var playbackPosition: TimeInterval { get }
   var duration: TimeInterval { get }
@@ -35,15 +35,19 @@ protocol PlayerViewModelProtocol: ObservableObject {
 
 // MARK: - Player View
 
-struct PlayerView<ViewModel: PlayerViewModelProtocol>: View {
-  @ObservedObject var viewModel: ViewModel
+struct PlayerView<ViewModel: PlayerViewModelProtocol & Observable>: View {
+  // MARK: - Properties
+  
+  var viewModel: ViewModel
   @State private var isHovering = false
   @Environment(\.openWindow) private var openWindow
 
+  // MARK: - Body
+  
   var body: some View {
     ZStack {
       if let song = viewModel.currentSong {
-        AlbumArtView(
+        AlbumArtworkView(
           song: song,
           artworkImage: viewModel.artworkImage,
           onTap: { openWindow(id: "artworkPreview") }
@@ -85,12 +89,16 @@ struct PlayerView<ViewModel: PlayerViewModelProtocol>: View {
 
 // MARK: - Player Controls View (for ContentView integration)
 
-struct PlayerControlsView<ViewModel: PlayerViewModelProtocol>: View {
-  @ObservedObject var viewModel: ViewModel
+struct PlayerControlsView<ViewModel: PlayerViewModelProtocol & Observable>: View {
+  // MARK: - Properties
+  
+  @Bindable var viewModel: ViewModel
   var onBackgroundTap: (() -> Void)? = nil
   var paddingInside: CGFloat = 8
   var paddingOutside: CGFloat = 8
 
+  // MARK: - Body
+  
   var body: some View {
     ZStack {
       if let song = viewModel.currentSong {
@@ -109,7 +117,8 @@ struct PlayerControlsView<ViewModel: PlayerViewModelProtocol>: View {
             PlayPauseButton(
               isPlaying: viewModel.isPlaying,
               action: { viewModel.playPause() }
-            ).padding(.horizontal, paddingOutside)
+            )
+            .padding(.horizontal, paddingOutside)
 
             // Song info - bottom leading
             SongInfoView(song: song)
@@ -136,7 +145,7 @@ struct PlayerControlsView<ViewModel: PlayerViewModelProtocol>: View {
         }
 
         // Volume slider - top right corner
-        VolumeControl(
+        VolumeControlView(
           volume: $viewModel.volume,
           onVolumeChange: { viewModel.setVolume($0) }
         )
@@ -149,254 +158,24 @@ struct PlayerControlsView<ViewModel: PlayerViewModelProtocol>: View {
           alignment: .topTrailing
         )
 
-        opinionControlsView
-          .padding(paddingOutside)
-          .frame(
-            maxWidth: .infinity,
-            maxHeight: .infinity,
-            alignment: .topLeading
-          )
+        // Rating controls - top left corner
+        RatingControlsView(
+          isLiked: viewModel.isLiked,
+          onNext: { viewModel.next() },
+          onLike: { viewModel.like() },
+          onDislike: { viewModel.dislike() },
+          onTired: { viewModel.tired() }
+        )
+        .padding(paddingOutside)
+        .frame(
+          maxWidth: .infinity,
+          maxHeight: .infinity,
+          alignment: .topLeading
+        )
       } else {
         EmptyPlayerStateView()
       }
     }
-  }
-
-  @ViewBuilder
-  private var opinionControlsView: some View {
-    GlassEffectContainer(spacing: 24) {
-      VStack(spacing: 2) {
-        Button(action: { viewModel.next() }) {
-          Image(systemName: "forward.fill")
-            .frame(width: 32, height: 32)
-        }
-        .buttonStyle(.glass)
-        .buttonBorderShape(.circle)
-        .help("Next")
-
-        Color.clear.frame(width: 4, height: 4)
-
-        // These two buttons have NO spacer between them - they'll morph together
-        Button(action: { viewModel.like() }) {
-          Image(
-            systemName: viewModel.isLiked
-              ? "hand.thumbsup.fill" : "hand.thumbsup"
-          )
-          .frame(width: 24, height: 24)
-          .foregroundStyle(viewModel.isLiked ? .green : .primary)
-        }
-        .buttonStyle(.glass)
-        .buttonBorderShape(.circle)
-        .help(viewModel.isLiked ? "Unlike" : "Like")
-
-        Button(action: { viewModel.dislike() }) {
-          Image(systemName: "hand.thumbsdown")
-            .frame(width: 24, height: 24)
-        }
-        .buttonStyle(.glass)
-        .buttonBorderShape(.circle)
-        .help("Dislike")
-
-        Color.clear.frame(width: 4, height: 4)
-
-        Button(action: { viewModel.tired() }) {
-          Image(systemName: "moon.zzz")
-            .frame(width: 24, height: 24)
-        }
-        .buttonStyle(.glass)
-        .buttonBorderShape(.circle)
-        .help("Tired of this song")
-      }
-    }
-  }
-}
-
-// MARK: - Album Art
-
-struct AlbumArtView: View {
-  let song: SongModel
-  let artworkImage: NSImage?
-  let onTap: () -> Void
-
-  var body: some View {
-    GeometryReader { geometry in
-      Group {
-        if let image = artworkImage {
-          Image(nsImage: image)
-            .resizable()
-            .aspectRatio(contentMode: .fill)
-        } else {
-          AsyncImage(url: song.artworkURL) { phase in
-            switch phase {
-            case .success(let image):
-              image
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-            case .empty, .failure:
-              PlaceholderArtwork()
-            @unknown default:
-              PlaceholderArtwork()
-            }
-          }
-        }
-      }
-      .frame(width: geometry.size.width, height: geometry.size.height)
-      .clipped()
-      .contentShape(Rectangle())
-      .onTapGesture(perform: onTap)
-      .help("Click to view album art")
-    }
-  }
-}
-
-struct PlaceholderArtwork: View {
-  var body: some View {
-    GeometryReader { geometry in
-      ZStack {
-        MeshGradient(
-          width: 2,
-          height: 2,
-          points: [[0, 0], [0, 1], [1, 0], [1, 1]],
-          colors: [
-            .purple.opacity(0.4), .indigo.opacity(0.3), .blue.opacity(0.3),
-            .cyan.opacity(0.5),
-          ]
-        )
-
-        Image(systemName: "music.note")
-          .font(
-            .system(size: min(geometry.size.width, geometry.size.height) * 0.25)
-          )
-          .foregroundStyle(.white.opacity(0.9))
-          .shadow(color: .black.opacity(0.3), radius: 4)
-      }
-    }
-  }
-}
-
-// MARK: - Playback Controls
-
-struct PlayPauseButton: View {
-  let isPlaying: Bool
-  let action: () -> Void
-
-  private let size: CGFloat = 96
-  private let iconSize: CGFloat = 54
-
-  var body: some View {
-    Button(action: action) {
-      ZStack {
-        Circle()
-          .fill(.clear)
-
-        Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-          .font(.system(size: iconSize, weight: .medium))
-          .foregroundColor(.primary)
-          .offset(x: isPlaying ? 0 : 4)
-      }
-      .frame(width: size, height: size)
-    }
-    .buttonStyle(.glass)
-    .buttonBorderShape(.circle)
-    .help(isPlaying ? "Pause" : "Play")
-  }
-}
-
-struct ProgressBarView: View {
-  let currentTime: TimeInterval
-  let totalTime: TimeInterval
-  let padding: CGFloat
-
-  init(currentTime: TimeInterval, totalTime: TimeInterval, padding: CGFloat = 8)
-  {
-    self.currentTime = currentTime
-    self.totalTime = totalTime
-    self.padding = padding
-  }
-
-  var body: some View {
-    GlassEffectContainer(spacing: 20) {
-      VStack(spacing: 0) {
-        HStack {
-          Text(formatTime(currentTime)).padding(.top, padding / 2).padding(
-            .horizontal,
-            padding
-          ).glassEffect()
-          Spacer()
-          Text(formatTime(totalTime)).padding(.top, padding / 2).padding(
-            .horizontal,
-            padding
-          ).glassEffect()
-        }
-        .font(.caption2)
-        .monospacedDigit()
-        .foregroundColor(.primary)
-        .contentOnGlass()
-
-        ProgressView(value: currentTime, total: max(totalTime, 1))
-          .tint(.primary)
-          .padding(.vertical, padding / 2)
-          .padding(.horizontal, padding)
-          .glassEffect()
-      }
-    }
-  }
-
-  private func formatTime(_ time: TimeInterval) -> String {
-    let minutes = Int(time) / 60
-    let seconds = Int(time) % 60
-    return String(format: "%d:%02d", minutes, seconds)
-  }
-}
-
-struct VolumeControl: View {
-  @Binding var volume: Double
-  let onVolumeChange: (Double) -> Void
-
-  private let sliderHeight: CGFloat = 80
-
-  var body: some View {
-    VStack(spacing: 8) {
-      Image(systemName: "speaker.wave.3.fill").padding(.top, 2)
-
-      Slider(value: $volume, in: 0...1)
-        .rotationEffect(.degrees(-90))
-        .frame(width: sliderHeight, height: sliderHeight)
-        .frame(width: 16, height: sliderHeight)
-        .clipped()
-        .onChange(of: volume) { _, newValue in
-          onVolumeChange(newValue)
-        }
-
-      Image(systemName: "speaker.fill").padding(.bottom, 2)
-    }
-    .font(.caption)
-    .foregroundStyle(.primary)
-  }
-}
-
-// MARK: - Song Info
-
-struct SongInfoView: View {
-  let song: SongModel
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 2) {
-      Text(song.title)
-        .font(.headline)
-        .fontWeight(.semibold)
-
-      Text(song.artist)
-        .font(.subheadline)
-        .opacity(0.9)
-
-      Text(song.album)
-        .font(.caption)
-        .opacity(0.8)
-    }
-    .lineLimit(1)
-    .foregroundColor(.primary)
-    .contentOnGlass()
   }
 }
 

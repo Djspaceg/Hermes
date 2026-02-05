@@ -8,11 +8,6 @@
 
 import Foundation
 
-/// Notification posted when proxy validity changes
-extension Notification.Name {
-    static let proxyValidityChanged = Notification.Name("URLConnectionProxyValidityChangedNotification")
-}
-
 /// Errors that can occur during HTTP requests
 enum HTTPClientError: Error, LocalizedError {
     case timeout

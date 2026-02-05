@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import Observation
 
 // MARK: - Station
 
@@ -15,11 +16,9 @@ import Foundation
 /// Station extends Playlist to provide station-specific functionality
 /// including song management, rating, and Pandora API integration.
 ///
-/// Note: Named SwiftStation to avoid conflict with Objective-C Station class during migration.
-/// Once migration is complete, this can be renamed to Station.
-@objc(SwiftStation)
-@objcMembers
-final class Station: Playlist, NSSecureCoding {
+/// Uses @Observable for automatic SwiftUI state tracking.
+@Observable
+final class Station: Playlist, NSSecureCoding, Identifiable {
     
     // MARK: - Static Properties
     
@@ -72,6 +71,32 @@ final class Station: Playlist, NSSecureCoding {
     /// Observer for fragment notifications
     private var fragmentObserver: NSObjectProtocol?
     
+    /// Observer for artwork notifications
+    private var artworkObserver: NSObjectProtocol?
+    
+    // MARK: - Identifiable
+    
+    /// Unique identifier for the station (uses stationId)
+    var id: String { stationId }
+    
+    // MARK: - Computed Properties
+    
+    /// Artwork URL computed from artUrl string
+    var artworkURL: URL? {
+        guard let artUrl = artUrl, !artUrl.isEmpty else { return nil }
+        return URL(string: artUrl)
+    }
+    
+    /// Creation date computed from timestamp
+    var createdDate: Date {
+        Date(timeIntervalSince1970: TimeInterval(created) / 1000.0)
+    }
+    
+    /// Genres array (returns empty array if nil)
+    var genresList: [String] {
+        genres ?? []
+    }
+    
     // MARK: - Initialization
     
     override init() {
@@ -81,6 +106,9 @@ final class Station: Playlist, NSSecureCoding {
     
     deinit {
         if let observer = fragmentObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        if let observer = artworkObserver {
             NotificationCenter.default.removeObserver(observer)
         }
     }
@@ -154,6 +182,34 @@ final class Station: Playlist, NSSecureCoding {
             name: ASStreamError,
             object: self
         )
+        
+        // Observe artwork URL changes from StationArtworkLoader
+        artworkObserver = NotificationCenter.default.addObserver(
+            forName: .pandoraDidLoadStationInfo,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            self?.handleArtworkLoaded(notification)
+        }
+    }
+    
+    /// Handle artwork loaded notification
+    private func handleArtworkLoaded(_ notification: Notification) {
+        guard let userInfo = notification.userInfo as? [String: Any],
+              let stationName = userInfo["name"] as? String,
+              stationName == self.name else {
+            return
+        }
+        
+        // Update artwork URL when it becomes available
+        if let art = userInfo["art"] as? String {
+            self.artUrl = art
+        }
+        
+        // Update genres if available
+        if let newGenres = userInfo["genres"] as? [String] {
+            self.genres = newGenres
+        }
     }
     
     // MARK: - Radio Integration
@@ -207,7 +263,7 @@ final class Station: Playlist, NSSecureCoding {
     
     /// Get the audio URL for a song based on quality preference
     private func audioURL(for song: Song) -> URL? {
-        let quality = UserDefaults.standard.integer(forKey: "audioQuality")
+        let quality = UserDefaults.standard.integer(forKey: UserDefaultsKeys.audioQuality)
         
         var urlString: String?
         var qualityName: String
@@ -330,5 +386,40 @@ final class Station: Playlist, NSSecureCoding {
     
     override var description: String {
         return "<\(type(of: self)) \(Unmanaged.passUnretained(self).toOpaque()) \(name)>"
+    }
+    
+    // MARK: - Equatable (NSObject override)
+    
+    override func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? Station else { return false }
+        return stationId == other.stationId
+    }
+    
+    override var hash: Int {
+        stationId.hashValue
+    }
+}
+
+// MARK: - Preview Helpers
+
+extension Station {
+    /// Creates a mock Station for SwiftUI previews and testing
+    static func mock(
+        name: String = "Today's Hits",
+        token: String = "mock-token",
+        stationId: String = "mock-id",
+        artUrl: String? = nil,
+        genres: [String]? = nil,
+        isQuickMix: Bool = false
+    ) -> Station {
+        let station = Station()
+        station.name = name
+        station.token = token
+        station.stationId = stationId
+        station.created = UInt64(Date().timeIntervalSince1970 * 1000)
+        station.artUrl = artUrl
+        station.genres = genres
+        station.isQuickMix = isQuickMix
+        return station
     }
 }

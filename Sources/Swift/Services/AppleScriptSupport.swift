@@ -333,7 +333,7 @@ extension NSApplication {
                 Task { @MainActor in
                     // Trigger a refresh of the stations in the UI
                     NotificationCenter.default.post(
-                        name: Notification.Name("StationsRefreshRequested"),
+                        name: .stationsRefreshRequested,
                         object: nil
                     )
                 }

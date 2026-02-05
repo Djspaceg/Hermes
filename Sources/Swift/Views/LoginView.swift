@@ -8,7 +8,11 @@
 import SwiftUI
 
 struct LoginView: View {
-    @ObservedObject var viewModel: LoginViewModel
+    // MARK: - Properties
+    
+    @Bindable var viewModel: LoginViewModel
+    
+    // MARK: - Body
     
     var body: some View {
         VStack(spacing: 24) {
@@ -65,7 +69,7 @@ struct LoginView: View {
 
 // MARK: - Preview
 
-#Preview {
+#Preview("Login") {
     LoginPreview()
         .frame(width: 400, height: 300)
 }

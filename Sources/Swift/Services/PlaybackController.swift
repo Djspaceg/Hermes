@@ -15,22 +15,6 @@ import MediaPlayer
 import Combine
 import OSLog
 
-// MARK: - Notification Names
-
-extension Notification.Name {
-    /// Notification posted when playback state changes (playing/paused/stopped)
-    static let playbackStateDidChange = Notification.Name("PlaybackStateDidChangeNotification")
-    
-    /// Notification posted when a new song starts playing
-    static let playbackSongDidChange = Notification.Name("PlaybackSongDidChangeNotification")
-    
-    /// Notification posted when song progress updates
-    static let playbackProgressDidChange = Notification.Name("PlaybackProgressDidChangeNotification")
-    
-    /// Notification posted when album art is loaded
-    static let playbackArtDidLoad = Notification.Name("PlaybackArtDidLoadNotification")
-}
-
 // MARK: - PlaybackController
 
 /// Playback controller managing audio playback and media integration
@@ -87,14 +71,14 @@ final class PlaybackController: ObservableObject {
             }
             
             playing?.volume = Double(vol) / 100.0
-            userDefaults.set(vol, forKey: "hermes.volume")
+            userDefaults.set(vol, forKey: UserDefaultsKeys.volume)
             postStateChange()
         }
     }
     
     // MARK: - Public Properties
     
-    /// The current song's album art image data (for Objective-C compatibility)
+    /// The current song's album art image data
     private(set) var lastImg: NSData?
     
     /// Whether playback was paused by screensaver
@@ -110,8 +94,8 @@ final class PlaybackController: ObservableObject {
     
     /// Whether to start playing automatically when a station is selected
     static var playOnStart: Bool {
-        get { UserDefaults.standard.bool(forKey: "playOnStart") }
-        set { UserDefaults.standard.set(newValue, forKey: "playOnStart") }
+        get { UserDefaults.standard.bool(forKey: UserDefaultsKeys.playOnStart) }
+        set { UserDefaults.standard.set(newValue, forKey: UserDefaultsKeys.playOnStart) }
     }
     
     // MARK: - Private Properties
@@ -127,7 +111,7 @@ final class PlaybackController: ObservableObject {
         self.userDefaults = userDefaults
         
         // Initialize volume from UserDefaults
-        let saved = userDefaults.integer(forKey: "hermes.volume")
+        let saved = userDefaults.integer(forKey: UserDefaultsKeys.volume)
         self.volume = saved == 0 ? 100 : saved
         
         logger.info("PlaybackController initialized")
@@ -144,7 +128,20 @@ final class PlaybackController: ObservableObject {
 
 extension PlaybackController {
     
-    /// Initialize the controller and set up notification observers
+    /// Initializes the controller and sets up notification observers
+    ///
+    /// This method must be called once during application startup to:
+    /// - Register for audio stream state change notifications
+    /// - Set up Pandora API response observers
+    /// - Configure screensaver and screen lock handlers
+    /// - Initialize media key handling via MPRemoteCommandCenter
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// // In app initialization
+    /// PlaybackController.shared.setup()
+    /// ```
     func setup() {
         logger.info("Setting up PlaybackController")
         
@@ -259,7 +256,7 @@ extension PlaybackController {
         
         guard let commandCenter = remoteCommandCenter else { return }
         
-        let enabled = userDefaults.bool(forKey: "pleaseBindMedia")
+        let enabled = userDefaults.bool(forKey: UserDefaultsKeys.pleaseBindMedia)
         
         // Remove all existing handlers first to ensure clean state
         // This allows other apps to receive media key events when disabled
@@ -318,7 +315,22 @@ extension PlaybackController {
 
 extension PlaybackController {
     
-    /// Play a station (or nil to stop)
+    /// Plays the specified station or stops playback if nil
+    ///
+    /// This method handles switching between stations and manages the playback state.
+    /// If the same station is already playing, this method does nothing.
+    ///
+    /// - Parameter station: The station to play, or `nil` to stop playback
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// // Play a station
+    /// playbackController.playStation(myStation)
+    ///
+    /// // Stop playback
+    /// playbackController.playStation(nil)
+    /// ```
     func playStation(_ station: Station?) {
         if playing?.stationId == station?.stationId {
             return
@@ -334,13 +346,13 @@ extension PlaybackController {
         playing = station
         
         guard let station = station else {
-            userDefaults.removeObject(forKey: "lastStation")
+            userDefaults.removeObject(forKey: UserDefaultsKeys.lastStation)
             lastImgSrc = nil
             postStateChange()
             return
         }
         
-        userDefaults.set(station.stationId, forKey: "lastStation")
+        userDefaults.set(station.stationId, forKey: UserDefaultsKeys.lastStation)
         
         if Self.playOnStart {
             station.play()
@@ -352,7 +364,10 @@ extension PlaybackController {
         postStateChange()
     }
     
-    /// Reset playback state and clear saved station
+    /// Resets playback state and clears the saved station
+    ///
+    /// Stops playback, clears the current station, and removes the saved state file.
+    /// Use this when logging out or resetting the application.
     func reset() {
         playStation(nil)
         
@@ -361,7 +376,12 @@ extension PlaybackController {
         }
     }
     
-    /// Save current playback state
+    /// Saves the current playback state to disk
+    ///
+    /// Persists the current station and playback state so it can be restored
+    /// when the application is relaunched.
+    ///
+    /// - Returns: `true` if the state was saved successfully, `false` otherwise
     @discardableResult
     func saveState() -> Bool {
         guard let path = stateDirectory("station.savestate"),
@@ -397,7 +417,11 @@ extension PlaybackController {
 
 extension PlaybackController {
     
-    /// Start or resume playback
+    /// Starts or resumes playback of the current station
+    ///
+    /// If no station is playing or the station is already playing, this method returns `false`.
+    ///
+    /// - Returns: `true` if playback was started, `false` otherwise
     @discardableResult
     func play() -> Bool {
         guard let station = playing, !station.isPlaying() else {
@@ -409,7 +433,11 @@ extension PlaybackController {
         return true
     }
     
-    /// Pause playback
+    /// Pauses playback of the current station
+    ///
+    /// If no station is playing or the station is already paused, this method returns `false`.
+    ///
+    /// - Returns: `true` if playback was paused, `false` otherwise
     @discardableResult
     func pause() -> Bool {
         guard let station = playing, station.isPlaying() else {
@@ -421,13 +449,18 @@ extension PlaybackController {
         return true
     }
     
-    /// Stop playback
+    /// Stops playback completely
+    ///
+    /// Unlike pause, stop clears the playback state entirely.
     func stop() {
         playing?.stop()
         postStateChange()
     }
     
-    /// Toggle play/pause
+    /// Toggles between play and pause states
+    ///
+    /// If the station is paused, it will resume playing.
+    /// If the station is playing, it will pause.
     func playpause() {
         guard let station = playing else { return }
         
@@ -438,7 +471,9 @@ extension PlaybackController {
         }
     }
     
-    /// Skip to next song
+    /// Skips to the next song in the station
+    ///
+    /// Cancels any pending artwork downloads for the current song and advances to the next track.
     func next() {
         if let song = playing?.playingSong, let art = song.art {
             ImageCache.shared.cancel(art)
@@ -451,7 +486,25 @@ extension PlaybackController {
 
 extension PlaybackController {
     
-    /// Rate a song (like or dislike)
+    /// Rates a song as liked or disliked
+    ///
+    /// This method sends the rating to the Pandora API and updates the song's rating.
+    /// If the song is already rated with the same value, the rating is removed (toggled to 0).
+    /// If a song is disliked and currently playing, it will be skipped automatically.
+    ///
+    /// - Parameters:
+    ///   - song: The song to rate
+    ///   - liked: `true` to like the song, `false` to dislike it
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// // Like a song
+    /// playbackController.rate(song, as: true)
+    ///
+    /// // Dislike a song (will skip if currently playing)
+    /// playbackController.rate(song, as: false)
+    /// ```
     func rate(_ song: Song, as liked: Bool) {
         guard let station = song.station(), !station.shared else { return }
         
@@ -478,20 +531,31 @@ extension PlaybackController {
         postStateChange()
     }
     
-    /// Like the current song
+    /// Likes the currently playing song
+    ///
+    /// Convenience method that rates the current song as liked.
+    /// Does nothing if no song is currently playing.
     func likeCurrent() {
         guard let song = playing?.playingSong else { return }
         rate(song, as: true)
     }
     
-    /// Dislike the current song
+    /// Dislikes the currently playing song
+    ///
+    /// Convenience method that rates the current song as disliked.
+    /// Clears the song list and skips to the next song automatically.
+    /// Does nothing if no song is currently playing.
     func dislikeCurrent() {
         guard let song = playing?.playingSong else { return }
         playing?.clearSongList()
         rate(song, as: false)
     }
     
-    /// Mark current song as "tired of"
+    /// Marks the currently playing song as "tired of this song"
+    ///
+    /// Tells Pandora to temporarily stop playing this song on this station.
+    /// The song will be skipped automatically after marking it as tired.
+    /// Does nothing if no song is currently playing.
     func tiredOfCurrent() {
         guard let station = playing, let song = station.playingSong else { return }
         
@@ -510,12 +574,16 @@ extension PlaybackController {
 
 extension PlaybackController {
     
-    /// Increase volume by 5%
+    /// Increases the volume by 5%
+    ///
+    /// Volume is clamped to the range 0-100.
     func increaseVolume() {
         volume = volume + 5
     }
     
-    /// Decrease volume by 5%
+    /// Decreases the volume by 5%
+    ///
+    /// Volume is clamped to the range 0-100.
     func decreaseVolume() {
         volume = volume - 5
     }
@@ -646,7 +714,7 @@ extension PlaybackController {
 extension PlaybackController {
     
     @objc private func pauseOnScreensaverStart(_ notification: Notification) {
-        guard userDefaults.bool(forKey: "pauseOnScreensaverStart") else { return }
+        guard userDefaults.bool(forKey: UserDefaultsKeys.pauseOnScreensaverStart) else { return }
         
         if pause() {
             pausedByScreensaver = true
@@ -654,7 +722,7 @@ extension PlaybackController {
     }
     
     @objc private func playOnScreensaverStop(_ notification: Notification) {
-        guard userDefaults.bool(forKey: "playOnScreensaverStop") else { return }
+        guard userDefaults.bool(forKey: UserDefaultsKeys.playOnScreensaverStop) else { return }
         
         if pausedByScreensaver {
             play()
@@ -663,7 +731,7 @@ extension PlaybackController {
     }
     
     @objc private func pauseOnScreenLock(_ notification: Notification) {
-        guard userDefaults.bool(forKey: "pauseOnScreenLock") else { return }
+        guard userDefaults.bool(forKey: UserDefaultsKeys.pauseOnScreenLock) else { return }
         
         if pause() {
             pausedByScreenLock = true
@@ -671,7 +739,7 @@ extension PlaybackController {
     }
     
     @objc private func playOnScreenUnlock(_ notification: Notification) {
-        guard userDefaults.bool(forKey: "playOnScreenUnlock") else { return }
+        guard userDefaults.bool(forKey: UserDefaultsKeys.playOnScreenUnlock) else { return }
         
         if pausedByScreenLock {
             play()

@@ -8,8 +8,12 @@
 import SwiftUI
 
 struct HistoryListView: View {
-    @ObservedObject var viewModel: HistoryViewModel
-    @Binding var selectedItem: SongModel?
+    // MARK: - Properties
+    
+    var viewModel: HistoryViewModel
+    @Binding var selectedItem: Song?
+    
+    // MARK: - Body
     
     var body: some View {
         List(viewModel.historyItems, id: \.id, selection: $selectedItem) { song in
@@ -17,7 +21,7 @@ struct HistoryListView: View {
                 .tag(song)
         }
         .listStyle(.sidebar)
-        .contextMenu(forSelectionType: SongModel.self) { songs in
+        .contextMenu(forSelectionType: Song.self) { songs in
             // Context menu items for right-click
             if let song = songs.first {
                 Button("Like") {
@@ -58,8 +62,14 @@ struct HistoryListView: View {
     }
 }
 
+// MARK: - History Row
+
 struct HistoryRow: View {
-    @ObservedObject var song: SongModel
+    // MARK: - Properties
+    
+    let song: Song
+    
+    // MARK: - Body
     
     var body: some View {
         HStack(spacing: 8) {
@@ -114,21 +124,21 @@ struct HistoryRow: View {
 
 // MARK: - Preview
 
-#Preview {
+#Preview("History List") {
     HistoryListPreview()
         .frame(width: 250, height: 400)
 }
 
 private struct HistoryListPreview: View {
-    @StateObject private var viewModel: PreviewHistoryViewModel = {
-        let items: [SongModel] = [
+    @State private var viewModel: PreviewHistoryViewModel = {
+        let items: [Song] = [
             .mock(title: "Bohemian Rhapsody", artist: "Queen", album: "A Night at the Opera", rating: 1),
             .mock(title: "Stairway to Heaven", artist: "Led Zeppelin", album: "Led Zeppelin IV"),
             .mock(title: "Hotel California", artist: "Eagles", album: "Hotel California", rating: 1)
         ]
         return PreviewHistoryViewModel(items: items)
     }()
-    @State private var selectedItem: SongModel?
+    @State private var selectedItem: Song?
     
     var body: some View {
         List(viewModel.historyItems, id: \.id, selection: $selectedItem) { song in

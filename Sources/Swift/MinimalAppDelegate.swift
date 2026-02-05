@@ -57,7 +57,7 @@ import Combine
         print("MinimalAppDelegate: Initialization complete")
         
         // Notify that playback controller is ready
-        NotificationCenter.default.post(name: Notification.Name("PlaybackControllerReady"), object: nil)
+        NotificationCenter.default.post(name: .playbackControllerReady, object: nil)
         
         // Apply all settings (activation policy, dock icon, media keys, etc.)
         SettingsManager.shared.applyAllSettings()
@@ -218,19 +218,19 @@ import Combine
     
     private func registerDefaults() {
         let defaults: [String: Any] = [
-            "PLEASE_SCROBBLE": false,
-            "ONLY_SCROBBLE_LIKED": false,
-            "PLEASE_GROWL": true,
-            "PLEASE_GROWL_PLAY": false,
-            "PLEASE_GROWL_NEW": true,
-            "PLEASE_BIND_MEDIA": true,
-            "PLEASE_CLOSE_DRAWER": false,
-            "ENABLED_PROXY": 0,
-            "PROXY_AUDIO": false,
-            "DESIRED_QUALITY": 1, // Medium quality
-            "OPEN_DRAWER": 0, // Stations
-            "HIST_DRAWER_WIDTH": 150,
-            "DRAWER_WIDTH": 130
+            UserDefaultsKeys.pleaseScrobble: false,
+            UserDefaultsKeys.onlyScrobbleLiked: false,
+            UserDefaultsKeys.pleaseGrowl: true,
+            UserDefaultsKeys.pleaseGrowlPlay: false,
+            UserDefaultsKeys.pleaseGrowlNew: true,
+            UserDefaultsKeys.pleaseBindMedia: true,
+            UserDefaultsKeys.closeDrawer: false,
+            UserDefaultsKeys.enabledProxy: 0,
+            UserDefaultsKeys.proxyAudio: false,
+            UserDefaultsKeys.audioQuality: 1, // Medium quality
+            UserDefaultsKeys.openDrawer: 0, // Stations
+            UserDefaultsKeys.historySidebarWidth: 150,
+            UserDefaultsKeys.sidebarWidth: 130
         ]
         
         UserDefaults.standard.register(defaults: defaults)
@@ -238,7 +238,6 @@ import Combine
     
     func setupMediaKeys() {
         // Media keys are handled by MediaKeyHandler in AppState
-        // This is just a placeholder for any additional setup
     }
     
     private func preparePlayback() {
@@ -263,18 +262,15 @@ import Combine
     }
     
     @objc func showLoader() {
-        // SwiftUI handles loading state
-        // This is called by PlaybackController but we don't need it
+        // SwiftUI handles loading state via AppState
     }
     
     @objc func show() {
-        // SwiftUI handles view state
-        // This is called by PlaybackController but we don't need it
+        // SwiftUI handles view state via AppState
     }
     
     @objc func setCurrentView(_ view: NSView) {
-        // SwiftUI handles all views
-        // This is called by legacy code but we don't need it
+        // SwiftUI handles all view management
     }
     
     @objc func stateDirectory(_ file: String) -> String? {

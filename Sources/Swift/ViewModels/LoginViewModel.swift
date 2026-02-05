@@ -7,15 +7,22 @@
 
 import Foundation
 import Combine
+import Observation
 
 @MainActor
-final class LoginViewModel: ObservableObject {
-    @Published var username: String = ""
-    @Published var password: String = ""
-    @Published var isLoading: Bool = false
-    @Published var errorMessage: String?
+@Observable
+final class LoginViewModel {
+    // MARK: - Properties
     
+    var username: String = ""
+    var password: String = ""
+    var isLoading: Bool = false
+    var errorMessage: String?
+    
+    @ObservationIgnored
     private let pandora: PandoraClient
+    
+    // MARK: - Computed Properties
     
     var isValidEmail: Bool {
         let emailRegex = #"^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$"#
@@ -27,9 +34,13 @@ final class LoginViewModel: ObservableObject {
         !username.isEmpty && !password.isEmpty && isValidEmail && !isLoading
     }
     
+    // MARK: - Initialization
+    
     init(pandora: PandoraClient) {
         self.pandora = pandora
     }
+    
+    // MARK: - Public Methods
     
     func authenticate() async throws {
         guard canSubmit else { return }
@@ -39,7 +50,7 @@ final class LoginViewModel: ObservableObject {
         
         do {
             // Save credentials
-            UserDefaults.standard.set(username, forKey: "pandora.username")
+            UserDefaults.standard.set(username, forKey: UserDefaultsKeys.username)
             try? KeychainManager.shared.saveCredentials(username: username, password: password)
             
             // Authenticate using async/await
@@ -72,6 +83,8 @@ final class LoginViewModel: ObservableObject {
             throw LoginError.authenticationFailed
         }
     }
+    
+    // MARK: - Error Types
     
     enum LoginError: Error {
         case authenticationFailed
