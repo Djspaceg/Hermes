@@ -41,10 +41,10 @@ struct RatingControlsView: View {
               ? "hand.thumbsup.fill" : "hand.thumbsup"
           )
           .frame(width: 24, height: 24)
-          .foregroundStyle(isLiked ? .green : .primary)
         }
         .buttonStyle(.glass)
         .buttonBorderShape(.circle)
+        .tint(isLiked ? .green : nil)
         .help(isLiked ? "Unlike" : "Like")
 
         Button(action: onDislike) {
