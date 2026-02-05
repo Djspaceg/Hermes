@@ -92,16 +92,11 @@ final class NotificationManager: NSObject, ObservableObject {
         }
     }
     
-    func showSongNotification(song: Song, image: NSImage?, isNewSong: Bool) {
-        // Check user preferences
-        let defaults = UserDefaults.standard
-        let notificationsEnabled = defaults.bool(forKey: UserDefaultsKeys.pleaseGrowl)
-        let notifyOnNew = defaults.bool(forKey: UserDefaultsKeys.pleaseGrowlNew)
-        let notifyOnPlay = defaults.bool(forKey: UserDefaultsKeys.pleaseGrowlPlay)
-        
-        guard notificationsEnabled else { return }
-        guard (isNewSong && notifyOnNew) || (!isNewSong && notifyOnPlay) else { return }
-        
+    /// Shows a notification for a song
+    /// - Parameters:
+    ///   - song: The song to show notification for
+    ///   - image: Optional album artwork
+    func showSongNotification(song: Song, image: NSImage?) {
         // Remove previous notifications
         UNUserNotificationCenter.current().removeAllDeliveredNotifications()
         

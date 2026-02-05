@@ -181,21 +181,10 @@ final class PlayerViewModel: PlayerViewModelProtocol {
             return
         }
         
-        print("PlayerViewModel: Song changed - \(song.title) by \(song.artist)")
-        let previousSong = currentSong
         currentSong = song
         isLiked = (song.nrating?.intValue ?? 0) == 1
         
-        // Don't call updateArtwork() here - it will be called when PlaybackArtDidLoadNotification fires
-        // This prevents showing stale artwork from the previous song
-        
-        // Show notification for new song (artwork will be updated via PlaybackArtDidLoadNotification)
-        let isNewSong = previousSong?.title != song.title
-        NotificationManager.shared.showSongNotification(
-            song: song,
-            image: artworkImage,
-            isNewSong: isNewSong
-        )
+        showNotificationIfAppropriate(song: song, image: artworkImage)
     }
     
     private func updatePlaybackState() {
@@ -203,7 +192,6 @@ final class PlayerViewModel: PlayerViewModelProtocol {
               let station = controller.playing else {
             if isPlaying != false {
                 isPlaying = false
-                print("PlayerViewModel: State updated - isPlaying: false")
             }
             return
         }
@@ -211,8 +199,48 @@ final class PlayerViewModel: PlayerViewModelProtocol {
         let newState = station.isPlaying()
         if isPlaying != newState {
             isPlaying = newState
-            print("PlayerViewModel: State updated - isPlaying: \(isPlaying)")
+            
+            if let song = station.playingSong {
+                showNotificationIfAppropriate(song: song, image: artworkImage)
+            }
         }
+    }
+    
+    // MARK: - Notification
+    
+    @ObservationIgnored
+    private var lastNotifiedSongTitle: String?
+    @ObservationIgnored
+    private var wasPlayingBeforeLastCheck: Bool = false
+    
+    /// Single entry point for all notification decisions.
+    /// Gathers all necessary context internally and decides whether to show.
+    private func showNotificationIfAppropriate(song: Song, image: NSImage?) {
+        // Gather current state
+        let songIsNew = lastNotifiedSongTitle != song.title
+        let justStartedPlaying = isPlaying && !wasPlayingBeforeLastCheck
+        let isResume = justStartedPlaying && !songIsNew
+        
+        // Update tracking state
+        wasPlayingBeforeLastCheck = isPlaying
+        
+        // Must be playing to show notification
+        guard isPlaying else { return }
+        
+        // Read preferences
+        let enabled = UserDefaults.standard.bool(forKey: UserDefaultsKeys.pleaseGrowl)
+        guard enabled else { return }
+        
+        let notifyOnNewSong = UserDefaults.standard.bool(forKey: UserDefaultsKeys.pleaseGrowlNew)
+        let notifyOnResume = UserDefaults.standard.bool(forKey: UserDefaultsKeys.pleaseGrowlPlay)
+        
+        // Decide
+        let shouldNotify = (songIsNew && notifyOnNewSong) || (isResume && notifyOnResume)
+        guard shouldNotify else { return }
+        
+        // Update last notified and show
+        lastNotifiedSongTitle = song.title
+        NotificationManager.shared.showSongNotification(song: song, image: image)
     }
     
     private func handleProgressUpdate(_ notification: Notification) {
@@ -244,26 +272,15 @@ final class PlayerViewModel: PlayerViewModelProtocol {
     }
     
     private func updateArtwork() {
-        let previousArtwork = artworkImage
         artworkImage = playbackController?.artImage
         
-        // Pre-cache thumbnails to avoid main thread work when MenuBarExtra opens
+        // Pre-cache thumbnails for MenuBarExtra
         if let artwork = artworkImage {
             menuBarThumbnail = IconMask.scale(artwork, to: 280)
             menuBarIconThumbnail = IconMask.createThumbnail(from: artwork, size: 18)
         } else {
             menuBarThumbnail = nil
             menuBarIconThumbnail = nil
-        }
-        
-        // If artwork just loaded and we have a current song, update the notification with artwork
-        if previousArtwork == nil && artworkImage != nil, 
-           let song = playbackController?.playing?.playingSong {
-            NotificationManager.shared.showSongNotification(
-                song: song,
-                image: artworkImage,
-                isNewSong: false // Don't play sound again, just update the notification
-            )
         }
     }
     
