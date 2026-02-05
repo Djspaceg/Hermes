@@ -549,6 +549,7 @@ extension PlaybackController {
         guard let song = playing?.playingSong else { return }
         playing?.clearSongList()
         rate(song, as: false)
+        next()
     }
     
     /// Marks the currently playing song as "tired of this song"
