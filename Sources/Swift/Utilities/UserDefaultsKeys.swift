@@ -121,6 +121,9 @@ struct UserDefaultsKeys {
     /// Station sorting preference
     static let sortStations = "sortStations"
     
+    /// Station last played timestamps (dictionary of stationId -> timestamp)
+    static let stationPlayTimestamps = "stationPlayTimestamps"
+    
     // MARK: - Proxy Settings
     
     /// Enabled proxy type (0=system, 1=HTTP, 2=SOCKS)

@@ -47,6 +47,10 @@ final class StationsViewModel {
         
         if pandora.isAuthenticated() {
             loadStations()
+            // Restore last played station if stations are already available
+            if !stations.isEmpty {
+                restoreLastPlayedStation()
+            }
         }
     }
     
@@ -108,6 +112,15 @@ final class StationsViewModel {
     private func loadStations() {
         guard let objcStations = pandora.stations as? [Station] else { return }
         stations = objcStations
+        
+        // Restore last played timestamps from UserDefaults
+        if let timestamps = UserDefaults.standard.dictionary(forKey: UserDefaultsKeys.stationPlayTimestamps) as? [String: TimeInterval] {
+            for station in stations {
+                if let timestamp = timestamps[station.stationId] {
+                    station.lastPlayedTimestamp = timestamp
+                }
+            }
+        }
     }
     
     /// Restore and optionally play the last played station
@@ -154,6 +167,24 @@ final class StationsViewModel {
             result.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         case .dateCreated:
             result.sort { $0.created > $1.created }
+        case .recentlyPlayed:
+            result.sort { station1, station2 in
+                // Stations with no play history go to the bottom
+                switch (station1.lastPlayedTimestamp, station2.lastPlayedTimestamp) {
+                case (nil, nil):
+                    // Both never played - sort by creation date as fallback
+                    return station1.created > station2.created
+                case (nil, _):
+                    // station1 never played - goes after station2
+                    return false
+                case (_, nil):
+                    // station2 never played - station1 goes first
+                    return true
+                case let (time1?, time2?):
+                    // Both have been played - most recent first
+                    return time1 > time2
+                }
+            }
         }
         
         return result
@@ -226,6 +257,7 @@ final class StationsViewModel {
     enum SortOrder {
         case name
         case dateCreated
+        case recentlyPlayed
     }
 }
 

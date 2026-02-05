@@ -354,6 +354,15 @@ extension PlaybackController {
         
         userDefaults.set(station.stationId, forKey: UserDefaultsKeys.lastStation)
         
+        // Track when this station was last played
+        let timestamp = Date().timeIntervalSince1970
+        station.lastPlayedTimestamp = timestamp
+        
+        // Persist timestamp to UserDefaults for all stations
+        var timestamps = userDefaults.dictionary(forKey: UserDefaultsKeys.stationPlayTimestamps) as? [String: TimeInterval] ?? [:]
+        timestamps[station.stationId] = timestamp
+        userDefaults.set(timestamps, forKey: UserDefaultsKeys.stationPlayTimestamps)
+        
         if Self.playOnStart {
             station.play()
         } else {

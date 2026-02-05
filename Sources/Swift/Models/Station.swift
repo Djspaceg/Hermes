@@ -41,6 +41,9 @@ final class Station: Playlist, NSSecureCoding, Identifiable {
     /// Creation timestamp (milliseconds since epoch)
     var created: UInt64 = 0
     
+    /// Last played timestamp (seconds since epoch, nil if never played)
+    var lastPlayedTimestamp: TimeInterval?
+    
     /// Whether the station is shared
     var shared: Bool = false
     
@@ -92,6 +95,12 @@ final class Station: Playlist, NSSecureCoding, Identifiable {
         Date(timeIntervalSince1970: TimeInterval(created) / 1000.0)
     }
     
+    /// Last played date (nil if never played)
+    var lastPlayedDate: Date? {
+        guard let timestamp = lastPlayedTimestamp else { return nil }
+        return Date(timeIntervalSince1970: timestamp)
+    }
+    
     /// Genres array (returns empty array if nil)
     var genresList: [String] {
         genres ?? []
@@ -122,6 +131,7 @@ final class Station: Playlist, NSSecureCoding, Identifiable {
         token = coder.decodeObject(of: NSString.self, forKey: "token") as String? ?? ""
         stationId = coder.decodeObject(of: NSString.self, forKey: "stationId") as String? ?? ""
         created = UInt64(coder.decodeInt64(forKey: "created"))
+        lastPlayedTimestamp = coder.containsValue(forKey: "lastPlayedTimestamp") ? coder.decodeDouble(forKey: "lastPlayedTimestamp") : nil
         shared = coder.decodeBool(forKey: "shared")
         allowRename = coder.decodeBool(forKey: "allowRename")
         allowAddMusic = coder.decodeBool(forKey: "allowAddMusic")
@@ -140,6 +150,9 @@ final class Station: Playlist, NSSecureCoding, Identifiable {
         coder.encode(token, forKey: "token")
         coder.encode(stationId, forKey: "stationId")
         coder.encode(Int64(created), forKey: "created")
+        if let timestamp = lastPlayedTimestamp {
+            coder.encode(timestamp, forKey: "lastPlayedTimestamp")
+        }
         coder.encode(shared, forKey: "shared")
         coder.encode(allowRename, forKey: "allowRename")
         coder.encode(allowAddMusic, forKey: "allowAddMusic")

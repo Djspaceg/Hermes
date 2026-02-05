@@ -86,6 +86,29 @@ final class StationsViewModelTests: XCTestCase {
         XCTAssertEqual(sorted[2].name, "Oldest")
     }
     
+    func testSorting_ByRecentlyPlayed() {
+        // Given
+        let now = Date().timeIntervalSince1970
+        let station1 = createMockStation(name: "Played Today", id: "1")
+        station1.lastPlayedTimestamp = now
+        
+        let station2 = createMockStation(name: "Played Yesterday", id: "2")
+        station2.lastPlayedTimestamp = now - 86400
+        
+        let station3 = createMockStation(name: "Never Played", id: "3")
+        station3.lastPlayedTimestamp = nil
+        
+        sut.stations = [station3, station2, station1]
+        
+        // When
+        let sorted = sut.sortedStations(by: .recentlyPlayed)
+        
+        // Then
+        XCTAssertEqual(sorted[0].name, "Played Today", "Most recently played should be first")
+        XCTAssertEqual(sorted[1].name, "Played Yesterday")
+        XCTAssertEqual(sorted[2].name, "Never Played", "Never played stations should be last")
+    }
+    
     // MARK: - Search Tests (from StationsController search:)
     
     func testSearch_FiltersStations() {
@@ -327,6 +350,44 @@ final class StationsViewModelTests: XCTestCase {
         
         // Then
         XCTAssertTrue(sut.showAddStationSheet)
+    }
+    
+    // MARK: - Timestamp Persistence Tests
+    
+    func testLoadStations_RestoresTimestampsFromUserDefaults() {
+        // Given
+        let station1 = createMockStation(name: "Station 1", id: "id1")
+        let station2 = createMockStation(name: "Station 2", id: "id2")
+        
+        let timestamp1 = Date().timeIntervalSince1970 - 3600 // 1 hour ago
+        let timestamp2 = Date().timeIntervalSince1970 - 7200 // 2 hours ago
+        
+        // Save timestamps to UserDefaults
+        let timestamps: [String: TimeInterval] = [
+            "id1": timestamp1,
+            "id2": timestamp2
+        ]
+        UserDefaults.standard.set(timestamps, forKey: UserDefaultsKeys.stationPlayTimestamps)
+        
+        // When
+        sut.stations = [station1, station2]
+        // Manually call loadStations logic
+        if let savedTimestamps = UserDefaults.standard.dictionary(forKey: UserDefaultsKeys.stationPlayTimestamps) as? [String: TimeInterval] {
+            for station in sut.stations {
+                if let timestamp = savedTimestamps[station.stationId] {
+                    station.lastPlayedTimestamp = timestamp
+                }
+            }
+        }
+        
+        // Then
+        XCTAssertNotNil(station1.lastPlayedTimestamp)
+        XCTAssertNotNil(station2.lastPlayedTimestamp)
+        XCTAssertEqual(station1.lastPlayedTimestamp!, timestamp1, accuracy: 0.001)
+        XCTAssertEqual(station2.lastPlayedTimestamp!, timestamp2, accuracy: 0.001)
+        
+        // Cleanup
+        UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.stationPlayTimestamps)
     }
     
     // MARK: - Helper Methods

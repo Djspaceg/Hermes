@@ -26,8 +26,26 @@ struct SidebarView: View {
     
     @State private var selectedView: SidebarSelection = .stations
     @State private var selectedStation: Station?
-    @State private var sortOrder: StationsViewModel.SortOrder = .dateCreated
+    @AppStorage(UserDefaultsKeys.sortStations) private var sortOrderRawValue: Int = 1 // Default to dateCreated
     @State private var sidebarWidth: CGFloat = 250
+    
+    private var sortOrder: StationsViewModel.SortOrder {
+        get {
+            switch sortOrderRawValue {
+            case 0: return .name
+            case 1: return .dateCreated
+            case 2: return .recentlyPlayed
+            default: return .dateCreated
+            }
+        }
+        nonmutating set {
+            switch newValue {
+            case .name: sortOrderRawValue = 0
+            case .dateCreated: sortOrderRawValue = 1
+            case .recentlyPlayed: sortOrderRawValue = 2
+            }
+        }
+    }
     
     var body: some View {
         GeometryReader { geometry in
@@ -99,14 +117,27 @@ struct SidebarView: View {
     }
     
     private var sortControls: some View {
-        Picker("Sort by", selection: $sortOrder) {
-            Text("Name").tag(StationsViewModel.SortOrder.name)
-            Text("Date").tag(StationsViewModel.SortOrder.dateCreated)
+        HStack {
+            Text("Sort by:")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            
+            Picker("Sort by", selection: Binding(
+                get: { sortOrder },
+                set: { sortOrder = $0 }
+            )) {
+                Text("Station Name").tag(StationsViewModel.SortOrder.name)
+                Text("Date Created").tag(StationsViewModel.SortOrder.dateCreated)
+                Text("Recently Played").tag(StationsViewModel.SortOrder.recentlyPlayed)
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+            
+            Spacer()
         }
-        .pickerStyle(.segmented)
-//        .labelsHidden()
         .padding(.horizontal, 8)
-        .padding(.bottom, 4)
+        .padding(.vertical, 6)
+        .background(.ultraThinMaterial.opacity(0.5))
     }
 
 var toolbarIconButtonSize: CGFloat = 16
@@ -164,7 +195,10 @@ var toolbarIconButtonSize: CGFloat = 16
             StationsListView(
                 viewModel: stationsViewModel,
                 selectedStation: $selectedStation,
-                sortOrder: $sortOrder
+                sortOrder: Binding(
+                    get: { sortOrder },
+                    set: { sortOrder = $0 }
+                )
             )
         case .history:
             HistoryListView(
