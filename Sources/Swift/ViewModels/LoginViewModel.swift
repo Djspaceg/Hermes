@@ -9,6 +9,36 @@ import Foundation
 import Combine
 import Observation
 
+/// View model for the login screen, managing authentication state and user credentials.
+///
+/// This view model uses dependency injection to accept a `PandoraProtocol` implementation,
+/// enabling test isolation by allowing mock implementations to be injected during testing.
+///
+/// ## Dependency Injection Pattern
+///
+/// The view model accepts a `PandoraProtocol` parameter with a default value for production use:
+///
+/// ```swift
+/// // Production usage (uses default AppState.shared.pandora)
+/// let viewModel = LoginViewModel()
+///
+/// // Test usage (inject mock)
+/// let mock = MockPandora()
+/// let viewModel = LoginViewModel(pandora: mock)
+/// ```
+///
+/// ## Testing
+///
+/// Use the `testInstance()` helper for convenient test setup:
+///
+/// ```swift
+/// let (viewModel, mock) = LoginViewModel.testInstance()
+/// mock.authenticateResult = false
+/// mock.authenticateError = SomeError()
+/// try await viewModel.authenticate()
+/// XCTAssertNotNil(viewModel.errorMessage)
+/// ```
+///
 @MainActor
 @Observable
 final class LoginViewModel {
@@ -20,7 +50,7 @@ final class LoginViewModel {
     var errorMessage: String?
     
     @ObservationIgnored
-    private let pandora: PandoraClient
+    private let pandora: PandoraProtocol
     
     // MARK: - Computed Properties
     
@@ -36,7 +66,11 @@ final class LoginViewModel {
     
     // MARK: - Initialization
     
-    init(pandora: PandoraClient) {
+    /// Initializes the LoginViewModel with a Pandora implementation
+    ///
+    /// - Parameter pandora: The PandoraProtocol implementation to use.
+    ///   Defaults to AppState.shared.pandora for production use.
+    init(pandora: PandoraProtocol = AppState.shared.pandora) {
         self.pandora = pandora
     }
     
@@ -48,40 +82,21 @@ final class LoginViewModel {
         isLoading = true
         errorMessage = nil
         
-        do {
-            // Save credentials
-            UserDefaults.standard.set(username, forKey: UserDefaultsKeys.username)
-            try? KeychainManager.shared.saveCredentials(username: username, password: password)
-            
-            // Authenticate using async/await
-            try await pandora.authenticate(username: username, password: password)
-            
+        // Save credentials
+        UserDefaults.standard.set(username, forKey: UserDefaultsKeys.username)
+        try? KeychainManager.shared.saveCredentials(username: username, password: password)
+        
+        // Use the synchronous protocol method
+        let success = pandora.authenticate(username, password: password, request: nil)
+        
+        if !success {
             isLoading = false
-        } catch {
-            isLoading = false
-            
-            // Extract error message
-            if let pandoraError = error as? PandoraError {
-                switch pandoraError {
-                case .invalidUsername, .invalidPassword:
-                    errorMessage = "Invalid username or password"
-                case .apiError(let code, let message):
-                    errorMessage = message
-                    print("LoginViewModel: API error \(code): \(message)")
-                case .networkError(let httpError):
-                    errorMessage = "Network error: \(httpError.localizedDescription)"
-                    print("LoginViewModel: Network error: \(httpError)")
-                default:
-                    errorMessage = "Authentication failed: \(error.localizedDescription)"
-                    print("LoginViewModel: Auth error: \(error)")
-                }
-            } else {
-                errorMessage = "Authentication failed: \(error.localizedDescription)"
-                print("LoginViewModel: Unexpected error: \(error)")
-            }
-            
+            errorMessage = "Authentication failed"
             throw LoginError.authenticationFailed
         }
+        
+        // Wait for authentication notification or error
+        // The isLoading flag will be cleared by notification handlers in AppState
     }
     
     // MARK: - Error Types

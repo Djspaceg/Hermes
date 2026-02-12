@@ -290,7 +290,7 @@ import Combine
         // Return the shared Pandora instance
         // Use MainActor.assumeIsolated since this is called from main thread contexts
         return MainActor.assumeIsolated {
-            AppState.shared.pandora
+            AppState.shared.pandora as! PandoraClient
         }
     }
     

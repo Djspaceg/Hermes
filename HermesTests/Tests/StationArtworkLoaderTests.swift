@@ -87,9 +87,7 @@ final class StationArtworkLoaderTests: XCTestCase {
         XCTAssertEqual(decoded["station456"]?.genres, ["Jazz"])
     }
     
-    // DISABLED: Triggers Pandora authentication - needs dependency injection refactoring
-    // See: .kiro/specs/dependency-injection/requirements.md
-    func disabled_testCacheFileFormat_HandlesEmptyGenres() throws {
+    func testCacheFileFormat_HandlesEmptyGenres() throws {
         // Given - Cache with empty genres
         struct CachedStationInfo: Codable {
             let artUrl: String?
@@ -115,9 +113,7 @@ final class StationArtworkLoaderTests: XCTestCase {
     
     // MARK: - Notification Filtering Tests
     
-    // DISABLED: Triggers Pandora authentication - needs dependency injection refactoring
-    // See: .kiro/specs/dependency-injection/requirements.md
-    func disabled_testNotificationFiltering_IgnoresCacheNotifications() {
+    func testNotificationFiltering_IgnoresCacheNotifications() {
         // Given
         let expectation = XCTestExpectation(description: "Should not process cache notification")
         expectation.isInverted = true

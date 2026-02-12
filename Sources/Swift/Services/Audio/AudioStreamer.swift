@@ -316,9 +316,18 @@ public final class AudioStreamer: AudioStreaming {
     
     // Connection retry management
     private var connectionResetCount: Int = 0
-    private var maxConnectionResets: Int = 3
+    private var maxConnectionResets: Int = 5
     private var retryTimer: Timer?
     private var isRetrying = false
+    
+    // Proactive reconnect: trigger when filled buffers drop below the low
+    // threshold after having previously reached the high threshold.
+    // This two-threshold (hysteresis) approach prevents false triggers during
+    // initial buffering when buffer counts naturally fluctuate.
+    private let proactiveReconnectHighMark: Double = 0.75
+    private let proactiveReconnectLowMark: Double = 0.4
+    private var proactiveReconnectInFlight = false
+    private var buffersReachedHighMark = false
     
     // MARK: - Initialization
     
@@ -417,6 +426,8 @@ public final class AudioStreamer: AudioStreaming {
         packetBufferSize = 0
         connectionResetCount = 0
         isRetrying = false
+        proactiveReconnectInFlight = false
+        buffersReachedHighMark = false
     }
     
     @discardableResult
@@ -649,7 +660,32 @@ private extension AudioStreamer {
         _ = progress()
         
         errorCode = error
-        stop()
+        
+        // Set done-with-error state BEFORE cleanup so Playlist sees the error
+        setState(.done(reason: .error(error)))
+        
+        // Clean up resources (but don't change state again)
+        timeoutTimer?.invalidate()
+        timeoutTimer = nil
+        retryTimer?.invalidate()
+        retryTimer = nil
+        
+        closeReadStream()
+        
+        if let audioFileStream = audioFileStream {
+            AudioFileStreamClose(audioFileStream)
+            self.audioFileStream = nil
+        }
+        
+        if let audioQueue = audioQueue {
+            AudioQueueStop(audioQueue, true)
+            AudioQueueDispose(audioQueue, true)
+            self.audioQueue = nil
+        }
+        
+        buffers.removeAll()
+        bufferInUse.removeAll()
+        httpHeaders = nil
     }
     
     // MARK: - Timeout Handling
@@ -702,8 +738,8 @@ private extension AudioStreamer {
         // Close the current stream
         closeReadStream()
         
-        // Calculate exponential backoff delay: 0.5s, 1s, 2s
-        let delay = pow(2.0, Double(connectionResetCount - 1)) * 0.5
+        // Calculate exponential backoff delay: 1s, 2s, 4s, 8s, 16s
+        let delay = min(pow(2.0, Double(connectionResetCount - 1)), 16.0)
         
         print("Retrying connection in \(delay)s...")
         
@@ -748,6 +784,86 @@ private extension AudioStreamer {
         if !openReadStream() {
             // If reopening fails, escalate to permanent failure
             failWithError(.networkConnectionFailed(underlyingError: "Failed to reopen stream after connection reset"))
+        }
+    }
+    
+    // MARK: - Proactive Reconnect
+    
+    /// Check buffer health and proactively reconnect if buffers are draining
+    /// while the network stream appears stalled. Called from handleBufferComplete.
+    ///
+    /// Uses hysteresis: buffers must first reach 75% full (high mark), then
+    /// drop below 40% (low mark) to trigger. This prevents false positives
+    /// during initial buffering when counts naturally fluctuate.
+    func checkBufferHealth() {
+        // Only act during active playback with established audio data
+        guard case .playing = state else { return }
+        guard bitrateNotificationSent else { return }
+        
+        let fillRatio = Double(buffersUsed) / Double(bufferCount)
+        
+        // Arm the trigger once buffers have been substantially full
+        if fillRatio >= proactiveReconnectHighMark {
+            if !buffersReachedHighMark {
+                print("Buffer high mark reached: \(Int(fillRatio * 100))% (\(buffersUsed)/\(bufferCount))")
+            }
+            buffersReachedHighMark = true
+            return
+        }
+        
+        // Not armed yet, or buffers are above the low mark — nothing to do
+        guard buffersReachedHighMark else { return }
+        guard fillRatio < proactiveReconnectLowMark else { return }
+        
+        // Don't stack reconnect attempts
+        guard !proactiveReconnectInFlight, !isRetrying else { return }
+        
+        // Only reconnect if the stream looks stalled — still open but not at end
+        guard let stream = stream else { return }
+        let status = CFReadStreamGetStatus(stream)
+        guard status != .atEnd, status != .closed, status != .error else { return }
+        
+        // Skip if there are queued packets waiting — data is still flowing
+        guard queuedPackets.isEmpty else { return }
+        
+        proactiveReconnectInFlight = true
+        buffersReachedHighMark = false
+        let currentProgress = progress() ?? 0
+        
+        print("Proactive reconnect: buffers at \(Int(fillRatio * 100))% (\(buffersUsed)/\(bufferCount)), reconnecting from \(String(format: "%.1f", currentProgress))s, packets=\(processedPacketsCount), bitrateReady=\(bitrateNotificationSent)")
+        
+        // Close the stalled HTTP stream and reopen from current position.
+        // Mark as discontinuous so the parser handles the gap correctly.
+        closeReadStream()
+        isDiscontinuous = true
+        
+        // Set up seek position so openReadStream sends a Range header
+        if currentProgress > 0, let bitrate = calculatedBitRate(), let totalDuration = duration(), bitrate > 0, fileLength > 0 {
+            seekByteOffset = dataOffset + UInt64((currentProgress / totalDuration) * Double(fileLength - dataOffset))
+            seekTime = currentProgress
+            
+            if seekByteOffset > fileLength - UInt64(2 * packetBufferSize) {
+                seekByteOffset = fileLength - UInt64(2 * packetBufferSize)
+            }
+        }
+        
+        // Small delay to let the network settle, then reopen
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+            guard let self = self else { return }
+            
+            // Bail if we were stopped while waiting
+            guard !self.isDone else {
+                self.proactiveReconnectInFlight = false
+                return
+            }
+            
+            if !self.openReadStream() {
+                self.proactiveReconnectInFlight = false
+                self.failWithError(.networkConnectionFailed(underlyingError: "Failed to reopen stream during proactive reconnect"))
+                return
+            }
+            
+            self.proactiveReconnectInFlight = false
         }
     }
     
@@ -970,9 +1086,16 @@ private extension AudioStreamer {
                 
                 // Check if this is a connection reset (error 54)
                 let nsError = error as NSError
-                if nsError.domain == kCFErrorDomainPOSIX as String && nsError.code == 54 {
+                let isConnectionReset = nsError.code == 54 && (
+                    nsError.domain == kCFErrorDomainPOSIX as String ||
+                    nsError.domain == NSPOSIXErrorDomain ||
+                    nsError.domain == "kCFErrorDomainCFNetwork"
+                )
+                
+                if isConnectionReset {
                     handleConnectionReset()
                 } else {
+                    print("Stream error: domain=\(nsError.domain), code=\(nsError.code), desc=\(nsError.localizedDescription)")
                     failWithError(.networkConnectionFailed(underlyingError: error.localizedDescription))
                 }
             } else {
@@ -1541,7 +1664,9 @@ private extension AudioStreamer {
         
         // Mark buffer as free
         bufferInUse[index] = false
-        buffersUsed -= 1
+        if buffersUsed > 0 {
+            buffersUsed -= 1
+        }
         
         if case .stopped = state {
             return
@@ -1556,6 +1681,11 @@ private extension AudioStreamer {
                 return
             }
         }
+        
+        // TODO: Re-enable proactive reconnect once reactive retry is proven stable.
+        // The proactive approach needs better stall detection to avoid false triggers
+        // during normal buffer fluctuations at song start.
+        // checkBufferHealth()
         
         // If we were waiting for a buffer, process cached data
         if waitingOnBuffer {

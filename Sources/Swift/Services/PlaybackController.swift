@@ -632,6 +632,29 @@ extension PlaybackController {
         let prog = playing?.progress() ?? 0
         let dur = playing?.duration() ?? 0
         
+        // Sanity check: if progress exceeds duration by more than a small
+        // tolerance, the stream is stalled (e.g. connection reset left the
+        // AudioQueue clock running with no data). Clamp the reported value
+        // and force-advance to the next song.
+        if dur > 0 && prog > dur + 2.0 {
+            currentProgress = dur
+            currentDuration = dur
+            
+            NotificationCenter.default.post(
+                name: .playbackProgressDidChange,
+                object: self,
+                userInfo: [
+                    "progress": dur,
+                    "duration": dur
+                ]
+            )
+            
+            print("Progress (\(String(format: "%.1f", prog))s) exceeded duration (\(String(format: "%.1f", dur))s) — stream is stalled, advancing")
+            stopUpdatingProgress()
+            playing?.next()
+            return
+        }
+        
         currentProgress = prog
         currentDuration = dur
         

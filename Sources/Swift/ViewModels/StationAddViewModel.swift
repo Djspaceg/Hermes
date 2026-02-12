@@ -50,13 +50,13 @@ final class StationAddViewModel: StationAddViewModelProtocol {
     
     // MARK: - Dependencies
     @ObservationIgnored
-    private let pandora: PandoraClient
+    private let pandora: PandoraProtocol
     @ObservationIgnored
     private var cancellables = Set<AnyCancellable>()
     @ObservationIgnored
     private var searchDebounceTask: Task<Void, Never>?
     
-    init(pandora: PandoraClient) {
+    init(pandora: PandoraProtocol = AppState.shared.pandora) {
         self.pandora = pandora
         setupSearchDebounce()
         setupNotificationObservers()

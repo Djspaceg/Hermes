@@ -435,7 +435,7 @@ open class Playlist: NSObject, PlaylistProtocol {
             return
         }
         
-        // Check for errors
+        // Check for errors or unexpected stop
         if case .done(let reason) = stream.state {
             switch reason {
             case .error(let error):
@@ -451,6 +451,13 @@ open class Playlist: NSObject, PlaylistProtocol {
                 // Explicitly stopped, do nothing
                 break
             }
+        } else if case .stopped = stream.state {
+            // Stream was stopped without going through .done — check for error
+            if let error = stream.doneReason {
+                if case .error(let err) = error {
+                    handleStreamError(err)
+                }
+            }
         }
     }
     
@@ -463,14 +470,25 @@ open class Playlist: NSObject, PlaylistProtocol {
         
         switch error {
         case .networkConnectionFailed, .timeout:
-            // Network trouble - post error notification so user can retry
-            NotificationCenter.default.post(
-                name: ASStreamError,
-                object: self
-            )
+            // Network trouble - attempt automatic retry before giving up.
+            // The AudioStreamer already retried at the connection level;
+            // this is a higher-level retry that creates a fresh stream.
+            if tries <= maxRetries {
+                print("Playlist: network error, retrying (\(tries + 1)/\(maxRetries + 1))...")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                    self?.retry()
+                }
+            } else {
+                // Exhausted retries - notify so Station can skip
+                print("Playlist: network retries exhausted, posting ASStreamError")
+                NotificationCenter.default.post(
+                    name: ASStreamError,
+                    object: self
+                )
+            }
             
         default:
-            // Other errors - try automatic retry
+            // Other errors (audio format, queue failures) - try automatic retry
             DispatchQueue.main.asyncAfter(deadline: .now()) { [weak self] in
                 self?.retry()
             }

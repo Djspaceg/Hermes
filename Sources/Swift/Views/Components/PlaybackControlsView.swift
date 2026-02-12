@@ -81,7 +81,7 @@ struct ProgressBarView: View {
         .foregroundColor(.primary)
         .contentOnGlass()
 
-        ProgressView(value: currentTime, total: max(totalTime, 1))
+        ProgressView(value: max(0, min(currentTime, max(totalTime, 1))), total: max(totalTime, 1))
           .tint(.primary)
           .padding(.vertical, padding / 2)
           .padding(.horizontal, padding)

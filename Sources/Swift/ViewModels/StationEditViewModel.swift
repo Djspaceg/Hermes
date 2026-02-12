@@ -66,7 +66,7 @@ final class StationEditViewModel: StationEditViewModelProtocol {
     @ObservationIgnored
     private let station: Station
     @ObservationIgnored
-    private let pandora: PandoraClient
+    private let pandora: PandoraProtocol
     @ObservationIgnored
     private var cancellables = Set<AnyCancellable>()
     @ObservationIgnored
@@ -74,7 +74,7 @@ final class StationEditViewModel: StationEditViewModelProtocol {
     
     // MARK: - Initialization
     
-    init(station: Station, pandora: PandoraClient) {
+    init(station: Station, pandora: PandoraProtocol = AppState.shared.pandora) {
         self.station = station
         self.pandora = pandora
         self.stationName = station.name ?? ""

@@ -79,7 +79,7 @@ final class AppState {
     /// All views and view models should access state through this instance.
     static let shared: AppState = {
         print("AppState.shared: Creating singleton instance")
-        return AppState()
+        return AppState.production()
     }()
     
     // MARK: - Observable Properties
@@ -96,7 +96,7 @@ final class AppState {
     // MARK: - Dependencies
     
     /// The Pandora API client
-    let pandora: PandoraClient
+    let pandora: PandoraProtocol
     
     /// View model for the login screen
     let loginViewModel: LoginViewModel
@@ -115,17 +115,42 @@ final class AppState {
     @ObservationIgnored
     private var cancellables = Set<AnyCancellable>()
     
+    // MARK: - Factory Methods
+    
+    /// Creates an AppState instance for production use with real Pandora implementation
+    ///
+    /// This factory method creates an AppState with a PandoraClient instance,
+    /// suitable for production use. The singleton `shared` instance uses this factory.
+    ///
+    /// - Returns: A new AppState configured for production
+    static func production() -> AppState {
+        let pandora = PandoraClient()
+        return AppState(pandora: pandora)
+    }
+    
+    /// Creates an AppState instance for testing with mock Pandora implementation
+    ///
+    /// This factory method creates an AppState with a custom PandoraProtocol
+    /// implementation (typically MockPandora), suitable for testing. It skips
+    /// credential checking to avoid side effects during tests.
+    ///
+    /// - Parameter pandora: The PandoraProtocol implementation to use (e.g., MockPandora)
+    /// - Returns: A new AppState configured for testing
+    static func test(pandora: PandoraProtocol) -> AppState {
+        return AppState(pandora: pandora, skipCredentialCheck: true)
+    }
+    
     // MARK: - Initialization
     
-    private init() {
+    private init(pandora: PandoraProtocol, skipCredentialCheck: Bool = false) {
         print("AppState: Initializing...")
         print("AppState: Process name: \(ProcessInfo.processInfo.processName)")
         print("AppState: Arguments: \(ProcessInfo.processInfo.arguments)")
         
-        // Initialize Pandora
-        self.pandora = PandoraClient()
+        // Store injected Pandora dependency
+        self.pandora = pandora
         
-        // Initialize view models
+        // Initialize view models with injected dependency
         self.loginViewModel = LoginViewModel(pandora: pandora)
         self.playerViewModel = PlayerViewModel()
         self.stationsViewModel = StationsViewModel(pandora: pandora)
@@ -134,11 +159,11 @@ final class AppState {
         // Subscribe to notifications
         setupNotificationSubscriptions()
         
-        // Check for saved credentials - but NOT in preview or test mode
-        if !Self.isPreview && !Self.isRunningTests {
+        // Check for saved credentials - but NOT in preview, test mode, or when explicitly skipped
+        if !skipCredentialCheck && !Self.isPreview && !Self.isRunningTests {
             checkSavedCredentials()
         } else {
-            print("AppState: Running in preview/test mode, skipping credential check")
+            print("AppState: Skipping credential check (test/preview mode or explicitly skipped)")
         }
         
         print("AppState: Initialized - currentView: \(currentView)")
@@ -151,8 +176,23 @@ final class AppState {
     }
     
     private static var isRunningTests: Bool {
-        ProcessInfo.processInfo.environment["XCTestSessionIdentifier"] != nil ||
-        NSClassFromString("XCTest") != nil
+        // Check environment variables (set by test harness)
+        let hasTestEnvVars = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil ||
+                            ProcessInfo.processInfo.environment["XCTestSessionIdentifier"] != nil
+        
+        // Check if XCTest framework is loaded (works for hosted tests)
+        let hasXCTestClass = NSClassFromString("XCTest") != nil ||
+                            NSClassFromString("XCTestCase") != nil
+        
+        // Check command line arguments for test indicators
+        let args = ProcessInfo.processInfo.arguments
+        let hasTestArgs = args.contains { arg in
+            arg.contains("xctest") || 
+            arg.contains("XCTest") ||
+            arg.hasSuffix(".xctest")
+        }
+        
+        return hasTestEnvVars || hasXCTestClass || hasTestArgs
     }
     
     // MARK: - Notification Subscriptions

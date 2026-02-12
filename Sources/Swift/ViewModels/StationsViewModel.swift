@@ -9,6 +9,36 @@ import Foundation
 import Combine
 import Observation
 
+/// View model for station management, handling station list display, sorting, and operations.
+///
+/// This view model uses dependency injection to accept a `PandoraProtocol` implementation,
+/// enabling test isolation by allowing mock implementations to be injected during testing.
+///
+/// ## Dependency Injection Pattern
+///
+/// The view model accepts a `PandoraProtocol` parameter with a default value for production use:
+///
+/// ```swift
+/// // Production usage (uses default AppState.shared.pandora)
+/// let viewModel = StationsViewModel()
+///
+/// // Test usage (inject mock with pre-configured stations)
+/// let mock = MockPandora()
+/// mock.mockStations = [station1, station2]
+/// let viewModel = StationsViewModel(pandora: mock)
+/// ```
+///
+/// ## Testing
+///
+/// Use the `testInstance()` helper for convenient test setup:
+///
+/// ```swift
+/// let (viewModel, mock) = StationsViewModel.testInstance()
+/// mock.fetchStationsResult = true
+/// await viewModel.refreshStations()
+/// XCTAssertTrue(mock.didCall(.fetchStations))
+/// ```
+///
 @MainActor
 @Observable
 final class StationsViewModel {
@@ -31,17 +61,19 @@ final class StationsViewModel {
     let artworkLoader = StationArtworkLoader.shared
     
     @ObservationIgnored
-    let pandora: PandoraClient
+    let pandora: PandoraProtocol
     @ObservationIgnored
     private var cancellables = Set<AnyCancellable>()
     @ObservationIgnored
     private var hasRestoredLastStation = false
     
-    init(pandora: PandoraClient) {
+    init(pandora: PandoraProtocol = AppState.shared.pandora) {
         self.pandora = pandora
         
-        // Configure artwork loader with Pandora instance
-        artworkLoader.configure(with: pandora)
+        // Configure artwork loader with Pandora instance (cast to PandoraClient for now)
+        if let pandoraClient = pandora as? PandoraClient {
+            artworkLoader.configure(with: pandoraClient)
+        }
         
         setupNotificationSubscriptions()
         

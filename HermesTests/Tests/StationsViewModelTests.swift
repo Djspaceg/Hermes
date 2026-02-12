@@ -12,18 +12,20 @@ import XCTest
 final class StationsViewModelTests: XCTestCase {
     
     var sut: StationsViewModel!
+    var mockPandora: MockPandora!
     
     override func setUp() async throws {
         try await super.setUp()
-        // Use isolated PandoraClient instance to avoid keychain access
-        // Tests focus on state management and UI logic, not Pandora API
-        sut = StationsViewModel(pandora: PandoraClient())
+        // Use MockPandora to avoid any side effects (keychain, network, UserDefaults)
+        mockPandora = MockPandora()
+        sut = StationsViewModel(pandora: mockPandora)
     }
     
     override func tearDown() async throws {
         // Clean up UserDefaults to prevent test pollution
         UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStation)
         sut = nil
+        mockPandora = nil
         try await super.tearDown()
     }
     

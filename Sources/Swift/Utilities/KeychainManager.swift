@@ -27,10 +27,25 @@ final class KeychainManager: NSObject, KeychainProtocol {
     // MARK: - Singleton
     
     /// Detects if we're running in a test environment
+    /// Checks multiple indicators since hosted tests launch the app before test harness is fully configured
     private static var isRunningTests: Bool {
-        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil ||
-        ProcessInfo.processInfo.environment["XCTestSessionIdentifier"] != nil ||
-        NSClassFromString("XCTest") != nil
+        // Check environment variables (set by test harness)
+        let hasTestEnvVars = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil ||
+                            ProcessInfo.processInfo.environment["XCTestSessionIdentifier"] != nil
+        
+        // Check if XCTest framework is loaded (works for hosted tests)
+        let hasXCTestClass = NSClassFromString("XCTest") != nil ||
+                            NSClassFromString("XCTestCase") != nil
+        
+        // Check command line arguments for test indicators
+        let args = ProcessInfo.processInfo.arguments
+        let hasTestArgs = args.contains { arg in
+            arg.contains("xctest") || 
+            arg.contains("XCTest") ||
+            arg.hasSuffix(".xctest")
+        }
+        
+        return hasTestEnvVars || hasXCTestClass || hasTestArgs
     }
     
     static let shared: KeychainProtocol = {
@@ -38,6 +53,7 @@ final class KeychainManager: NSObject, KeychainProtocol {
             print("KeychainManager: Using MockKeychainManager for tests")
             return MockKeychainManager()
         }
+        print("KeychainManager: Using real KeychainManager for production")
         return KeychainManager()
     }()
     
