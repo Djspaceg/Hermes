@@ -18,7 +18,7 @@ final class LoginViewModelTests: XCTestCase {
         try await super.setUp()
         // Use MockPandora to avoid any side effects (keychain, network, UserDefaults)
         mockPandora = MockPandora()
-        sut = LoginViewModel(pandora: mockPandora)
+        sut = LoginViewModel(pandora: mockPandora, persistCredentials: false)
     }
     
     override func tearDown() async throws {
@@ -207,7 +207,7 @@ final class LoginViewModelTests: XCTestCase {
         for iteration in 0..<100 {
             // Given - Create a fresh mock for each iteration
             let mock = MockPandora()
-            let viewModel = LoginViewModel(pandora: mock)
+            let viewModel = LoginViewModel(pandora: mock, persistCredentials: false)
             
             // Generate random credentials
             let username = "user\(Int.random(in: 1...1000))@example.com"
@@ -262,8 +262,8 @@ final class LoginViewModelTests: XCTestCase {
             // Given - Create two separate mocks and view models
             let mock1 = MockPandora()
             let mock2 = MockPandora()
-            let viewModel1 = LoginViewModel(pandora: mock1)
-            let viewModel2 = LoginViewModel(pandora: mock2)
+            let viewModel1 = LoginViewModel(pandora: mock1, persistCredentials: false)
+            let viewModel2 = LoginViewModel(pandora: mock2, persistCredentials: false)
             
             // Generate different credentials for each
             let username1 = "user1_\(iteration)@example.com"
@@ -330,7 +330,7 @@ final class LoginViewModelTests: XCTestCase {
         for iteration in 0..<100 {
             // Given - Create a mock and view model
             let mock = MockPandora()
-            let viewModel = LoginViewModel(pandora: mock)
+            let viewModel = LoginViewModel(pandora: mock, persistCredentials: false)
             
             // Generate random number of authentication attempts
             let attemptCount = Int.random(in: 2...5)

@@ -63,12 +63,15 @@ final class StationsViewModel {
     @ObservationIgnored
     let pandora: PandoraProtocol
     @ObservationIgnored
+    private let userDefaults: UserDefaults
+    @ObservationIgnored
     private var cancellables = Set<AnyCancellable>()
     @ObservationIgnored
     private var hasRestoredLastStation = false
     
-    init(pandora: PandoraProtocol = AppState.shared.pandora) {
+    init(pandora: PandoraProtocol = AppState.shared.pandora, userDefaults: UserDefaults = .standard) {
         self.pandora = pandora
+        self.userDefaults = userDefaults
         
         // Configure artwork loader with Pandora instance (cast to PandoraClient for now)
         if let pandoraClient = pandora as? PandoraClient {
@@ -146,7 +149,7 @@ final class StationsViewModel {
         stations = objcStations
         
         // Restore last played timestamps from UserDefaults
-        if let timestamps = UserDefaults.standard.dictionary(forKey: UserDefaultsKeys.stationPlayTimestamps) as? [String: TimeInterval] {
+        if let timestamps = userDefaults.dictionary(forKey: UserDefaultsKeys.stationPlayTimestamps) as? [String: TimeInterval] {
             for station in stations {
                 if let timestamp = timestamps[station.stationId] {
                     station.lastPlayedTimestamp = timestamp
@@ -160,7 +163,7 @@ final class StationsViewModel {
         guard !hasRestoredLastStation else { return }
         hasRestoredLastStation = true
         
-        guard let lastStationId = UserDefaults.standard.string(forKey: UserDefaultsKeys.lastStation) else {
+        guard let lastStationId = userDefaults.string(forKey: UserDefaultsKeys.lastStation) else {
             print("StationsViewModel: No last station saved")
             return
         }

@@ -176,7 +176,10 @@ open class Playlist: NSObject, PlaylistProtocol {
     private var tries: Int = 0
     
     /// Maximum number of retry attempts before giving up
-    private let maxRetries = 2
+    private let maxRetries = 4
+    
+    /// Backoff configuration for playlist-level retries
+    private let playlistBackoff = BackoffStrategy.playlistDefault
     
     // MARK: - Initialization
     
@@ -407,6 +410,11 @@ open class Playlist: NSObject, PlaylistProtocol {
             userInfo: ["url": url]
         )
         
+        // Reset retry counter on successful playback (requirement 8.3)
+        if retrying {
+            tries = 0
+        }
+        
         // Seek to last known position if retrying
         if lastKnownSeekTime > 0 {
             if stream?.seekToTime(lastKnownSeekTime) == true {
@@ -433,6 +441,11 @@ open class Playlist: NSObject, PlaylistProtocol {
         // Ignore if we're stopping
         if stopping {
             return
+        }
+        
+        // Reset retry counter when stream starts playing successfully (requirement 8.3)
+        if stream.isPlaying && retrying {
+            tries = 0
         }
         
         // Check for errors or unexpected stop
@@ -473,18 +486,24 @@ open class Playlist: NSObject, PlaylistProtocol {
             // Network trouble - attempt automatic retry before giving up.
             // The AudioStreamer already retried at the connection level;
             // this is a higher-level retry that creates a fresh stream.
-            if tries <= maxRetries {
-                print("Playlist: network error, retrying (\(tries + 1)/\(maxRetries + 1))...")
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                    self?.retry()
-                }
-            } else {
-                // Exhausted retries - notify so Station can skip
+            guard tries <= maxRetries else {
+                // Exhausted retries - notify so Station can skip and clear retry state
                 print("Playlist: network retries exhausted, posting ASStreamError")
+                tries = 0
+                retrying = false
                 NotificationCenter.default.post(
                     name: ASStreamError,
                     object: self
                 )
+                return
+            }
+            
+            let delay = playlistBackoff.delay(forAttempt: tries)
+            print("Playlist: network error, retrying (\(tries + 1)/\(maxRetries + 1)) after \(String(format: "%.2f", delay))s...")
+            tries += 1
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                self?.retry()
             }
             
         default:

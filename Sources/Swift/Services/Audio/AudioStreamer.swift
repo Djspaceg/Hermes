@@ -195,10 +195,10 @@ public extension AudioStreaming {
 public let kAQMaxPacketDescs: UInt32 = 512
 
 /// Default number of audio queue buffers
-public let kDefaultNumAQBufs: UInt32 = 16
+public let kDefaultNumAQBufs: UInt32 = 32
 
 /// Default size of each audio queue buffer
-public let kDefaultAQDefaultBufSize: UInt32 = 2048
+public let kDefaultAQDefaultBufSize: UInt32 = 4096
 
 /// Minimum packets needed for bit rate estimation
 public let kBitRateEstimationMinPackets: UInt64 = 50
@@ -308,6 +308,7 @@ public final class AudioStreamer: AudioStreaming {
     private var seekTime: Double = 0
     private var isSeeking = false
     private var lastProgress: Double = 0
+    private var queueTimeOffset: Double = 0  // Subtracted from queue time after reconnect
     
     // Bitrate calculation
     private var processedPacketsCount: UInt64 = 0
@@ -320,14 +321,28 @@ public final class AudioStreamer: AudioStreaming {
     private var retryTimer: Timer?
     private var isRetrying = false
     
-    // Proactive reconnect: trigger when filled buffers drop below the low
-    // threshold after having previously reached the high threshold.
-    // This two-threshold (hysteresis) approach prevents false triggers during
-    // initial buffering when buffer counts naturally fluctuate.
-    private let proactiveReconnectHighMark: Double = 0.75
-    private let proactiveReconnectLowMark: Double = 0.4
-    private var proactiveReconnectInFlight = false
-    private var buffersReachedHighMark = false
+    // MARK: - Reconnection State
+    
+    /// Current count of in-place reconnect attempts (resets on success)
+    private(set) var reconnectAttempts: Int = 0
+    
+    /// Maximum allowed in-place reconnect attempts before escalating
+    let maxReconnectAttempts: Int = 5
+    
+    /// Backoff configuration for stream-level retries
+    var streamerBackoff: BackoffStrategy = .streamerDefault
+    
+    /// Hysteresis-based buffer health monitor for proactive stall detection
+    var stallDetector: StallDetector = StallDetector(highMark: 0.75, lowMark: 0.40)
+    
+    /// Buffer fill ratio at last timeout check
+    private(set) var lastFillRatio: Double = 0.0
+    
+    /// Timer for scheduled reconnect attempts
+    var reconnectTimer: Timer?
+    
+    /// Whether we've registered a listener for default output device changes
+    private var hasDeviceChangeListener = false
     
     // MARK: - Initialization
     
@@ -401,6 +416,8 @@ public final class AudioStreamer: AudioStreaming {
         timeoutTimer = nil
         retryTimer?.invalidate()
         retryTimer = nil
+        reconnectTimer?.invalidate()
+        reconnectTimer = nil
         
         // Clean up streams
         closeReadStream()
@@ -416,6 +433,9 @@ public final class AudioStreamer: AudioStreaming {
             self.audioQueue = nil
         }
         
+        // Remove audio device change listener
+        removeDeviceChangeListener()
+        
         buffers.removeAll()
         bufferInUse.removeAll()
         
@@ -426,8 +446,9 @@ public final class AudioStreamer: AudioStreaming {
         packetBufferSize = 0
         connectionResetCount = 0
         isRetrying = false
-        proactiveReconnectInFlight = false
-        buffersReachedHighMark = false
+        reconnectAttempts = 0
+        stallDetector.reset()
+        lastFillRatio = 0.0
     }
     
     @discardableResult
@@ -551,8 +572,8 @@ public final class AudioStreamer: AudioStreaming {
         }
         
         switch state {
-        case .playing, .paused:
-            break // Allow progress query when playing or paused
+        case .playing, .paused, .rebuffering:
+            break // Allow progress query when playing, paused, or rebuffering
         default:
             return nil
         }
@@ -569,7 +590,7 @@ public final class AudioStreamer: AudioStreaming {
             return nil
         }
         
-        var progress = seekTime + queueTime.mSampleTime / sampleRate
+        var progress = seekTime + (queueTime.mSampleTime / sampleRate) - queueTimeOffset
         if progress < 0 {
             progress = 0
         }
@@ -610,6 +631,13 @@ public final class AudioStreamer: AudioStreaming {
 
 private extension AudioStreamer {
     
+    /// Compact timestamp for debug logging (seconds.milliseconds within the current hour)
+    var ts: String {
+        let t = Date().timeIntervalSince1970
+        let seconds = t.truncatingRemainder(dividingBy: 3600)
+        return String(format: "%.3f", seconds)
+    }
+    
     // MARK: - State Management
     
     func setState(_ newState: AudioStreamerState) {
@@ -617,7 +645,10 @@ private extension AudioStreamer {
             return
         }
         
+        let oldState = state
         state = newState
+        
+        print("📡 [\(ts)] \(oldState) → \(newState) | buffers=\(buffersUsed)/\(bufferCount) | reconnectAttempts=\(reconnectAttempts)")
         
         // Post notification on main thread
         DispatchQueue.main.async {
@@ -653,8 +684,11 @@ private extension AudioStreamer {
     func failWithError(_ error: AudioStreamerError) {
         // Only set error once
         guard errorCode == nil else {
+            print("⚠️ [\(ts)] already failed, ignoring: \(error)")
             return
         }
+        
+        print("❌ [\(ts)] TERMINAL: \(error) | \(state) | buffers=\(buffersUsed)/\(bufferCount) | reconnect=\(reconnectAttempts)")
         
         // Save last progress
         _ = progress()
@@ -683,16 +717,27 @@ private extension AudioStreamer {
             self.audioQueue = nil
         }
         
-        buffers.removeAll()
-        bufferInUse.removeAll()
+        // Remove audio device change listener
+        removeDeviceChangeListener()
+        
+        // Clear buffer arrays through bufferQueue to synchronize with
+        // pending handleBufferComplete callbacks on the audio thread
+        bufferQueue.sync {
+            buffers.removeAll()
+            bufferInUse.removeAll()
+        }
         httpHeaders = nil
     }
     
     // MARK: - Timeout Handling
     
     func checkTimeout() {
-        // Ignore if paused
+        // Ignore if paused or already rebuffering (reconnect in progress)
+        // Requirements: 6.4
         if case .paused = state {
+            return
+        }
+        if case .rebuffering = state {
             return
         }
         
@@ -708,14 +753,25 @@ private extension AudioStreamer {
             return
         }
         
-        // Events happened? No timeout
+        let currentFillRatio = bufferCount > 0 ? Double(buffersUsed) / Double(bufferCount) : 0.0
+        
         if eventCount > 0 {
+            // Data arrived, but check if buffers are still draining fast
+            // Requirements: 6.1, 6.2
+            if lastFillRatio - currentFillRatio > 0.20 {
+                // Trickle of data but buffers draining fast — treat as stalled
+                print("Smart timeout: data arrived but fill ratio dropped \(String(format: "%.0f", (lastFillRatio - currentFillRatio) * 100))pp (\(String(format: "%.2f", lastFillRatio)) → \(String(format: "%.2f", currentFillRatio))), treating as stalled")
+                attemptInPlaceReconnect()
+            }
             eventCount = 0
+            lastFillRatio = currentFillRatio
             return
         }
         
-        networkError = NSError(domain: "AudioStreamer", code: 1, userInfo: [NSLocalizedDescriptionKey: "Timed out"])
-        failWithError(.timeout)
+        // No data at all — reconnect instead of terminal failure
+        // Requirements: 6.3
+        print("Smart timeout: no data received, attempting in-place reconnect")
+        attemptInPlaceReconnect()
     }
     
     // MARK: - Connection Reset Handling
@@ -787,83 +843,147 @@ private extension AudioStreamer {
         }
     }
     
+    // MARK: - In-Place Reconnection
+    
+    /// Attempts an in-place reconnect: closes only the CFReadStream (preserving
+    /// the AudioQueue and its buffered audio), then reopens the stream with a
+    /// Range header so playback can resume seamlessly.
+    ///
+    /// On success (data arrives in the read-stream callback), the state
+    /// transitions back to `.playing` and `reconnectAttempts` resets to zero.
+    /// On max retries exceeded, escalates via `failWithError`.
+    ///
+    /// - Requirements: 1.1, 1.2, 1.3, 1.4, 2.2, 2.3, 5.4, 5.5
+    func attemptInPlaceReconnect() {
+        // Guard against exceeding max attempts
+        guard reconnectAttempts < maxReconnectAttempts else {
+            print("⚠️ [\(ts)] max reconnect attempts (\(maxReconnectAttempts)) exceeded")
+            reconnectTimer?.invalidate()
+            reconnectTimer = nil
+            failWithError(.networkConnectionFailed(underlyingError: "Max reconnect attempts exceeded"))
+            return
+        }
+        
+        let currentState = state
+        let currentBuffers = buffersUsed
+        let totalBuffers = bufferCount
+        
+        print("🔄 [\(ts)] reconnect \(reconnectAttempts + 1)/\(maxReconnectAttempts) | \(currentState) | buffers=\(currentBuffers)/\(totalBuffers)")
+        
+        // Transition to rebuffering — AudioQueue keeps playing from existing buffers
+        setState(.rebuffering)
+        
+        // Close ONLY the CFReadStream, NOT the AudioQueue
+        closeReadStream()
+        
+        // Compute backoff delay for this attempt
+        let delay = streamerBackoff.delay(forAttempt: reconnectAttempts)
+        reconnectAttempts += 1
+        
+        print("🔄 [\(ts)] attempt \(reconnectAttempts)/\(maxReconnectAttempts), delay=\(String(format: "%.2f", delay))s")
+        
+        // Calculate byte offset from current playback position
+        updateSeekPositionFromProgress()
+        
+        // Mark as discontinuous so the AudioFileStream parser handles the gap
+        isDiscontinuous = true
+        
+        // Schedule the reconnect after the backoff delay
+        reconnectTimer?.invalidate()
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.reconnectTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
+                guard let self = self else { return }
+                self.reconnectTimer = nil
+                
+                // Bail if we were stopped while waiting
+                guard !self.isDone else {
+                    print("⚠️ [\(self.ts)] reconnect bailing — done: \(self.state)")
+                    return
+                }
+                
+                if !self.openReadStream() {
+                    print("⚠️ [\(self.ts)] openReadStream failed, retrying")
+                    self.attemptInPlaceReconnect()
+                } else {
+                    print("🔄 [\(self.ts)] stream reopened | \(self.state)")
+                }
+            }
+        }
+    }
+    
+    /// Updates `seekByteOffset` and `seekTime` based on current playback progress,
+    /// so that `openReadStream()` will send the correct Range header.
+    func updateSeekPositionFromProgress() {
+        let currentProgress = progress() ?? lastProgress
+        guard currentProgress > 0,
+              let bitrate = calculatedBitRate(),
+              let totalDuration = duration(),
+              bitrate > 0,
+              fileLength > 0 else {
+            return
+        }
+        
+        seekByteOffset = dataOffset + UInt64((currentProgress / totalDuration) * Double(fileLength - dataOffset))
+        seekTime = currentProgress
+        
+        // Capture the current AudioQueue time so progress() can compensate
+        // after reconnect. The queue keeps its internal clock running, so
+        // without this offset, progress = seekTime + fullQueueTime = double-counted.
+        if let aq = audioQueue {
+            var queueTime = AudioTimeStamp()
+            var discontinuity: DarwinBoolean = false
+            let sampleRate = audioStreamDescription.mSampleRate
+            if sampleRate > 0 {
+                let status = AudioQueueGetCurrentTime(aq, nil, &queueTime, &discontinuity)
+                if status == noErr {
+                    queueTimeOffset = queueTime.mSampleTime / sampleRate
+                }
+            }
+        }
+        
+        // Don't seek past the end
+        if seekByteOffset > fileLength - UInt64(2 * packetBufferSize) {
+            seekByteOffset = fileLength - UInt64(2 * packetBufferSize)
+        }
+        
+        print("In-place reconnect: seek to \(String(format: "%.1f", currentProgress))s, byte offset \(seekByteOffset)")
+    }
+    
     // MARK: - Proactive Reconnect
     
     /// Check buffer health and proactively reconnect if buffers are draining
     /// while the network stream appears stalled. Called from handleBufferComplete.
     ///
-    /// Uses hysteresis: buffers must first reach 75% full (high mark), then
-    /// drop below 40% (low mark) to trigger. This prevents false positives
-    /// during initial buffering when counts naturally fluctuate.
+    /// Delegates to `StallDetector.evaluate()` which uses hysteresis: buffers
+    /// must first reach 75% full (high mark), then drop below 25% (low mark)
+    /// with no queued packets and no reconnect in progress to trigger.
+    ///
+    /// - Requirements: 3.1, 3.2, 3.3, 3.4
     func checkBufferHealth() {
         // Only act during active playback with established audio data
         guard case .playing = state else { return }
         guard bitrateNotificationSent else { return }
+        guard bufferCount > 0 else { return }
         
         let fillRatio = Double(buffersUsed) / Double(bufferCount)
+        let isReconnecting = state == .rebuffering || isRetrying
         
-        // Arm the trigger once buffers have been substantially full
-        if fillRatio >= proactiveReconnectHighMark {
-            if !buffersReachedHighMark {
-                print("Buffer high mark reached: \(Int(fillRatio * 100))% (\(buffersUsed)/\(bufferCount))")
-            }
-            buffersReachedHighMark = true
-            return
+        // Reset reconnect attempts once buffers are healthy (above high mark)
+        if reconnectAttempts > 0 && fillRatio >= stallDetector.highMark {
+            print("✅ [\(ts)] stable at \(Int(fillRatio * 100))% — reset reconnect from \(reconnectAttempts)")
+            reconnectAttempts = 0
         }
         
-        // Not armed yet, or buffers are above the low mark — nothing to do
-        guard buffersReachedHighMark else { return }
-        guard fillRatio < proactiveReconnectLowMark else { return }
+        let shouldReconnect = stallDetector.evaluate(
+            fillRatio: fillRatio,
+            hasQueuedPackets: !queuedPackets.isEmpty,
+            isReconnecting: isReconnecting
+        )
         
-        // Don't stack reconnect attempts
-        guard !proactiveReconnectInFlight, !isRetrying else { return }
-        
-        // Only reconnect if the stream looks stalled — still open but not at end
-        guard let stream = stream else { return }
-        let status = CFReadStreamGetStatus(stream)
-        guard status != .atEnd, status != .closed, status != .error else { return }
-        
-        // Skip if there are queued packets waiting — data is still flowing
-        guard queuedPackets.isEmpty else { return }
-        
-        proactiveReconnectInFlight = true
-        buffersReachedHighMark = false
-        let currentProgress = progress() ?? 0
-        
-        print("Proactive reconnect: buffers at \(Int(fillRatio * 100))% (\(buffersUsed)/\(bufferCount)), reconnecting from \(String(format: "%.1f", currentProgress))s, packets=\(processedPacketsCount), bitrateReady=\(bitrateNotificationSent)")
-        
-        // Close the stalled HTTP stream and reopen from current position.
-        // Mark as discontinuous so the parser handles the gap correctly.
-        closeReadStream()
-        isDiscontinuous = true
-        
-        // Set up seek position so openReadStream sends a Range header
-        if currentProgress > 0, let bitrate = calculatedBitRate(), let totalDuration = duration(), bitrate > 0, fileLength > 0 {
-            seekByteOffset = dataOffset + UInt64((currentProgress / totalDuration) * Double(fileLength - dataOffset))
-            seekTime = currentProgress
-            
-            if seekByteOffset > fileLength - UInt64(2 * packetBufferSize) {
-                seekByteOffset = fileLength - UInt64(2 * packetBufferSize)
-            }
-        }
-        
-        // Small delay to let the network settle, then reopen
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-            guard let self = self else { return }
-            
-            // Bail if we were stopped while waiting
-            guard !self.isDone else {
-                self.proactiveReconnectInFlight = false
-                return
-            }
-            
-            if !self.openReadStream() {
-                self.proactiveReconnectInFlight = false
-                self.failWithError(.networkConnectionFailed(underlyingError: "Failed to reopen stream during proactive reconnect"))
-                return
-            }
-            
-            self.proactiveReconnectInFlight = false
+        if shouldReconnect {
+            print("🚨 [\(ts)] stall at \(Int(fillRatio * 100))% (\(buffersUsed)/\(bufferCount)) | queued=\(queuedPackets.count)")
+            attemptInPlaceReconnect()
         }
     }
     
@@ -1051,6 +1171,9 @@ private extension AudioStreamer {
         queuedPackets.removeAll()
         
         if let stream = stream {
+            // Unregister callbacks and unschedule from run loop before closing
+            CFReadStreamSetClient(stream, 0, nil, nil)
+            CFReadStreamUnscheduleFromRunLoop(stream, CFRunLoopGetMain(), CFRunLoopMode.commonModes)
             CFReadStreamClose(stream)
             self.stream = nil
         }
@@ -1080,25 +1203,24 @@ private extension AudioStreamer {
         
         switch eventType {
         case .errorOccurred:
+            print("🌐 [\(ts)] stream error | \(state) | reconnect=\(reconnectAttempts)")
             if let cfError = CFReadStreamCopyError(stream) {
                 let error = cfError as Error
                 networkError = error
                 
-                // Check if this is a connection reset (error 54)
                 let nsError = error as NSError
-                let isConnectionReset = nsError.code == 54 && (
-                    nsError.domain == kCFErrorDomainPOSIX as String ||
-                    nsError.domain == NSPOSIXErrorDomain ||
-                    nsError.domain == "kCFErrorDomainCFNetwork"
-                )
+                let category = ErrorClassifier.classify(error)
                 
-                if isConnectionReset {
-                    handleConnectionReset()
-                } else {
-                    print("Stream error: domain=\(nsError.domain), code=\(nsError.code), desc=\(nsError.localizedDescription)")
+                switch category {
+                case .retriable:
+                    print("🌐 [\(ts)] retriable: \(nsError.domain)/\(nsError.code) | \(state) | reconnect=\(reconnectAttempts)")
+                    attemptInPlaceReconnect()
+                case .nonRetriable:
+                    print("❌ [\(ts)] non-retriable: \(nsError.domain)/\(nsError.code) | \(state)")
                     failWithError(.networkConnectionFailed(underlyingError: error.localizedDescription))
                 }
             } else {
+                print("❌ [\(ts)] stream error with no CFError")
                 failWithError(.networkConnectionFailed(underlyingError: nil))
             }
             
@@ -1155,6 +1277,32 @@ private extension AudioStreamer {
                 return
             }
             
+            // Data arrived after an in-place reconnect — reset reconnect state
+            // Don't reset reconnectAttempts here — wait until we're actually playing
+            // to prevent premature reset if the stream dies again before playback resumes
+            if case .rebuffering = state {
+                print("✅ [\(ts)] data in rebuffering | buffers=\(buffersUsed)/\(bufferCount)")
+                stallDetector.reset()
+                setDefaultOutputDevice()
+                // Note: AudioQueue will be restarted by enqueueBuffer once enough buffers are filled
+                // reconnectAttempts will be reset when state transitions to .playing
+            } else if case .waitingForData = state, reconnectAttempts > 0 {
+                print("✅ [\(ts)] data in waitingForData | buffers=\(buffersUsed)/\(bufferCount) | reconnect=\(reconnectAttempts)")
+                stallDetector.reset()
+                setDefaultOutputDevice()
+            } else if case .waitingForQueueToStart = state, reconnectAttempts > 0 {
+                // Data arrived while queue is waiting to start — restart if stopped
+                if let aq = audioQueue {
+                    var isRunning: UInt32 = 0
+                    var size = UInt32(MemoryLayout<UInt32>.size)
+                    AudioQueueGetProperty(aq, kAudioQueueProperty_IsRunning, &isRunning, &size)
+                    if isRunning == 0 && buffersUsed > 0 {
+                        print("✅ [\(ts)] restarting stopped queue | buffers=\(buffersUsed)/\(bufferCount)")
+                        AudioQueueStart(aq, nil)
+                    }
+                }
+            }
+            
             // Parse the audio data
             let parseFlags: AudioFileStreamParseFlags = isDiscontinuous ? .discontinuity : []
             let status = AudioFileStreamParseBytes(
@@ -1177,6 +1325,23 @@ private extension AudioStreamer {
         }
         
         let httpMessage = response as! CFHTTPMessage
+        
+        // Check HTTP status code and classify errors
+        let statusCode = CFHTTPMessageGetResponseStatusCode(httpMessage)
+        if statusCode >= 400 {
+            let category = ErrorClassifier.classifyHTTPStatus(Int(statusCode))
+            switch category {
+            case .retriable:
+                print("Retriable HTTP status \(statusCode), attempting reconnect")
+                attemptInPlaceReconnect()
+                return
+            case .nonRetriable:
+                print("Non-retriable HTTP status \(statusCode), failing")
+                failWithError(.networkConnectionFailed(underlyingError: "HTTP \(statusCode)"))
+                return
+            }
+        }
+        
         if let headers = CFHTTPMessageCopyAllHeaderFields(httpMessage)?.takeRetainedValue() as? [String: String] {
             httpHeaders = headers
             
@@ -1404,6 +1569,24 @@ private extension AudioStreamer {
 }
 
 
+// MARK: - Audio Device Change Handling
+
+/// C callback for default output device changes
+private func defaultOutputDeviceChanged(
+    objectID: AudioObjectID,
+    numberAddresses: UInt32,
+    addresses: UnsafePointer<AudioObjectPropertyAddress>,
+    clientData: UnsafeMutableRawPointer?
+) -> OSStatus {
+    guard let clientData = clientData else { return noErr }
+    let streamer = Unmanaged<AudioStreamer>.fromOpaque(clientData).takeUnretainedValue()
+    DispatchQueue.main.async {
+        streamer.setDefaultOutputDevice()
+    }
+    return noErr
+}
+
+
 // MARK: - AudioQueue Management
 
 /// C callback for AudioQueue buffer completion
@@ -1508,6 +1691,39 @@ private extension AudioStreamer {
                 UInt32(MemoryLayout<AudioDeviceID>.size)
             )
         }
+        
+        // Listen for default output device changes so we can update the AudioQueue
+        if !hasDeviceChangeListener {
+            let selfPtr = Unmanaged.passUnretained(self).toOpaque()
+            let listenerStatus = AudioObjectAddPropertyListener(
+                AudioObjectID(kAudioObjectSystemObject),
+                &propertyAddress,
+                defaultOutputDeviceChanged,
+                selfPtr
+            )
+            if listenerStatus == noErr {
+                hasDeviceChangeListener = true
+            }
+        }
+    }
+    
+    func removeDeviceChangeListener() {
+        guard hasDeviceChangeListener else { return }
+        
+        var propertyAddress = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDefaultOutputDevice,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        
+        let selfPtr = Unmanaged.passUnretained(self).toOpaque()
+        AudioObjectRemovePropertyListener(
+            AudioObjectID(kAudioObjectSystemObject),
+            &propertyAddress,
+            defaultOutputDeviceChanged,
+            selfPtr
+        )
+        hasDeviceChangeListener = false
     }
     
     func determinePacketBufferSize() {
@@ -1592,11 +1808,20 @@ private extension AudioStreamer {
     func enqueueBuffer() -> Int {
         guard let stream = stream, let audioQueue = audioQueue else { return -1 }
         
-        let index = Int(fillBufferIndex)
-        guard !bufferInUse[index] else { return -1 }
+        // Serialize buffer tracking mutations through bufferQueue.
+        // enqueueBuffer is called from the main thread (via stream callbacks),
+        // so we use sync to get the result back immediately.
+        // Requirements: 7.1, 7.3, 7.4
+        let index = bufferQueue.sync { () -> Int? in
+            let idx = Int(fillBufferIndex)
+            guard !bufferInUse[idx] else { return nil }
+            
+            bufferInUse[idx] = true
+            buffersUsed += 1
+            return idx
+        }
         
-        bufferInUse[index] = true
-        buffersUsed += 1
+        guard let index = index else { return -1 }
         
         // Enqueue the buffer
         guard let buffer = buffers[index] else { return -1 }
@@ -1618,21 +1843,50 @@ private extension AudioStreamer {
         }
         
         // Start playback if we have enough buffers
-        if case .waitingForData = state {
-            if bufferCount < 3 || buffersUsed > 2 {
-                let startStatus = AudioQueueStart(audioQueue, nil)
-                if startStatus != noErr {
-                    failWithError(.audioQueueStartFailed(status: startStatus))
-                    return -1
-                }
+        let isRecovering = reconnectAttempts > 0
+        let needsStart: Bool
+        
+        switch state {
+        case .waitingForData:
+            needsStart = bufferCount < 3 || buffersUsed > 2
+        case .rebuffering:
+            needsStart = buffersUsed > 0
+        case .waitingForQueueToStart where isRecovering:
+            // Queue stopped during recovery — restart it
+            var isRunning: UInt32 = 0
+            var size = UInt32(MemoryLayout<UInt32>.size)
+            AudioQueueGetProperty(audioQueue, kAudioQueueProperty_IsRunning, &isRunning, &size)
+            needsStart = isRunning == 0 && buffersUsed > 0
+        default:
+            needsStart = false
+        }
+        
+        if needsStart {
+            let startStatus = AudioQueueStart(audioQueue, nil)
+            if startStatus != noErr {
+                failWithError(.audioQueueStartFailed(status: startStatus))
+                return -1
+            }
+            
+            if isRecovering {
+                // During reconnect: go straight to playing.
+                // The isRunning property callback is unreliable after stop/start cycles.
+                print("🔄 [\(ts)] queue started | \(state) | buffers=\(buffersUsed)/\(bufferCount)")
+                setState(.playing)
+            } else {
+                // Normal startup: wait for isRunning callback
                 setState(.waitingForQueueToStart)
             }
         }
         
-        // Move to next buffer
-        fillBufferIndex = (fillBufferIndex + 1) % bufferCount
-        bytesFilled = 0
-        packetsFilled = 0
+        // Move to next buffer and reset fill counters — serialized through bufferQueue
+        // Requirements: 7.1, 7.3
+        let nextBufferInUse = bufferQueue.sync { () -> Bool in
+            fillBufferIndex = (fillBufferIndex + 1) % bufferCount
+            bytesFilled = 0
+            packetsFilled = 0
+            return bufferInUse[Int(fillBufferIndex)]
+        }
         
         // Check if stream ended
         if queuedPackets.isEmpty && CFReadStreamGetStatus(stream) == .atEnd {
@@ -1640,7 +1894,7 @@ private extension AudioStreamer {
         }
         
         // Check if next buffer is available
-        if bufferInUse[Int(fillBufferIndex)] {
+        if nextBufferInUse {
             if !bufferInfinite {
                 CFReadStreamUnscheduleFromRunLoop(stream, CFRunLoopGetMain(), CFRunLoopMode.commonModes)
                 isUnscheduled = true
@@ -1660,44 +1914,67 @@ private extension AudioStreamer {
         
         // Find which buffer was freed
         guard let index = buffers.firstIndex(where: { $0 == buffer }) else { return }
-        guard bufferInUse[index] else { return }
         
-        // Mark buffer as free
-        bufferInUse[index] = false
-        if buffersUsed > 0 {
-            buffersUsed -= 1
-        }
-        
-        if case .stopped = state {
-            return
-        }
-        
-        // Check if stream ended and no more data
-        if buffersUsed == 0 && queuedPackets.isEmpty {
-            if let stream = stream, CFReadStreamGetStatus(stream) == .atEnd {
-                // Use true for asynchronous stop - this allows remaining buffers to finish
-                // and triggers the property change callback
-                AudioQueueStop(audioQueue!, true)
+        // Serialize all buffer state mutations through bufferQueue.
+        // handleBufferComplete is called from AudioQueue's internal thread,
+        // so we dispatch async to avoid blocking the audio callback.
+        // Requirements: 7.1, 7.2, 7.4
+        bufferQueue.async { [weak self] in
+            guard let self = self else { return }
+            
+            // Guard against accessing cleared arrays after stop()
+            guard index < self.bufferInUse.count else {
+                print("🔽 [Buffer] ignoring completion for buffer \(index) — arrays already cleared")
                 return
             }
-        }
-        
-        // TODO: Re-enable proactive reconnect once reactive retry is proven stable.
-        // The proactive approach needs better stall detection to avoid false triggers
-        // during normal buffer fluctuations at song start.
-        // checkBufferHealth()
-        
-        // If we were waiting for a buffer, process cached data
-        if waitingOnBuffer {
-            waitingOnBuffer = false
-            DispatchQueue.main.async { [weak self] in
-                self?.enqueueCachedData()
+            
+            guard self.bufferInUse[index] else { return }
+            
+            // Mark buffer as free
+            self.bufferInUse[index] = false
+            let oldBuffersUsed = self.buffersUsed
+            self.buffersUsed = max(0, self.buffersUsed - 1)
+            
+            if oldBuffersUsed != self.buffersUsed {
+                let ts = String(format: "%.3f", Date().timeIntervalSince1970.truncatingRemainder(dividingBy: 1000))
+                print("🔽 [\(ts)] buffer \(index) freed | \(self.buffersUsed)/\(self.bufferCount) (\(Int(Double(self.buffersUsed)/Double(self.bufferCount)*100))%) | \(self.state)")
+            }
+            
+            if case .stopped = self.state {
+                return
+            }
+            
+            // Check if stream ended and no more data
+            if self.buffersUsed == 0 && self.queuedPackets.isEmpty {
+                if let stream = self.stream, CFReadStreamGetStatus(stream) == .atEnd {
+                    // Use true for asynchronous stop - this allows remaining buffers to finish
+                    // and triggers the property change callback
+                    AudioQueueStop(self.audioQueue!, true)
+                    return
+                }
+            }
+            
+            // Proactive stall detection: evaluate buffer health and trigger
+            // in-place reconnect if buffers are draining with no data incoming.
+            // Requirements: 3.1, 3.2, 3.3, 3.4
+            self.checkBufferHealth()
+            
+            // If we were waiting for a buffer, process cached data
+            if self.waitingOnBuffer {
+                self.waitingOnBuffer = false
+                DispatchQueue.main.async { [weak self] in
+                    self?.enqueueCachedData()
+                }
             }
         }
     }
     
     func enqueueCachedData() {
-        guard !isDone, !waitingOnBuffer, !bufferInUse[Int(fillBufferIndex)], stream != nil else { return }
+        // Read buffer state through bufferQueue for thread safety
+        let canProceed = bufferQueue.sync {
+            !bufferInUse[Int(fillBufferIndex)]
+        }
+        guard !isDone, !waitingOnBuffer, canProceed, stream != nil else { return }
         
         // Process queued packets
         while !queuedPackets.isEmpty {
@@ -1736,11 +2013,29 @@ private extension AudioStreamer {
         var size = UInt32(MemoryLayout<UInt32>.size)
         let status = AudioQueueGetProperty(audioQueue, kAudioQueueProperty_IsRunning, &isRunning, &size)
         
+        print("🔊 [\(ts)] isRunning=\(isRunning) | \(state) | seeking=\(isSeeking) | reconnect=\(reconnectAttempts)")
+        
+        // During reconnect recovery, ignore isRunning changes entirely.
+        // The enqueueBuffer method handles all queue start/restart logic.
+        if reconnectAttempts > 0 {
+            if status == noErr && isRunning == 0 {
+                // Queue stopped during recovery — trigger another reconnect
+                print("🔄 [\(ts)] queue stopped during recovery, reconnect \(reconnectAttempts + 1)/\(maxReconnectAttempts)")
+                attemptInPlaceReconnect()
+            }
+            return
+        }
+        
         if case .waitingForQueueToStart = state {
             if status == noErr && isRunning != 0 {
                 setState(.playing)
             }
         } else if status == noErr && isRunning == 0 && !isSeeking {
+            if case .rebuffering = state {
+                print("🔊 [\(ts)] stopped during rebuffering — waiting")
+                return
+            }
+            print("🔊 [\(ts)] stopped → done(endOfFile) | \(state)")
             setState(.done(reason: .endOfFile))
         }
     }

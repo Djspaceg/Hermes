@@ -18,6 +18,7 @@ import Foundation
 /// - `waitingForQueueToStart`: Audio data received, waiting for AudioQueue to begin playback
 /// - `playing`: Actively playing audio
 /// - `paused`: Playback paused by user
+/// - `rebuffering`: Reconnecting HTTP stream while AudioQueue continues playing from existing buffers
 /// - `done`: Streaming completed (with reason)
 /// - `stopped`: Streaming stopped by user or error
 public enum AudioStreamerState: Equatable {
@@ -35,6 +36,9 @@ public enum AudioStreamerState: Equatable {
     
     /// Playback paused by user
     case paused
+    
+    /// Reconnecting HTTP stream; AudioQueue continues playing from existing buffers
+    case rebuffering
     
     /// Streaming completed with a specific reason
     case done(reason: DoneReason)
@@ -72,7 +76,7 @@ public enum AudioStreamerState: Equatable {
         switch self {
         case .done, .stopped:
             return true
-        default:
+        case .initialized, .waitingForData, .waitingForQueueToStart, .playing, .paused, .rebuffering:
             return false
         }
     }
@@ -82,7 +86,17 @@ public enum AudioStreamerState: Equatable {
         switch self {
         case .waitingForData, .waitingForQueueToStart:
             return true
-        default:
+        case .initialized, .playing, .paused, .rebuffering, .done, .stopped:
+            return false
+        }
+    }
+    
+    /// Returns true if the streamer is reconnecting the HTTP stream
+    public var isRebuffering: Bool {
+        switch self {
+        case .rebuffering:
+            return true
+        case .initialized, .waitingForData, .waitingForQueueToStart, .playing, .paused, .done, .stopped:
             return false
         }
     }

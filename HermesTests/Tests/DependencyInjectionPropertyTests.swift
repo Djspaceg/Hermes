@@ -311,7 +311,7 @@ final class BackwardCompatibilityPropertyTests: XCTestCase {
             mock.isAuthenticatedValue = Bool.random()
             
             // Create ViewModels with explicit injection
-            let loginVM = LoginViewModel(pandora: mock)
+            let loginVM = LoginViewModel(pandora: mock, persistCredentials: false)
             let stationsVM = StationsViewModel(pandora: mock)
             
             // Verify ViewModels use the injected mock
@@ -389,7 +389,7 @@ final class BackwardCompatibilityPropertyTests: XCTestCase {
             let pandora: PandoraProtocol = MockPandora()
             
             // Verify it can be used wherever PandoraProtocol is expected
-            let loginVM = LoginViewModel(pandora: pandora)
+            let loginVM = LoginViewModel(pandora: pandora, persistCredentials: false)
             let stationsVM = StationsViewModel(pandora: pandora)
             let appState = AppState.test(pandora: pandora)
             
@@ -491,7 +491,7 @@ final class BackwardCompatibilityPropertyTests: XCTestCase {
             )
             
             // Create ViewModels
-            let _ = LoginViewModel(pandora: mock)
+            let _ = LoginViewModel(pandora: mock, persistCredentials: false)
             
             // LoginViewModel initialization should not make any Pandora calls
             XCTAssertEqual(

@@ -52,6 +52,11 @@ final class LoginViewModel {
     @ObservationIgnored
     private let pandora: PandoraProtocol
     
+    /// Whether to persist credentials to UserDefaults/Keychain.
+    /// Set to false during testing to prevent test data from polluting real storage.
+    @ObservationIgnored
+    private let persistCredentials: Bool
+    
     // MARK: - Computed Properties
     
     var isValidEmail: Bool {
@@ -68,10 +73,15 @@ final class LoginViewModel {
     
     /// Initializes the LoginViewModel with a Pandora implementation
     ///
-    /// - Parameter pandora: The PandoraProtocol implementation to use.
-    ///   Defaults to AppState.shared.pandora for production use.
-    init(pandora: PandoraProtocol = AppState.shared.pandora) {
+    /// - Parameters:
+    ///   - pandora: The PandoraProtocol implementation to use.
+    ///     Defaults to AppState.shared.pandora for production use.
+    ///   - persistCredentials: Whether to save credentials to UserDefaults/Keychain.
+    ///     Defaults to true for production. Pass false during testing to prevent
+    ///     test data from polluting real storage.
+    init(pandora: PandoraProtocol = AppState.shared.pandora, persistCredentials: Bool = true) {
         self.pandora = pandora
+        self.persistCredentials = persistCredentials
     }
     
     // MARK: - Public Methods
@@ -82,9 +92,13 @@ final class LoginViewModel {
         isLoading = true
         errorMessage = nil
         
-        // Save credentials
-        UserDefaults.standard.set(username, forKey: UserDefaultsKeys.username)
-        try? KeychainManager.shared.saveCredentials(username: username, password: password)
+        // Save credentials only in production mode.
+        // When persistCredentials is false (test mode), skip real storage
+        // to prevent test data from polluting UserDefaults and Keychain.
+        if persistCredentials {
+            UserDefaults.standard.set(username, forKey: UserDefaultsKeys.username)
+            try? KeychainManager.shared.saveCredentials(username: username, password: password)
+        }
         
         // Use the synchronous protocol method
         let success = pandora.authenticate(username, password: password, request: nil)

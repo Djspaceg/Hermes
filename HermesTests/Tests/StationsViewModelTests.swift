@@ -13,368 +13,275 @@ final class StationsViewModelTests: XCTestCase {
     
     var sut: StationsViewModel!
     var mockPandora: MockPandora!
+    var testDefaults: UserDefaults!
     
     override func setUp() async throws {
         try await super.setUp()
-        // Use MockPandora to avoid any side effects (keychain, network, UserDefaults)
         mockPandora = MockPandora()
-        sut = StationsViewModel(pandora: mockPandora)
+        testDefaults = UserDefaults(suiteName: "com.hermes.tests.stations.\(UUID().uuidString)")!
+        sut = StationsViewModel(pandora: mockPandora, userDefaults: testDefaults)
     }
     
     override func tearDown() async throws {
-        // Clean up UserDefaults to prevent test pollution
-        UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStation)
         sut = nil
         mockPandora = nil
+        testDefaults = nil
         try await super.tearDown()
     }
     
     // MARK: - Initialization Tests
     
     func testInitialization_LoadsStations() {
-        // Then
         XCTAssertNotNil(sut.stations, "Stations should be initialized")
         XCTAssertEqual(sut.stations.count, 0, "Should start with empty stations")
     }
     
-    // MARK: - Station Loading Tests (from StationsController stationsLoaded:)
+    // MARK: - Station Loading Tests
     
     func testLoadStations_PopulatesArray() {
-        // Given
         let station1 = createMockStation(name: "Rock Station", id: "rock123")
         let station2 = createMockStation(name: "Jazz Station", id: "jazz456")
-        
-        // Manually set stations for testing
         sut.stations = [station1, station2]
         
-        // Then
         XCTAssertEqual(sut.stations.count, 2)
         XCTAssertEqual(sut.stations[0].name, "Rock Station")
         XCTAssertEqual(sut.stations[1].name, "Jazz Station")
     }
     
-    // MARK: - Sorting Tests (from StationsController sortStations)
+    // MARK: - Sorting Tests
     
     func testSorting_ByName() {
-        // Given
         let stationC = createMockStation(name: "Charlie Station", id: "c")
         let stationA = createMockStation(name: "Alpha Station", id: "a")
         let stationB = createMockStation(name: "Bravo Station", id: "b")
         sut.stations = [stationC, stationA, stationB]
         
-        // When
         let sorted = sut.sortedStations(by: .name)
         
-        // Then
         XCTAssertEqual(sorted[0].name, "Alpha Station")
         XCTAssertEqual(sorted[1].name, "Bravo Station")
         XCTAssertEqual(sorted[2].name, "Charlie Station")
     }
     
     func testSorting_ByDateCreated() {
-        // Given
         let now = UInt64(Date().timeIntervalSince1970)
         let station1 = createMockStation(name: "Newest", id: "1", created: now)
         let station2 = createMockStation(name: "Middle", id: "2", created: now - 86400)
         let station3 = createMockStation(name: "Oldest", id: "3", created: now - 172800)
         sut.stations = [station2, station3, station1]
         
-        // When
         let sorted = sut.sortedStations(by: .dateCreated)
         
-        // Then
         XCTAssertEqual(sorted[0].name, "Newest", "Most recent should be first")
         XCTAssertEqual(sorted[1].name, "Middle")
         XCTAssertEqual(sorted[2].name, "Oldest")
     }
     
     func testSorting_ByRecentlyPlayed() {
-        // Given
         let now = Date().timeIntervalSince1970
         let station1 = createMockStation(name: "Played Today", id: "1")
         station1.lastPlayedTimestamp = now
-        
         let station2 = createMockStation(name: "Played Yesterday", id: "2")
         station2.lastPlayedTimestamp = now - 86400
-        
         let station3 = createMockStation(name: "Never Played", id: "3")
         station3.lastPlayedTimestamp = nil
-        
         sut.stations = [station3, station2, station1]
         
-        // When
         let sorted = sut.sortedStations(by: .recentlyPlayed)
         
-        // Then
         XCTAssertEqual(sorted[0].name, "Played Today", "Most recently played should be first")
         XCTAssertEqual(sorted[1].name, "Played Yesterday")
         XCTAssertEqual(sorted[2].name, "Never Played", "Never played stations should be last")
     }
     
-    // MARK: - Search Tests (from StationsController search:)
+    // MARK: - Search Tests
     
     func testSearch_FiltersStations() {
-        // Given
         let rock = createMockStation(name: "Rock Station", id: "1")
         let jazz = createMockStation(name: "Jazz Station", id: "2")
         let rockClassic = createMockStation(name: "Classic Rock", id: "3")
         sut.stations = [rock, jazz, rockClassic]
         
-        // When
         sut.searchText = "rock"
         let filtered = sut.sortedStations(by: .name)
         
-        // Then
         XCTAssertEqual(filtered.count, 2, "Should find 2 stations with 'rock'")
         XCTAssertTrue(filtered.contains { $0.name == "Rock Station" })
         XCTAssertTrue(filtered.contains { $0.name == "Classic Rock" })
     }
     
     func testSearch_CaseInsensitive() {
-        // Given
         let station = createMockStation(name: "Rock Station", id: "1")
         sut.stations = [station]
         
-        // When
         sut.searchText = "ROCK"
         let filtered = sut.sortedStations(by: .name)
         
-        // Then
         XCTAssertEqual(filtered.count, 1, "Search should be case-insensitive")
     }
     
     func testSearch_EmptyString_ReturnsAll() {
-        // Given
         let station1 = createMockStation(name: "Station 1", id: "1")
         let station2 = createMockStation(name: "Station 2", id: "2")
         sut.stations = [station1, station2]
         
-        // When
         sut.searchText = ""
         let filtered = sut.sortedStations(by: .name)
         
-        // Then
         XCTAssertEqual(filtered.count, 2, "Empty search should return all")
     }
     
-    // MARK: - Play Station Tests (from StationsController playSelected:)
+    // MARK: - Play Station Tests
     
     func testPlayStation_SetsPlayingStationId() {
-        // Given
         let station = createMockStation(name: "Test Station", id: "test123")
-        
-        // When - Manually set playingStationId (simulating successful play)
-        // Note: We don't call playStation() to avoid triggering real PlaybackController
-        // which would save to UserDefaults
         sut.playingStationId = station.id
-        
-        // Then
         XCTAssertEqual(sut.playingStationId, "test123")
     }
     
-    // MARK: - Delete Station Tests (from StationsController deleteSelected:)
+    // MARK: - Delete Station Tests
     
     func testDeleteStation_RemovesFromList() {
-        // Given
         let station1 = createMockStation(name: "Keep", id: "keep")
         let station2 = createMockStation(name: "Delete", id: "delete")
         sut.stations = [station1, station2]
         
-        // When
-        let toDelete = sut.stations.first { $0.id == "delete" }!
-        
-        // Manually remove from array (simulating successful deletion)
         sut.stations.removeAll { $0.id == "delete" }
         
-        // Then
         XCTAssertEqual(sut.stations.count, 1)
         XCTAssertEqual(sut.stations[0].id, "keep")
     }
     
     func testConfirmDeleteStation_SetsState() {
-        // Given
         let station = createMockStation(name: "Test", id: "test")
-        
-        // When
         sut.confirmDeleteStation(station)
         
-        // Then
         XCTAssertNotNil(sut.stationToDelete)
         XCTAssertEqual(sut.stationToDelete?.id, "test")
         XCTAssertTrue(sut.showDeleteConfirmation)
     }
     
     func testPerformDeleteStation_DeletesAndClearsState() {
-        // Given
         let station = createMockStation(name: "Test", id: "test")
         sut.stations = [station]
         sut.stationToDelete = sut.stations[0]
         
-        // When - Manually simulate deletion
         if let toDelete = sut.stationToDelete {
             sut.stations.removeAll { $0.id == toDelete.id }
             sut.stationToDelete = nil
         }
         
-        // Then
         XCTAssertEqual(sut.stations.count, 0)
         XCTAssertNil(sut.stationToDelete)
     }
     
-    // MARK: - Rename Station Tests (from StationsController renameStation:)
+    // MARK: - Rename Station Tests
     
     func testRenameStation_UpdatesName() {
-        // Given
         let station = createMockStation(name: "Old Name", id: "test")
         sut.stations = [station]
-        
-        // When - Manually update name (simulating successful rename)
         station.name = "New Name"
-        
-        // Then
         XCTAssertEqual(station.name, "New Name")
     }
     
     func testStartRenameStation_SetsState() {
-        // Given
         let station = createMockStation(name: "Test Station", id: "test")
-        
-        // When
         sut.startRenameStation(station)
         
-        // Then
         XCTAssertNotNil(sut.stationToRename)
         XCTAssertEqual(sut.newStationName, "Test Station")
         XCTAssertTrue(sut.showRenameDialog)
     }
     
     func testPerformRenameStation_RenamesAndClearsState() {
-        // Given
         let station = createMockStation(name: "Old Name", id: "test")
         sut.stations = [station]
         sut.stationToRename = station
         sut.newStationName = "New Name"
         
-        // When - Manually simulate rename
         if let toRename = sut.stationToRename {
             toRename.name = sut.newStationName
             sut.stationToRename = nil
             sut.newStationName = ""
         }
         
-        // Then
         XCTAssertEqual(station.name, "New Name")
         XCTAssertNil(sut.stationToRename)
         XCTAssertEqual(sut.newStationName, "")
     }
     
-    // MARK: - Refresh Tests (from StationsController refreshList:)
+    // MARK: - Refresh Tests
     
     func testRefreshStations_SetsLoadingState() async {
-        // When
-        let task = Task {
-            await sut.refreshStations()
-        }
-        
-        // Then
-        try? await Task.sleep(nanoseconds: 10_000_000) // 0.01 seconds
+        let task = Task { await sut.refreshStations() }
+        try? await Task.sleep(nanoseconds: 10_000_000)
         XCTAssertTrue(sut.isRefreshing, "Should be refreshing")
-        
         await task.value
     }
     
     func testRefreshStations_CompletesSuccessfully() async {
-        // Given - Set initial state
-        XCTAssertFalse(sut.isRefreshing, "Should not be refreshing initially")
-        
-        // When - Manually toggle refresh state (simulating refresh cycle)
+        XCTAssertFalse(sut.isRefreshing)
         sut.isRefreshing = true
-        XCTAssertTrue(sut.isRefreshing, "Should be refreshing")
-        
+        XCTAssertTrue(sut.isRefreshing)
         sut.isRefreshing = false
-        
-        // Then - Verify refresh completed
         XCTAssertFalse(sut.isRefreshing, "Should complete refresh")
     }
     
-    // MARK: - Last Station Restoration Tests (from StationsController playSavedStation)
+    // MARK: - Last Station Restoration Tests
     
     func testRestoreLastStation_LoadsFromUserDefaults() {
-        // Given
         let station = createMockStation(name: "Last Played", id: "last123")
         sut.stations = [station]
-        UserDefaults.standard.set("last123", forKey: UserDefaultsKeys.lastStation)
+        testDefaults.set("last123", forKey: UserDefaultsKeys.lastStation)
         
-        // When - Manually restore from UserDefaults (simulating the restoration logic)
-        if let lastStationId = UserDefaults.standard.string(forKey: UserDefaultsKeys.lastStation),
+        if let lastStationId = testDefaults.string(forKey: UserDefaultsKeys.lastStation),
            sut.stations.contains(where: { $0.id == lastStationId }) {
             sut.selectedStationId = lastStationId
         }
         
-        // Then
         XCTAssertEqual(sut.selectedStationId, "last123")
     }
     
     func testRestoreLastStation_OnlyRunsOnce() {
-        // Given
         let station = createMockStation(name: "Last Played", id: "last123")
         sut.stations = [station]
-        UserDefaults.standard.set("last123", forKey: UserDefaultsKeys.lastStation)
+        testDefaults.set("last123", forKey: UserDefaultsKeys.lastStation)
         
-        // When - Post notification twice
         NotificationCenter.default.post(name: Notification.Name("hermes.stations"), object: nil)
-        sut.selectedStationId = nil // Clear selection
+        sut.selectedStationId = nil
         NotificationCenter.default.post(name: Notification.Name("hermes.stations"), object: nil)
         
-        // Then - Should not restore again
         XCTAssertNil(sut.selectedStationId, "Should only restore once")
     }
     
-    // MARK: - Edit Station Tests
+    // MARK: - Edit / Add Station Tests
     
     func testEditStation_SetsState() {
-        // Given
         let station = createMockStation(name: "Test", id: "test")
-        
-        // When
         sut.editStation(station)
         
-        // Then
         XCTAssertNotNil(sut.stationToEdit)
         XCTAssertEqual(sut.stationToEdit?.id, "test")
     }
     
-    // MARK: - Add Station Tests
-    
     func testShowAddStation_SetsState() {
-        // When
         sut.showAddStation()
-        
-        // Then
         XCTAssertTrue(sut.showAddStationSheet)
     }
     
     // MARK: - Timestamp Persistence Tests
     
     func testLoadStations_RestoresTimestampsFromUserDefaults() {
-        // Given
         let station1 = createMockStation(name: "Station 1", id: "id1")
         let station2 = createMockStation(name: "Station 2", id: "id2")
         
-        let timestamp1 = Date().timeIntervalSince1970 - 3600 // 1 hour ago
-        let timestamp2 = Date().timeIntervalSince1970 - 7200 // 2 hours ago
+        let timestamp1 = Date().timeIntervalSince1970 - 3600
+        let timestamp2 = Date().timeIntervalSince1970 - 7200
+        let timestamps: [String: TimeInterval] = ["id1": timestamp1, "id2": timestamp2]
+        testDefaults.set(timestamps, forKey: UserDefaultsKeys.stationPlayTimestamps)
         
-        // Save timestamps to UserDefaults
-        let timestamps: [String: TimeInterval] = [
-            "id1": timestamp1,
-            "id2": timestamp2
-        ]
-        UserDefaults.standard.set(timestamps, forKey: UserDefaultsKeys.stationPlayTimestamps)
-        
-        // When
         sut.stations = [station1, station2]
-        // Manually call loadStations logic
-        if let savedTimestamps = UserDefaults.standard.dictionary(forKey: UserDefaultsKeys.stationPlayTimestamps) as? [String: TimeInterval] {
+        if let savedTimestamps = testDefaults.dictionary(forKey: UserDefaultsKeys.stationPlayTimestamps) as? [String: TimeInterval] {
             for station in sut.stations {
                 if let timestamp = savedTimestamps[station.stationId] {
                     station.lastPlayedTimestamp = timestamp
@@ -382,14 +289,10 @@ final class StationsViewModelTests: XCTestCase {
             }
         }
         
-        // Then
         XCTAssertNotNil(station1.lastPlayedTimestamp)
         XCTAssertNotNil(station2.lastPlayedTimestamp)
         XCTAssertEqual(station1.lastPlayedTimestamp!, timestamp1, accuracy: 0.001)
         XCTAssertEqual(station2.lastPlayedTimestamp!, timestamp2, accuracy: 0.001)
-        
-        // Cleanup
-        UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.stationPlayTimestamps)
     }
     
     // MARK: - Helper Methods
@@ -406,7 +309,3 @@ final class StationsViewModelTests: XCTestCase {
         return station
     }
 }
-
-// Note: Tests use real Pandora instance and focus on state management
-// and UI logic rather than API integration. Full API testing requires
-// integration tests with real Pandora credentials.

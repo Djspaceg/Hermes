@@ -104,6 +104,8 @@ final class PlaybackController: ObservableObject {
     private var progressUpdateTimer: Timer?
     private var scrobbleSent: Bool = false
     private var lastImgSrc: String?
+    private var networkRecoveryCancellable: AnyCancellable?
+    private var wasPlayingBeforeNetworkLoss: Bool = false
     
     // MARK: - Initialization
     
@@ -114,6 +116,8 @@ final class PlaybackController: ObservableObject {
         let saved = userDefaults.integer(forKey: UserDefaultsKeys.volume)
         self.volume = saved == 0 ? 100 : saved
         
+        setupNetworkRecovery()
+        
         logger.info("PlaybackController initialized")
     }
     
@@ -121,6 +125,7 @@ final class PlaybackController: ObservableObject {
         NotificationCenter.default.removeObserver(self)
         DistributedNotificationCenter.default().removeObserver(self)
         progressUpdateTimer?.invalidate()
+        networkRecoveryCancellable?.cancel()
     }
 }
 
@@ -241,6 +246,44 @@ extension PlaybackController {
     func prepareFirst() {
         // Volume is now loaded in init
         logger.debug("prepareFirst called (volume already loaded)")
+    }
+}
+
+// MARK: - Network Recovery
+
+private extension PlaybackController {
+    
+    /// Watches for network connectivity restoration and automatically resumes playback
+    func setupNetworkRecovery() {
+        networkRecoveryCancellable = NetworkMonitor.shared.reachabilityPublisher
+            .removeDuplicates()
+            .sink { [weak self] isConnected in
+                guard let self = self else { return }
+                
+                if !isConnected {
+                    // Network went down — remember if we were playing
+                    if self.playing?.isPlaying() == true || self.playing?.isPaused() == false {
+                        self.wasPlayingBeforeNetworkLoss = true
+                        print("📡 [Network] connectivity lost while playing")
+                    }
+                } else if self.wasPlayingBeforeNetworkLoss {
+                    // Network restored — retry the current station
+                    self.wasPlayingBeforeNetworkLoss = false
+                    print("📡 [Network] connectivity restored, resuming playback")
+                    
+                    if let station = self.playing {
+                        // Small delay to let the network stabilize
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                            guard let self = self else { return }
+                            // Only retry if still not playing
+                            if station.isIdle() || station.isError() {
+                                print("📡 [Network] retrying station '\(station.name)'")
+                                station.retry()
+                            }
+                        }
+                    }
+                }
+            }
     }
 }
 

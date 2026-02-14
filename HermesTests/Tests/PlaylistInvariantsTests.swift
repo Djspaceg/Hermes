@@ -44,18 +44,24 @@ final class PlaylistInvariantsTests: XCTestCase {
         
         wait(for: [noSongsExpectation], timeout: 1.0)
         
-        // Test case 2: Playlist with one song should post noSongsLeft after next()
+        // Test case 2: Playlist with one song — next() starts playing it (dequeues),
+        // then a second next() should post noSongsLeft because the queue is empty.
         let singleSongPlaylist = Playlist()
         let testURL1 = URL(string: "http://example.com/song1.mp3")!
         singleSongPlaylist.addSong(testURL1, play: false)
         
         XCTAssertEqual(singleSongPlaylist.urlCount, 1, "Should have 1 song in queue")
         
+        // First next() dequeues the song and starts playing it
+        let attemptingExpectation1 = expectation(forNotification: ASAttemptingNewSong, object: singleSongPlaylist)
+        singleSongPlaylist.next()
+        wait(for: [attemptingExpectation1], timeout: 1.0)
+        XCTAssertEqual(singleSongPlaylist.urlCount, 0, "Queue should be empty after next()")
+        
+        // Second next() finds an empty queue and posts noSongsLeft
         let noSongsAfterNextExpectation = expectation(forNotification: ASNoSongsLeft, object: singleSongPlaylist)
         singleSongPlaylist.next()
-        
         wait(for: [noSongsAfterNextExpectation], timeout: 1.0)
-        XCTAssertEqual(singleSongPlaylist.urlCount, 0, "Queue should be empty after next()")
         
         // Test case 3: Playlist with multiple songs should advance
         let multiSongPlaylist = Playlist()

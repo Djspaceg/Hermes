@@ -298,8 +298,8 @@ final class AudioStreamerCoreTests: XCTestCase {
     /// Test that constants have expected values
     func testConstants() throws {
         XCTAssertEqual(kAQMaxPacketDescs, 512, "kAQMaxPacketDescs should be 512")
-        XCTAssertEqual(kDefaultNumAQBufs, 16, "kDefaultNumAQBufs should be 16")
-        XCTAssertEqual(kDefaultAQDefaultBufSize, 2048, "kDefaultAQDefaultBufSize should be 2048")
+        XCTAssertEqual(kDefaultNumAQBufs, 32, "kDefaultNumAQBufs should be 32")
+        XCTAssertEqual(kDefaultAQDefaultBufSize, 4096, "kDefaultAQDefaultBufSize should be 4096")
         XCTAssertEqual(kBitRateEstimationMinPackets, 50, "kBitRateEstimationMinPackets should be 50")
     }
 }

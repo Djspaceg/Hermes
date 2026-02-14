@@ -151,7 +151,7 @@ final class AppState {
         self.pandora = pandora
         
         // Initialize view models with injected dependency
-        self.loginViewModel = LoginViewModel(pandora: pandora)
+        self.loginViewModel = LoginViewModel(pandora: pandora, persistCredentials: !skipCredentialCheck)
         self.playerViewModel = PlayerViewModel()
         self.stationsViewModel = StationsViewModel(pandora: pandora)
         self.historyViewModel = HistoryViewModel()

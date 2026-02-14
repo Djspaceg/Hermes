@@ -88,7 +88,6 @@ struct ContentView: View {
                             onBackgroundTap: { openWindow(id: WindowID.artworkPreview) }
                         )
                         .navigationTitle("")
-                        .toolbarTitleDisplayMode(.inline)
                         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
                     }
                     .navigationSplitViewStyle(.balanced)

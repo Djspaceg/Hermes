@@ -39,6 +39,7 @@ struct HermesApp: App {
         }
         .defaultSize(width: 900, height: 600)
         .defaultPosition(.center)
+        .windowStyle(.hiddenTitleBar)
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("New Station...") {

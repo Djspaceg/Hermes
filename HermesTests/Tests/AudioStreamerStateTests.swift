@@ -53,6 +53,7 @@ final class AudioStreamerStateTests: XCTestCase {
             .waitingForQueueToStart,
             .playing,
             .paused,
+            .rebuffering,
             .done(reason: .endOfFile),
             .stopped
         ]
@@ -125,20 +126,21 @@ final class AudioStreamerStateTests: XCTestCase {
     /// Property test: State query methods consistency
     /// Tests that state query methods (isPlaying, isPaused, etc.) are consistent with state
     func testStateQueryMethodsConsistency() throws {
-        let testCases: [(AudioStreamerState, Bool, Bool, Bool, Bool)] = [
-            // (state, isPlaying, isPaused, isWaiting, isDone)
-            (.initialized, false, false, false, false),
-            (.waitingForData, false, false, true, false),
-            (.waitingForQueueToStart, false, false, true, false),
-            (.playing, true, false, false, false),
-            (.paused, false, true, false, false),
-            (.done(reason: .endOfFile), false, false, false, true),
-            (.done(reason: .stopped), false, false, false, true),
-            (.done(reason: .error(.timeout)), false, false, false, true),
-            (.stopped, false, false, false, true),
+        let testCases: [(AudioStreamerState, Bool, Bool, Bool, Bool, Bool)] = [
+            // (state, isPlaying, isPaused, isWaiting, isDone, isRebuffering)
+            (.initialized, false, false, false, false, false),
+            (.waitingForData, false, false, true, false, false),
+            (.waitingForQueueToStart, false, false, true, false, false),
+            (.playing, true, false, false, false, false),
+            (.paused, false, true, false, false, false),
+            (.rebuffering, false, false, false, false, true),
+            (.done(reason: .endOfFile), false, false, false, true, false),
+            (.done(reason: .stopped), false, false, false, true, false),
+            (.done(reason: .error(.timeout)), false, false, false, true, false),
+            (.stopped, false, false, false, true, false),
         ]
         
-        for (state, expectedIsPlaying, expectedIsPaused, expectedIsWaiting, expectedIsDone) in testCases {
+        for (state, expectedIsPlaying, expectedIsPaused, expectedIsWaiting, expectedIsDone, expectedIsRebuffering) in testCases {
             // Test state properties directly
             XCTAssertEqual(
                 state.isWaiting,
@@ -149,6 +151,11 @@ final class AudioStreamerStateTests: XCTestCase {
                 state.isDone,
                 expectedIsDone,
                 "isDone should be \(expectedIsDone) for state \(state)"
+            )
+            XCTAssertEqual(
+                state.isRebuffering,
+                expectedIsRebuffering,
+                "isRebuffering should be \(expectedIsRebuffering) for state \(state)"
             )
             
             // Test computed properties that check state cases
@@ -164,6 +171,42 @@ final class AudioStreamerStateTests: XCTestCase {
                 isPaused,
                 expectedIsPaused,
                 "isPaused should be \(expectedIsPaused) for state \(state)"
+            )
+        }
+    }
+    
+    /// Tests that isRebuffering returns true only for the rebuffering state
+    /// Rebuffering is not done, not waiting, and is rebuffering
+    /// **Validates: Requirements 2.1**
+    func testRebufferingStateProperties() throws {
+        let rebuffering = AudioStreamerState.rebuffering
+        
+        // Rebuffering IS rebuffering
+        XCTAssertTrue(rebuffering.isRebuffering, "rebuffering state should return true for isRebuffering")
+        
+        // Rebuffering is NOT done
+        XCTAssertFalse(rebuffering.isDone, "rebuffering state should not be done")
+        
+        // Rebuffering is NOT waiting
+        XCTAssertFalse(rebuffering.isWaiting, "rebuffering state should not be waiting")
+        
+        // All other states are NOT rebuffering
+        let nonRebufferingStates: [AudioStreamerState] = [
+            .initialized,
+            .waitingForData,
+            .waitingForQueueToStart,
+            .playing,
+            .paused,
+            .done(reason: .endOfFile),
+            .done(reason: .stopped),
+            .done(reason: .error(.timeout)),
+            .stopped,
+        ]
+        
+        for state in nonRebufferingStates {
+            XCTAssertFalse(
+                state.isRebuffering,
+                "isRebuffering should be false for state \(state)"
             )
         }
     }
@@ -204,7 +247,8 @@ final class AudioStreamerStateTests: XCTestCase {
             .waitingForData,
             .waitingForQueueToStart,
             .playing,
-            .paused
+            .paused,
+            .rebuffering
         ]
         
         for state in nonDoneStates {
@@ -249,6 +293,7 @@ final class AudioStreamerStateTests: XCTestCase {
         XCTAssertEqual(AudioStreamerState.waitingForQueueToStart, .waitingForQueueToStart)
         XCTAssertEqual(AudioStreamerState.playing, .playing)
         XCTAssertEqual(AudioStreamerState.paused, .paused)
+        XCTAssertEqual(AudioStreamerState.rebuffering, .rebuffering)
         XCTAssertEqual(AudioStreamerState.stopped, .stopped)
         
         // Test done state equality with same reason

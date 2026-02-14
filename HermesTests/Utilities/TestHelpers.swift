@@ -50,7 +50,7 @@ extension LoginViewModel {
     /// - Returns: A tuple containing the test LoginViewModel and its MockPandora instance
     static func testInstance() -> (viewModel: LoginViewModel, mockPandora: MockPandora) {
         let mock = MockPandora()
-        let viewModel = LoginViewModel(pandora: mock)
+        let viewModel = LoginViewModel(pandora: mock, persistCredentials: false)
         return (viewModel, mock)
     }
 }
@@ -72,7 +72,8 @@ extension StationsViewModel {
     /// - Returns: A tuple containing the test StationsViewModel and its MockPandora instance
     static func testInstance() -> (viewModel: StationsViewModel, mockPandora: MockPandora) {
         let mock = MockPandora()
-        let viewModel = StationsViewModel(pandora: mock)
+        let testDefaults = UserDefaults(suiteName: "com.hermes.tests.\(UUID().uuidString)")!
+        let viewModel = StationsViewModel(pandora: mock, userDefaults: testDefaults)
         return (viewModel, mock)
     }
     
@@ -83,7 +84,8 @@ extension StationsViewModel {
     static func testInstance(withStations stations: [Station]) -> (viewModel: StationsViewModel, mockPandora: MockPandora) {
         let mock = MockPandora()
         mock.mockStations = stations
-        let viewModel = StationsViewModel(pandora: mock)
+        let testDefaults = UserDefaults(suiteName: "com.hermes.tests.\(UUID().uuidString)")!
+        let viewModel = StationsViewModel(pandora: mock, userDefaults: testDefaults)
         viewModel.stations = stations
         return (viewModel, mock)
     }

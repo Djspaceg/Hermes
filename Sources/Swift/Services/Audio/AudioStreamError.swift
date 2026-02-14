@@ -218,3 +218,18 @@ public enum AudioStreamerError: Error, Equatable, LocalizedError {
         }
     }
 }
+
+// MARK: - Retriable Classification
+
+extension AudioStreamerError {
+    /// Whether this error is potentially retriable at the stream level
+    var isRetriable: Bool {
+        switch self {
+        case .networkConnectionFailed, .timeout:
+            return true
+        default:
+            return false
+        }
+    }
+}
+
