@@ -29,6 +29,9 @@ import Combine
         
         MinimalAppDelegate.shared = self
         
+        // Register defaults FIRST so all settings have correct values before any setup reads them
+        registerDefaults()
+        
         // Create PlaybackController
         print("MinimalAppDelegate: Creating PlaybackController...")
         playbackController = PlaybackController()
@@ -41,9 +44,6 @@ import Combine
         
         // Set up notification observers for Pandora API callbacks
         setupNotificationObservers()
-        
-        // Register default preferences
-        registerDefaults()
         
         // Initialize media key handler
         setupMediaKeys()

@@ -74,9 +74,10 @@ final class StationEditViewModel: StationEditViewModelProtocol {
     
     // MARK: - Initialization
     
-    init(station: Station, pandora: PandoraProtocol = AppState.shared.pandora) {
+    @MainActor
+    init(station: Station, pandora: PandoraProtocol? = nil) {
         self.station = station
-        self.pandora = pandora
+        self.pandora = pandora ?? AppState.shared.pandora
         self.stationName = station.name ?? ""
         setupSeedSearchDebounce()
         setupNotificationObservers()

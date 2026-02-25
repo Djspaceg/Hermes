@@ -18,7 +18,6 @@
 		45E083D7892741638D71D5A7 /* PandoraModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A0035B3D8264B15AA05105B /* PandoraModels.swift */; };
 		63198A802F327F7B0045FCD6 /* PandoraCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63198A7E2F327F7B0045FCD6 /* PandoraCrypto.swift */; };
 		63198A812F327F7B0045FCD6 /* PandoraClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63198A7D2F327F7B0045FCD6 /* PandoraClient.swift */; };
-		63198B472F3402C80045FCD6 /* UserDefaultsKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63198B462F3402C80045FCD6 /* UserDefaultsKeys.swift */; };
 		632471052F3513490024D803 /* VolumeControlView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632471032F3513490024D803 /* VolumeControlView.swift */; };
 		632471062F3513490024D803 /* GlassButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632470FF2F3513490024D803 /* GlassButton.swift */; };
 		632471072F3513490024D803 /* PlaybackControlsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632471002F3513490024D803 /* PlaybackControlsView.swift */; };
@@ -148,7 +147,6 @@
 		5F5C950BC79C4DBAB560C9EE /* PandoraStations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PandoraStations.swift; path = Sources/Swift/Services/Pandora/PandoraStations.swift; sourceTree = SOURCE_ROOT; };
 		63198A7D2F327F7B0045FCD6 /* PandoraClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PandoraClient.swift; sourceTree = "<group>"; };
 		63198A7E2F327F7B0045FCD6 /* PandoraCrypto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PandoraCrypto.swift; sourceTree = "<group>"; };
-		63198B462F3402C80045FCD6 /* UserDefaultsKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsKeys.swift; sourceTree = "<group>"; };
 		632470FE2F3513490024D803 /* AlbumArtworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumArtworkView.swift; sourceTree = "<group>"; };
 		632470FF2F3513490024D803 /* GlassButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassButton.swift; sourceTree = "<group>"; };
 		632471002F3513490024D803 /* PlaybackControlsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackControlsView.swift; sourceTree = "<group>"; };
@@ -357,7 +355,6 @@
 		634D8E5E2F16EE7A0069FD8F /* Utilities */ = {
 			isa = PBXGroup;
 			children = (
-				63198B462F3402C80045FCD6 /* UserDefaultsKeys.swift */,
 				634D8E912F171F060069FD8F /* SettingsManager.swift */,
 				634D8E932F171F070069FD8F /* WindowTracker.swift */,
 				634D8E972F1720000069FD8F /* KeychainManager.swift */,
@@ -648,7 +645,6 @@
 				634D910C2F19BCB10069FD8F /* Song.swift in Sources */,
 				634D910D2F19BCB10069FD8F /* PandoraDevice.swift in Sources */,
 				634D8E7B2F16EE7A0069FD8F /* HistoryViewModel.swift in Sources */,
-				63198B472F3402C80045FCD6 /* UserDefaultsKeys.swift in Sources */,
 				634D8E7C2F16EE7A0069FD8F /* StationsViewModel.swift in Sources */,
 				634D8E7D2F16EE7A0069FD8F /* LoginView.swift in Sources */,
 				634D8E8C2F1718140069FD8F /* StationAddView.swift in Sources */,

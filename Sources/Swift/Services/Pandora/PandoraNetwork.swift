@@ -221,16 +221,20 @@ extension PandoraClient {
     /// - Throws: PandoraError on failure
     func searchAsync(_ query: String) async throws -> [String: [PandoraSearchResult]] {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[String: [PandoraSearchResult]], Error>) in
-            var observer: NSObjectProtocol?
-            var errorObserver: NSObjectProtocol?
+            // Use a class box so mutable observer references are Sendable-safe
+            final class ObserverBox: @unchecked Sendable {
+                var observer: NSObjectProtocol?
+                var errorObserver: NSObjectProtocol?
+            }
+            let box = ObserverBox()
             
-            observer = NotificationCenter.default.addObserver(
+            box.observer = NotificationCenter.default.addObserver(
                 forName: .pandoraDidLoadSearchResults,
                 object: nil,
                 queue: .main
             ) { notification in
-                if let obs = observer { NotificationCenter.default.removeObserver(obs) }
-                if let obs = errorObserver { NotificationCenter.default.removeObserver(obs) }
+                if let obs = box.observer { NotificationCenter.default.removeObserver(obs) }
+                if let obs = box.errorObserver { NotificationCenter.default.removeObserver(obs) }
                 
                 var results: [String: [PandoraSearchResult]] = [:]
                 if let songs = notification.userInfo?["Songs"] as? [PandoraSearchResult] {
@@ -242,21 +246,21 @@ extension PandoraClient {
                 continuation.resume(returning: results)
             }
             
-            errorObserver = NotificationCenter.default.addObserver(
+            box.errorObserver = NotificationCenter.default.addObserver(
                 forName: .pandoraDidError,
                 object: nil,
                 queue: .main
             ) { notification in
-                if let obs = observer { NotificationCenter.default.removeObserver(obs) }
-                if let obs = errorObserver { NotificationCenter.default.removeObserver(obs) }
+                if let obs = box.observer { NotificationCenter.default.removeObserver(obs) }
+                if let obs = box.errorObserver { NotificationCenter.default.removeObserver(obs) }
                 
                 let errorMessage = notification.userInfo?["err"] as? String ?? "Search failed"
                 continuation.resume(throwing: PandoraError.apiError(code: 0, message: errorMessage))
             }
             
             if !self.search(query) {
-                if let obs = observer { NotificationCenter.default.removeObserver(obs) }
-                if let obs = errorObserver { NotificationCenter.default.removeObserver(obs) }
+                if let obs = box.observer { NotificationCenter.default.removeObserver(obs) }
+                if let obs = box.errorObserver { NotificationCenter.default.removeObserver(obs) }
                 continuation.resume(throwing: PandoraError.notAuthenticated)
             }
         }

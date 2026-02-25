@@ -69,18 +69,19 @@ final class StationsViewModel {
     @ObservationIgnored
     private var hasRestoredLastStation = false
     
-    init(pandora: PandoraProtocol = AppState.shared.pandora, userDefaults: UserDefaults = .standard) {
-        self.pandora = pandora
+    @MainActor
+    init(pandora: PandoraProtocol? = nil, userDefaults: UserDefaults = .standard) {
+        self.pandora = pandora ?? AppState.shared.pandora
         self.userDefaults = userDefaults
         
         // Configure artwork loader with Pandora instance (cast to PandoraClient for now)
-        if let pandoraClient = pandora as? PandoraClient {
+        if let pandoraClient = self.pandora as? PandoraClient {
             artworkLoader.configure(with: pandoraClient)
         }
         
         setupNotificationSubscriptions()
         
-        if pandora.isAuthenticated() {
+        if self.pandora.isAuthenticated() {
             loadStations()
             // Restore last played station if stations are already available
             if !stations.isEmpty {

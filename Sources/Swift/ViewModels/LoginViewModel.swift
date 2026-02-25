@@ -79,8 +79,9 @@ final class LoginViewModel {
     ///   - persistCredentials: Whether to save credentials to UserDefaults/Keychain.
     ///     Defaults to true for production. Pass false during testing to prevent
     ///     test data from polluting real storage.
-    init(pandora: PandoraProtocol = AppState.shared.pandora, persistCredentials: Bool = true) {
-        self.pandora = pandora
+    @MainActor
+    init(pandora: PandoraProtocol? = nil, persistCredentials: Bool = true) {
+        self.pandora = pandora ?? AppState.shared.pandora
         self.persistCredentials = persistCredentials
     }
     

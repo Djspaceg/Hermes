@@ -237,7 +237,7 @@ private struct QueuedPacket {
 /// - **AudioQueue**: Manages playback buffers and audio output
 ///
 /// Thread safety is managed via a dedicated DispatchQueue for buffer operations.
-public final class AudioStreamer: AudioStreaming {
+public final class AudioStreamer: NSObject, AudioStreaming {
     
     // MARK: - Public Properties
     
@@ -262,8 +262,14 @@ public final class AudioStreamer: AudioStreaming {
     private var proxyHost: String?
     private var proxyPort: Int?
     
-    // CFReadStream for HTTP
-    private var stream: CFReadStream?
+    // URLSession for HTTP streaming
+    private var urlSession: URLSession?
+    private var dataTask: URLSessionDataTask?
+    // Alias for compatibility with existing code that checks `stream != nil`
+    private var stream: URLSessionDataTask? {
+        get { dataTask }
+        set { dataTask = newValue }
+    }
     
     // Timeout management
     private var timeoutTimer: Timer?
@@ -734,24 +740,8 @@ private extension AudioStreamer {
     func checkTimeout() {
         // Ignore if paused or already rebuffering (reconnect in progress)
         // Requirements: 6.4
-        if case .paused = state {
-            return
-        }
-        if case .rebuffering = state {
-            return
-        }
-        
-        // If unscheduled and not rescheduled, ignore
-        if isUnscheduled && !isRescheduled {
-            return
-        }
-        
-        // If rescheduled after unscheduled, clear flags
-        if isRescheduled && isUnscheduled {
-            isUnscheduled = false
-            isRescheduled = false
-            return
-        }
+        if case .paused = state { return }
+        if case .rebuffering = state { return }
         
         let currentFillRatio = bufferCount > 0 ? Double(buffersUsed) / Double(bufferCount) : 0.0
         
@@ -1056,311 +1046,219 @@ private struct QueuedPacketData {
 
 private extension AudioStreamer {
     
-    /// Opens the HTTP read stream with proxy support
+    /// Opens the HTTP data task using URLSession
     func openReadStream() -> Bool {
-        guard stream == nil else {
-            return false
-        }
+        guard dataTask == nil else { return false }
         
-        // Create HTTP GET request
-        guard let message = CFHTTPMessageCreateRequest(
-            nil,
-            "GET" as CFString,
-            url as CFURL,
-            kCFHTTPVersion1_1
-        ).takeRetainedValue() as CFHTTPMessage? else {
-            failWithError(.networkConnectionFailed(underlyingError: "Failed to create HTTP request"))
-            return false
-        }
-        
-        // Set User-Agent header (required by some servers)
-        CFHTTPMessageSetHeaderFieldValue(
-            message,
-            "User-Agent" as CFString,
-            "Hermes/2.0" as CFString
-        )
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Hermes/2.0", forHTTPHeaderField: "User-Agent")
+        request.timeoutInterval = TimeInterval(timeoutInterval)
         
         // Set Range header for seeking
         if fileLength > 0 && seekByteOffset > 0 {
-            let rangeValue = "bytes=\(seekByteOffset)-\(fileLength - 1)"
-            CFHTTPMessageSetHeaderFieldValue(message, "Range" as CFString, rangeValue as CFString)
+            request.setValue("bytes=\(seekByteOffset)-\(fileLength - 1)", forHTTPHeaderField: "Range")
             isDiscontinuous = true
             seekByteOffset = 0
         }
         
-        // Create read stream for HTTP request
-        stream = CFReadStreamCreateForHTTPRequest(nil, message).takeRetainedValue()
+        // Configure URLSession with proxy if needed
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = TimeInterval(timeoutInterval)
+        config.timeoutIntervalForResource = 3600 // 1 hour max for a stream
         
-        guard let stream = stream else {
-            failWithError(.fileStreamOpenFailed(status: -1))
-            return false
-        }
-        
-        // Enable automatic redirect following
-        CFReadStreamSetProperty(
-            stream,
-            CFStreamPropertyKey(rawValue: kCFStreamPropertyHTTPShouldAutoredirect),
-            kCFBooleanTrue
-        )
-        
-        // Configure proxy
-        configureProxy(for: stream)
-        
-        // Configure SSL for HTTPS
-        if url.absoluteString.hasPrefix("https") {
-            configureSSL(for: stream)
-        }
-        
-        setState(.waitingForData)
-        
-        // Open the stream
-        guard CFReadStreamOpen(stream) else {
-            failWithError(.fileStreamOpenFailed(status: -1))
-            return false
-        }
-        
-        // Set up stream callbacks
-        var clientContext = CFStreamClientContext(
-            version: 0,
-            info: Unmanaged.passUnretained(self).toOpaque(),
-            retain: nil,
-            release: nil,
-            copyDescription: nil
-        )
-        
-        let eventTypes: CFStreamEventType = [
-            .hasBytesAvailable,
-            .errorOccurred,
-            .endEncountered
-        ]
-        
-        CFReadStreamSetClient(stream, eventTypes.rawValue, readStreamCallback, &clientContext)
-        CFReadStreamScheduleWithRunLoop(stream, CFRunLoopGetMain(), CFRunLoopMode.commonModes)
-        
-        return true
-    }
-
-    
-    func configureProxy(for stream: CFReadStream) {
         switch proxyType {
         case .http:
             if let host = proxyHost, let port = proxyPort {
-                let proxySettings: [String: Any] = [
-                    kCFStreamPropertyHTTPProxyHost as String: host,
-                    kCFStreamPropertyHTTPProxyPort as String: port
+                config.connectionProxyDictionary = [
+                    kCFNetworkProxiesHTTPEnable as String: true,
+                    kCFNetworkProxiesHTTPProxy as String: host,
+                    kCFNetworkProxiesHTTPPort as String: port
                 ]
-                CFReadStreamSetProperty(stream, CFStreamPropertyKey(rawValue: kCFStreamPropertyHTTPProxy), proxySettings as CFDictionary)
             }
-            
         case .socks:
             if let host = proxyHost, let port = proxyPort {
-                let proxySettings: [String: Any] = [
-                    kCFStreamPropertySOCKSProxyHost as String: host,
-                    kCFStreamPropertySOCKSProxyPort as String: port
+                config.connectionProxyDictionary = [
+                    kCFNetworkProxiesSOCKSEnable as String: true,
+                    kCFNetworkProxiesSOCKSProxy as String: host,
+                    kCFNetworkProxiesSOCKSPort as String: port
                 ]
-                CFReadStreamSetProperty(stream, CFStreamPropertyKey(rawValue: kCFStreamPropertySOCKSProxy), proxySettings as CFDictionary)
             }
-            
         case .system:
-            if let systemProxySettings = CFNetworkCopySystemProxySettings()?.takeRetainedValue() {
-                CFReadStreamSetProperty(stream, CFStreamPropertyKey(rawValue: kCFStreamPropertyHTTPProxy), systemProxySettings)
-            }
+            break // URLSession uses system proxy by default
         }
-    }
-    
-    func configureSSL(for stream: CFReadStream) {
-        let sslSettings: [String: Any] = [
-            kCFStreamSSLLevel as String: kCFStreamSocketSecurityLevelNegotiatedSSL,
-            kCFStreamSSLValidatesCertificateChain as String: true
-        ]
-        CFReadStreamSetProperty(stream, CFStreamPropertyKey(rawValue: kCFStreamPropertySSLSettings), sslSettings as CFDictionary)
+        
+        let session = URLSession(configuration: config, delegate: self, delegateQueue: .main)
+        urlSession = session
+        
+        let task = session.dataTask(with: request)
+        dataTask = task
+        
+        setState(.waitingForData)
+        task.resume()
+        
+        return true
     }
     
     func closeReadStream() {
         waitingOnBuffer = false
         queuedPackets.removeAll()
         
-        if let stream = stream {
-            // Unregister callbacks and unschedule from run loop before closing
-            CFReadStreamSetClient(stream, 0, nil, nil)
-            CFReadStreamUnscheduleFromRunLoop(stream, CFRunLoopGetMain(), CFRunLoopMode.commonModes)
-            CFReadStreamClose(stream)
-            self.stream = nil
-        }
+        dataTask?.cancel()
+        dataTask = nil
+        urlSession?.invalidateAndCancel()
+        urlSession = nil
     }
 }
 
 
-// MARK: - Stream Callbacks
+// MARK: - URLSessionDataDelegate
 
-/// C callback for CFReadStream events
-private func readStreamCallback(
-    stream: CFReadStream?,
-    eventType: CFStreamEventType,
-    clientInfo: UnsafeMutableRawPointer?
-) {
-    guard let clientInfo = clientInfo else { return }
-    let streamer = Unmanaged<AudioStreamer>.fromOpaque(clientInfo).takeUnretainedValue()
-    streamer.handleReadStreamEvent(stream: stream, eventType: eventType)
-}
-
-private extension AudioStreamer {
+extension AudioStreamer: URLSessionDataDelegate {
     
-    func handleReadStreamEvent(stream: CFReadStream?, eventType: CFStreamEventType) {
-        guard stream === self.stream else { return }
+    public func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse, completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
+        guard dataTask === self.dataTask else {
+            completionHandler(.cancel)
+            return
+        }
         
         eventCount += 1
         
-        switch eventType {
-        case .errorOccurred:
-            print("🌐 [\(ts)] stream error | \(state) | reconnect=\(reconnectAttempts)")
-            if let cfError = CFReadStreamCopyError(stream) {
-                let error = cfError as Error
-                networkError = error
-                
-                let nsError = error as NSError
-                let category = ErrorClassifier.classify(error)
-                
+        if let httpResponse = response as? HTTPURLResponse {
+            let statusCode = httpResponse.statusCode
+            
+            if statusCode >= 400 {
+                let category = ErrorClassifier.classifyHTTPStatus(statusCode)
                 switch category {
                 case .retriable:
-                    print("🌐 [\(ts)] retriable: \(nsError.domain)/\(nsError.code) | \(state) | reconnect=\(reconnectAttempts)")
+                    print("🌐 [\(ts)] retriable HTTP \(statusCode), reconnecting")
+                    completionHandler(.cancel)
                     attemptInPlaceReconnect()
+                    return
                 case .nonRetriable:
-                    print("❌ [\(ts)] non-retriable: \(nsError.domain)/\(nsError.code) | \(state)")
-                    failWithError(.networkConnectionFailed(underlyingError: error.localizedDescription))
+                    print("❌ [\(ts)] non-retriable HTTP \(statusCode)")
+                    completionHandler(.cancel)
+                    failWithError(.networkConnectionFailed(underlyingError: "HTTP \(statusCode)"))
+                    return
                 }
-            } else {
-                print("❌ [\(ts)] stream error with no CFError")
-                failWithError(.networkConnectionFailed(underlyingError: nil))
             }
             
-        case .endEncountered:
+            // Store headers
+            var headers: [String: String] = [:]
+            for (key, value) in httpResponse.allHeaderFields {
+                if let k = key as? String, let v = value as? String {
+                    headers[k] = v
+                }
+            }
+            httpHeaders = headers
+            
+            // Read content length if not seeking
+            if seekByteOffset == 0, let contentLength = httpResponse.value(forHTTPHeaderField: "Content-Length"),
+               let length = UInt64(contentLength) {
+                fileLength = length
+            }
+        }
+        
+        // Open audio file stream if needed
+        if audioFileStream == nil {
+            if !openAudioFileStream() {
+                completionHandler(.cancel)
+                return
+            }
+        }
+        
+        completionHandler(.allow)
+    }
+    
+    public func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+        guard dataTask === self.dataTask, !isDone else { return }
+        
+        eventCount += 1
+        
+        // Handle reconnect state transitions
+        if case .rebuffering = state {
+            print("✅ [\(ts)] data in rebuffering | buffers=\(buffersUsed)/\(bufferCount)")
+            stallDetector.reset()
+            setDefaultOutputDevice()
+        } else if case .waitingForData = state, reconnectAttempts > 0 {
+            print("✅ [\(ts)] data in waitingForData | buffers=\(buffersUsed)/\(bufferCount) | reconnect=\(reconnectAttempts)")
+            stallDetector.reset()
+            setDefaultOutputDevice()
+        } else if case .waitingForQueueToStart = state, reconnectAttempts > 0 {
+            if let aq = audioQueue {
+                var isRunning: UInt32 = 0
+                var size = UInt32(MemoryLayout<UInt32>.size)
+                AudioQueueGetProperty(aq, kAudioQueueProperty_IsRunning, &isRunning, &size)
+                if isRunning == 0 && buffersUsed > 0 {
+                    print("✅ [\(ts)] restarting stopped queue | buffers=\(buffersUsed)/\(bufferCount)")
+                    AudioQueueStart(aq, nil)
+                }
+            }
+        }
+        
+        // Parse the audio data
+        let parseFlags: AudioFileStreamParseFlags = isDiscontinuous ? .discontinuity : []
+        data.withUnsafeBytes { ptr in
+            guard let baseAddress = ptr.baseAddress else { return }
+            let status = AudioFileStreamParseBytes(
+                audioFileStream!,
+                UInt32(data.count),
+                baseAddress,
+                parseFlags
+            )
+            if status != noErr {
+                failWithError(.fileStreamParseFailed(status: status))
+            }
+        }
+    }
+    
+    public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        guard task === self.dataTask else { return }
+        
+        eventCount += 1
+        
+        if let error = error {
+            // Cancelled tasks are expected during reconnect — not an error
+            let nsError = error as NSError
+            if nsError.code == NSURLErrorCancelled { return }
+            
+            networkError = error
+            print("🌐 [\(ts)] stream error | \(state) | reconnect=\(reconnectAttempts)")
+            
+            let category = ErrorClassifier.classify(error)
+            switch category {
+            case .retriable:
+                print("🌐 [\(ts)] retriable: \(nsError.domain)/\(nsError.code) | \(state) | reconnect=\(reconnectAttempts)")
+                attemptInPlaceReconnect()
+            case .nonRetriable:
+                print("❌ [\(ts)] non-retriable: \(nsError.domain)/\(nsError.code) | \(state)")
+                failWithError(.networkConnectionFailed(underlyingError: error.localizedDescription))
+            }
+        } else {
+            // Stream completed normally
             timeoutTimer?.invalidate()
             timeoutTimer = nil
             
             // Flush remaining data
             if bytesFilled > 0 {
-                if enqueueBuffer() < 0 {
-                    return
-                }
+                _ = enqueueBuffer()
             }
             
-            // If we never received packets, we're done
             if case .waitingForData = state {
                 setState(.done(reason: .endOfFile))
             }
-            
-        case .hasBytesAvailable:
-            handleBytesAvailable()
-            
-        default:
-            break
         }
     }
+    
+    public func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
+        // Follow redirects automatically
+        completionHandler(request)
+    }
+}
 
-    
-    func handleBytesAvailable() {
-        guard let stream = stream else { return }
-        
-        // Read HTTP headers if not yet done
-        if httpHeaders == nil {
-            readHTTPHeaders(from: stream)
-        }
-        
-        // Open audio file stream if needed
-        if audioFileStream == nil {
-            guard openAudioFileStream() else { return }
-        }
-        
-        // Read and parse audio data
-        var buffer = [UInt8](repeating: 0, count: 2048)
-        
-        for _ in 0..<3 {
-            guard !isDone, CFReadStreamHasBytesAvailable(stream) else { break }
-            
-            let bytesRead = CFReadStreamRead(stream, &buffer, buffer.count)
-            
-            if bytesRead < 0 {
-                failWithError(.audioDataNotFound)
-                return
-            } else if bytesRead == 0 {
-                return
-            }
-            
-            // Data arrived after an in-place reconnect — reset reconnect state
-            // Don't reset reconnectAttempts here — wait until we're actually playing
-            // to prevent premature reset if the stream dies again before playback resumes
-            if case .rebuffering = state {
-                print("✅ [\(ts)] data in rebuffering | buffers=\(buffersUsed)/\(bufferCount)")
-                stallDetector.reset()
-                setDefaultOutputDevice()
-                // Note: AudioQueue will be restarted by enqueueBuffer once enough buffers are filled
-                // reconnectAttempts will be reset when state transitions to .playing
-            } else if case .waitingForData = state, reconnectAttempts > 0 {
-                print("✅ [\(ts)] data in waitingForData | buffers=\(buffersUsed)/\(bufferCount) | reconnect=\(reconnectAttempts)")
-                stallDetector.reset()
-                setDefaultOutputDevice()
-            } else if case .waitingForQueueToStart = state, reconnectAttempts > 0 {
-                // Data arrived while queue is waiting to start — restart if stopped
-                if let aq = audioQueue {
-                    var isRunning: UInt32 = 0
-                    var size = UInt32(MemoryLayout<UInt32>.size)
-                    AudioQueueGetProperty(aq, kAudioQueueProperty_IsRunning, &isRunning, &size)
-                    if isRunning == 0 && buffersUsed > 0 {
-                        print("✅ [\(ts)] restarting stopped queue | buffers=\(buffersUsed)/\(bufferCount)")
-                        AudioQueueStart(aq, nil)
-                    }
-                }
-            }
-            
-            // Parse the audio data
-            let parseFlags: AudioFileStreamParseFlags = isDiscontinuous ? .discontinuity : []
-            let status = AudioFileStreamParseBytes(
-                audioFileStream!,
-                UInt32(bytesRead),
-                buffer,
-                parseFlags
-            )
-            
-            if status != noErr {
-                failWithError(.fileStreamParseFailed(status: status))
-                return
-            }
-        }
-    }
-    
-    func readHTTPHeaders(from stream: CFReadStream) {
-        guard let response = CFReadStreamCopyProperty(stream, CFStreamPropertyKey(rawValue: kCFStreamPropertyHTTPResponseHeader)) else {
-            return
-        }
-        
-        let httpMessage = response as! CFHTTPMessage
-        
-        // Check HTTP status code and classify errors
-        let statusCode = CFHTTPMessageGetResponseStatusCode(httpMessage)
-        if statusCode >= 400 {
-            let category = ErrorClassifier.classifyHTTPStatus(Int(statusCode))
-            switch category {
-            case .retriable:
-                print("Retriable HTTP status \(statusCode), attempting reconnect")
-                attemptInPlaceReconnect()
-                return
-            case .nonRetriable:
-                print("Non-retriable HTTP status \(statusCode), failing")
-                failWithError(.networkConnectionFailed(underlyingError: "HTTP \(statusCode)"))
-                return
-            }
-        }
-        
-        if let headers = CFHTTPMessageCopyAllHeaderFields(httpMessage)?.takeRetainedValue() as? [String: String] {
-            httpHeaders = headers
-            
-            // Read content length if not seeking
-            if seekByteOffset == 0, let contentLength = headers["Content-Length"], let length = UInt64(contentLength) {
-                fileLength = length
-            }
-        }
-    }
+// MARK: - AudioFileStream Setup
+
+private extension AudioStreamer {
     
     func openAudioFileStream() -> Bool {
         // Determine file type
@@ -1898,18 +1796,14 @@ private extension AudioStreamer {
             return bufferInUse[Int(fillBufferIndex)]
         }
         
-        // Check if stream ended
-        if queuedPackets.isEmpty && CFReadStreamGetStatus(stream) == .atEnd {
+        // Check if stream ended (URLSession completion handled via delegate)
+        if queuedPackets.isEmpty && dataTask == nil {
             AudioQueueFlush(audioQueue)
         }
         
         // Check if next buffer is available
         if nextBufferInUse {
-            if !bufferInfinite {
-                CFReadStreamUnscheduleFromRunLoop(stream, CFRunLoopGetMain(), CFRunLoopMode.commonModes)
-                isUnscheduled = true
-                isRescheduled = false
-            }
+            // With URLSession, we can't unschedule the stream — just mark as waiting
             waitingOnBuffer = true
             return 0
         }
@@ -1960,9 +1854,8 @@ private extension AudioStreamer {
             
             // Check if stream ended and no more data
             if self.buffersUsed == 0 && self.queuedPackets.isEmpty {
-                if let stream = self.stream, CFReadStreamGetStatus(stream) == .atEnd {
-                    // Use true for asynchronous stop - this allows remaining buffers to finish
-                    // and triggers the property change callback
+                if self.dataTask == nil {
+                    // Stream already completed — stop the queue
                     AudioQueueStop(self.audioQueue!, true)
                     return
                 }
@@ -2011,11 +1904,9 @@ private extension AudioStreamer {
         }
         
         // Re-schedule stream if all packets processed
-        if queuedPackets.isEmpty, let stream = stream {
+        // (URLSession manages its own scheduling — nothing to do here)
+        if queuedPackets.isEmpty {
             isRescheduled = true
-            if !bufferInfinite {
-                CFReadStreamScheduleWithRunLoop(stream, CFRunLoopGetMain(), CFRunLoopMode.commonModes)
-            }
         }
     }
     

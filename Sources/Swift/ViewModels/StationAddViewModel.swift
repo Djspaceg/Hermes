@@ -56,8 +56,9 @@ final class StationAddViewModel: StationAddViewModelProtocol {
     @ObservationIgnored
     private var searchDebounceTask: Task<Void, Never>?
     
-    init(pandora: PandoraProtocol = AppState.shared.pandora) {
-        self.pandora = pandora
+    @MainActor
+    init(pandora: PandoraProtocol? = nil) {
+        self.pandora = pandora ?? AppState.shared.pandora
         setupSearchDebounce()
         setupNotificationObservers()
     }
