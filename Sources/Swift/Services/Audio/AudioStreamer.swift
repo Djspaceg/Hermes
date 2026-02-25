@@ -1714,7 +1714,7 @@ private extension AudioStreamer {
 
     
     func enqueueBuffer() -> Int {
-        guard let stream = stream, let audioQueue = audioQueue else { return -1 }
+        guard stream != nil, let audioQueue = audioQueue else { return -1 }
         
         // Serialize buffer tracking mutations through bufferQueue.
         // enqueueBuffer is called from the main thread (via stream callbacks),
@@ -1793,7 +1793,9 @@ private extension AudioStreamer {
             fillBufferIndex = (fillBufferIndex + 1) % bufferCount
             bytesFilled = 0
             packetsFilled = 0
-            return bufferInUse[Int(fillBufferIndex)]
+            let idx = Int(fillBufferIndex)
+            guard idx < bufferInUse.count else { return false }
+            return bufferInUse[idx]
         }
         
         // Check if stream ended (URLSession completion handled via delegate)
@@ -1816,20 +1818,21 @@ private extension AudioStreamer {
         // Ignore if queue was disposed
         guard audioQueue != nil, queue == audioQueue else { return }
         
-        // Find which buffer was freed
-        guard let index = buffers.firstIndex(where: { $0 == buffer }) else { return }
-        
         // Serialize all buffer state mutations through bufferQueue.
         // handleBufferComplete is called from AudioQueue's internal thread,
         // so we dispatch async to avoid blocking the audio callback.
+        // The buffer lookup is done inside the block to avoid TOCTOU races
+        // with stop() clearing the arrays between the lookup and the async dispatch.
         // Requirements: 7.1, 7.2, 7.4
         bufferQueue.async { [weak self] in
             guard let self = self else { return }
             
+            // Find which buffer was freed — inside the serialized block so
+            // it's consistent with the bufferInUse array state
+            guard let index = self.buffers.firstIndex(where: { $0 == buffer }) else { return }
+            
             // Guard against accessing cleared arrays after stop()
-            guard index < self.bufferInUse.count else {
-                return
-            }
+            guard index < self.bufferInUse.count else { return }
             
             guard self.bufferInUse[index] else { return }
             
@@ -1878,8 +1881,10 @@ private extension AudioStreamer {
     
     func enqueueCachedData() {
         // Read buffer state through bufferQueue for thread safety
-        let canProceed = bufferQueue.sync {
-            !bufferInUse[Int(fillBufferIndex)]
+        let canProceed = bufferQueue.sync { () -> Bool in
+            let idx = Int(fillBufferIndex)
+            guard idx < bufferInUse.count else { return false }
+            return !bufferInUse[idx]
         }
         guard !isDone, !waitingOnBuffer, canProceed, stream != nil else { return }
         

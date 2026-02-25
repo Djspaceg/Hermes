@@ -81,7 +81,7 @@ final class StationsViewModel {
         
         setupNotificationSubscriptions()
         
-        if self.pandora.isAuthenticated() {
+        if self.pandora.isAuthenticated() == true {
             loadStations()
             // Restore last played station if stations are already available
             if !stations.isEmpty {
