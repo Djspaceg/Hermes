@@ -855,6 +855,16 @@ private extension AudioStreamer {
     ///
     /// - Requirements: 1.1, 1.2, 1.3, 1.4, 2.2, 2.3, 5.4, 5.5
     func attemptInPlaceReconnect() {
+        // If we're near the end of the song (within 5% of duration or 10s),
+        // just let it finish naturally instead of reconnecting endlessly
+        if let prog = progress() ?? Optional(lastProgress),
+           let dur = duration(),
+           dur > 0 && prog > dur * 0.95 {
+            print("🔄 [\(ts)] near end of song (\(String(format: "%.1f", prog))s / \(String(format: "%.1f", dur))s), letting it finish")
+            setState(.done(reason: .endOfFile))
+            return
+        }
+        
         // Guard against exceeding max attempts
         guard reconnectAttempts < maxReconnectAttempts else {
             print("⚠️ [\(ts)] max reconnect attempts (\(maxReconnectAttempts)) exceeded")
@@ -1924,7 +1934,6 @@ private extension AudioStreamer {
             
             // Guard against accessing cleared arrays after stop()
             guard index < self.bufferInUse.count else {
-                print("🔽 [Buffer] ignoring completion for buffer \(index) — arrays already cleared")
                 return
             }
             
@@ -1936,8 +1945,13 @@ private extension AudioStreamer {
             self.buffersUsed = max(0, self.buffersUsed - 1)
             
             if oldBuffersUsed != self.buffersUsed {
-                let ts = String(format: "%.3f", Date().timeIntervalSince1970.truncatingRemainder(dividingBy: 1000))
-                print("🔽 [\(ts)] buffer \(index) freed | \(self.buffersUsed)/\(self.bufferCount) (\(Int(Double(self.buffersUsed)/Double(self.bufferCount)*100))%) | \(self.state)")
+                // Only log during reconnect recovery or when buffers are critically low
+                #if DEBUG
+                if self.reconnectAttempts > 0 || self.buffersUsed <= 3 {
+                    let ts = String(format: "%.3f", Date().timeIntervalSince1970.truncatingRemainder(dividingBy: 1000))
+                    print("🔽 [\(ts)] buffer \(index) freed | \(self.buffersUsed)/\(self.bufferCount) (\(Int(Double(self.buffersUsed)/Double(self.bufferCount)*100))%) | \(self.state)")
+                }
+                #endif
             }
             
             if case .stopped = self.state {
