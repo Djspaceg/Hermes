@@ -121,7 +121,7 @@ struct MyView: View {
 ❌ **Don't** use force unwrapping (`!`) except in truly safe contexts  
 ❌ **Don't** ignore compiler warnings
 
-- NEVER use HEREDOC, multiline quote, cat, or pipe simply to insert content into
+- NEVER use HEREDOC, <<<, dquote, multiline quote, cat, or pipe simply to insert content into
   a document; INSTEAD use built-in file reading/writing APIs.
 
 ## What to Embrace
