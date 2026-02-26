@@ -78,9 +78,15 @@ struct HermesApp: App {
                 .keyboardShortcut("t", modifiers: .command)
             }
             
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates...") {
+                    UpdateChecker.shared.checkForUpdatesNow()
+                }
+            }
+            
             CommandGroup(replacing: .help) {
                 Button("Hermes Help") {
-                    if let url = URL(string: "https://github.com/HermesApp/Hermes/wiki") {
+                    if let url = URL(string: "https://github.com/Djspaceg/Hermes/wiki") {
                         NSWorkspace.shared.open(url)
                     }
                 }
@@ -88,19 +94,19 @@ struct HermesApp: App {
                 Divider()
                 
                 Button("View Changelog") {
-                    if let url = URL(string: "https://github.com/HermesApp/Hermes/blob/master/CHANGELOG.md") {
+                    if let url = URL(string: "https://github.com/Djspaceg/Hermes/blob/master/CHANGELOG.md") {
                         NSWorkspace.shared.open(url)
                     }
                 }
                 
                 Button("Hermes on GitHub") {
-                    if let url = URL(string: "https://github.com/HermesApp/Hermes") {
+                    if let url = URL(string: "https://github.com/Djspaceg/Hermes") {
                         NSWorkspace.shared.open(url)
                     }
                 }
                 
                 Button("Report an Issue...") {
-                    if let url = URL(string: "https://github.com/HermesApp/Hermes/issues/new") {
+                    if let url = URL(string: "https://github.com/Djspaceg/Hermes/issues/new") {
                         NSWorkspace.shared.open(url)
                     }
                 }

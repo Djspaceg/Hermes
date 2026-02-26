@@ -1,0 +1,63 @@
+name: Release
+
+# Triggered by pushing a version tag (e.g. v2.1.0).
+# This creates a GitHub Release that UpdateChecker reads from
+# via the /repos/.../releases/latest API endpoint.
+#
+# NOTE: The built .app is unsigned/un-notarized.  Users downloading
+# it will need to right-click → Open the first time to bypass Gatekeeper.
+# To ship a fully notarized build add APPLE_DEVELOPER_CERTIFICATE_P12,
+# APPLE_DEVELOPER_CERTIFICATE_PASSWORD, and APPLE_ID_* to repo Secrets
+# and extend the Build step accordingly.
+
+on:
+  push:
+    tags:
+      - 'v[0-9]*'
+
+jobs:
+  release:
+    name: Build and publish release
+    runs-on: macos-15
+
+    permissions:
+      contents: write   # needed to create the GitHub Release
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build (Release, unsigned)
+        run: |
+          xcodebuild \
+            -project Hermes.xcodeproj \
+            -scheme Hermes \
+            -configuration Release \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Archive app as zip
+        run: |
+          APP=$(find build/DerivedData -name "Hermes.app" -maxdepth 6 | head -1)
+          echo "APP_PATH=$APP" >> "$GITHUB_ENV"
+          cd "$(dirname "$APP")"
+          zip -r --symlinks "$GITHUB_WORKSPACE/Hermes-${{ github.ref_name }}.zip" Hermes.app
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Extract release notes from CHANGELOG.md for this tag (if present)
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+          NOTES=$(awk "/^## \\[?${VERSION}\\]?/{found=1; next} found && /^## /{exit} found{print}" CHANGELOG.md || true)
+          if [ -z "$NOTES" ]; then
+            NOTES="See [CHANGELOG.md](CHANGELOG.md) for details."
+          fi
+
+          gh release create "$TAG" \
+            --title "Hermes $TAG" \
+            --notes "$NOTES" \
+            "Hermes-$TAG.zip#Hermes.app (zip)"

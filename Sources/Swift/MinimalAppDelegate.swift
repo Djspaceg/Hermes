@@ -58,6 +58,9 @@ import Combine
         
         // Apply all settings (activation policy, dock icon, media keys, etc.)
         SettingsManager.shared.applyAllSettings()
+        
+        // Check for updates in the background if the user has enabled automatic checks.
+        UpdateChecker.shared.checkForUpdatesIfNeeded()
     }
     
     func applicationWillTerminate(_ notification: Notification) {

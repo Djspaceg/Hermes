@@ -138,6 +138,14 @@ extension Notification.Name {
     /// Request to refresh stations list
     static let stationsRefreshRequested = Notification.Name("StationsRefreshRequested")
     
+    // MARK: - Update Notifications
+
+    /// Update check completed (userInfo: ["updateAvailable": Bool])
+    static let updateCheckDidComplete = Notification.Name("HermesUpdateCheckDidCompleteNotification")
+
+    /// Update check failed (userInfo: ["error": Error])
+    static let updateCheckDidFail = Notification.Name("HermesUpdateCheckDidFailNotification")
+
     // MARK: - Preference Change Notifications
     
     /// "Always on top" preference changed
@@ -215,6 +223,11 @@ extension Notification.Name {
     @objc public static let openSettingsRequested = Notification.Name.openSettingsRequested.rawValue
     @objc public static let stationsRefreshRequested = Notification.Name.stationsRefreshRequested.rawValue
     
+    // MARK: - Update Notifications
+
+    @objc public static let updateCheckDidComplete = Notification.Name.updateCheckDidComplete.rawValue
+    @objc public static let updateCheckDidFail = Notification.Name.updateCheckDidFail.rawValue
+
     // MARK: - Preference Change Notifications
     
     @objc public static let preferenceAlwaysOnTopChanged = Notification.Name.preferenceAlwaysOnTopChanged.rawValue
