@@ -45,6 +45,7 @@ struct GeneralPreferencesView: View {
     // MARK: - Properties
     
     @ObservedObject private var settings = SettingsManager.shared
+    @ObservedObject private var updateChecker = UpdateChecker.shared
     @State private var menuBarIconType: MenuBarIconType = .color
     
     // MARK: - Types
@@ -160,6 +161,20 @@ struct GeneralPreferencesView: View {
                     
                     Toggle("Automatically download updates", isOn: $settings.automaticallyDownloadUpdates)
                         .disabled(!settings.automaticUpdateChecks)
+                    
+                    Divider()
+                    
+                    Button(action: { UpdateChecker.shared.checkForUpdatesNow() }) {
+                        if updateChecker.isChecking {
+                            HStack(spacing: 6) {
+                                ProgressView().controlSize(.small)
+                                Text("Checking…")
+                            }
+                        } else {
+                            Text("Check Now")
+                        }
+                    }
+                    .disabled(updateChecker.isChecking)
                 }
             }
             .groupBoxStyle(ModernGroupBoxStyle())

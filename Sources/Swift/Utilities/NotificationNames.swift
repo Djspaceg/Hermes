@@ -138,6 +138,14 @@ extension Notification.Name {
     /// Request to refresh stations list
     static let stationsRefreshRequested = Notification.Name("StationsRefreshRequested")
     
+    // MARK: - Update Notifications
+
+    /// Update check completed (userInfo: ["updateAvailable": Bool])
+    static let updateCheckDidComplete = Notification.Name("HermesUpdateCheckDidCompleteNotification")
+
+    /// Update check failed (userInfo: ["error": Error])
+    static let updateCheckDidFail = Notification.Name("HermesUpdateCheckDidFailNotification")
+
     // MARK: - Preference Change Notifications
     
     /// "Always on top" preference changed
