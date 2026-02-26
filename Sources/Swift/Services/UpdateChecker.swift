@@ -217,6 +217,7 @@ final class UpdateChecker: ObservableObject {
     private static func versionComponents(_ version: String) -> [Int] {
         version.split(separator: ".").map { component -> Int in
             let numericPrefix = component.prefix { $0.isNumber }
+            // Components without a leading numeric portion (e.g. "alpha") are treated as 0.
             return Int(numericPrefix) ?? 0
         }
     }
