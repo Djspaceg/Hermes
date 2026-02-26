@@ -223,6 +223,11 @@ extension Notification.Name {
     @objc public static let openSettingsRequested = Notification.Name.openSettingsRequested.rawValue
     @objc public static let stationsRefreshRequested = Notification.Name.stationsRefreshRequested.rawValue
     
+    // MARK: - Update Notifications
+
+    @objc public static let updateCheckDidComplete = Notification.Name.updateCheckDidComplete.rawValue
+    @objc public static let updateCheckDidFail = Notification.Name.updateCheckDidFail.rawValue
+
     // MARK: - Preference Change Notifications
     
     @objc public static let preferenceAlwaysOnTopChanged = Notification.Name.preferenceAlwaysOnTopChanged.rawValue
