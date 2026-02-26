@@ -53,6 +53,9 @@ enum UpdateCheckerError: Error, LocalizedError {
     case networkError(Error)
     case decodingError(Error)
     case noReleaseFound
+    /// A non-2xx HTTP response. Carries the status code and the optional
+    /// `message` field from GitHub's error JSON body.
+    case httpError(Int, String?)
 
     var errorDescription: String? {
         switch self {
@@ -60,6 +63,11 @@ enum UpdateCheckerError: Error, LocalizedError {
         case .networkError(let e): return e.localizedDescription
         case .decodingError(let e): return e.localizedDescription
         case .noReleaseFound:      return "No release information found."
+        case .httpError(let code, let message):
+            if let message = message {
+                return "Update check failed (HTTP \(code)): \(message)"
+            }
+            return "Update check failed (HTTP \(code))."
         }
     }
 }
@@ -183,9 +191,11 @@ final class UpdateChecker: ObservableObject {
         let data: Data
         do {
             let (responseData, response) = try await session.data(for: request)
-            guard let http = response as? HTTPURLResponse,
-                  (200...299).contains(http.statusCode) else {
-                throw UpdateCheckerError.noReleaseFound
+            if let http = response as? HTTPURLResponse,
+               !(200...299).contains(http.statusCode) {
+                // Try to surface GitHub's error `message` field (e.g. rate-limit reason).
+                let message = (try? JSONDecoder().decode([String: String].self, from: responseData))?["message"]
+                throw UpdateCheckerError.httpError(http.statusCode, message)
             }
             data = responseData
         } catch let error as UpdateCheckerError {
