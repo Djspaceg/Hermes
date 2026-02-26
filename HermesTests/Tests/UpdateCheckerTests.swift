@@ -8,6 +8,36 @@
 import XCTest
 @testable import Hermes
 
+// MARK: - Mock URL Protocol
+
+/// Intercepts URLSession requests and returns a pre-configured stub response.
+final class MockURLProtocol: URLProtocol {
+    /// Set this before the test to control the response the mock returns.
+    static var requestHandler: ((URLRequest) throws -> (HTTPURLResponse, Data))?
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        guard let handler = Self.requestHandler else {
+            client?.urlProtocol(self, didFailWithError: URLError(.unknown))
+            return
+        }
+        do {
+            let (response, data) = try handler(request)
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: data)
+            client?.urlProtocolDidFinishLoading(self)
+        } catch {
+            client?.urlProtocol(self, didFailWithError: error)
+        }
+    }
+
+    override func stopLoading() {}
+}
+
+// MARK: - Test Suite
+
 final class UpdateCheckerTests: XCTestCase {
 
     // MARK: - Version Comparison
@@ -46,6 +76,131 @@ final class UpdateCheckerTests: XCTestCase {
         XCTAssertTrue(UpdateChecker.isNewerVersion("1.3.3", than: "1.3.2d1"))
         XCTAssertFalse(UpdateChecker.isNewerVersion("1.3.2", than: "1.3.2d1"))
         XCTAssertFalse(UpdateChecker.isNewerVersion("1.3.1", than: "1.3.2d1"))
+    }
+
+    // MARK: - Helpers
+
+    /// Returns a URLSession whose requests are handled by MockURLProtocol.
+    private func makeMockSession() -> URLSession {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockURLProtocol.self]
+        return URLSession(configuration: config)
+    }
+
+    private static let stubReleaseJSON: String = """
+        {
+            "tag_name": "v99.0.0",
+            "name": "Hermes 99.0.0",
+            "body": "Stub release notes.",
+            "html_url": "https://github.com/Djspaceg/Hermes/releases/tag/v99.0.0",
+            "prerelease": false,
+            "assets": []
+        }
+        """
+
+    override func tearDown() async throws {
+        MockURLProtocol.requestHandler = nil
+        await MainActor.run {
+            UpdateChecker.shared.session = URLSession(configuration: .ephemeral)
+            UpdateChecker.shared.suppressAlerts = false
+        }
+        try await super.tearDown()
+    }
+
+    // MARK: - Notification Tests
+
+    func testUpdateCheckDidComplete_UpdateAvailable_Notification() async throws {
+        MockURLProtocol.requestHandler = { _ in
+            let data = Self.stubReleaseJSON.data(using: .utf8)!
+            let response = HTTPURLResponse(
+                url: URL(string: "https://api.github.com")!,
+                statusCode: 200, httpVersion: nil, headerFields: nil
+            )!
+            return (response, data)
+        }
+        await MainActor.run {
+            UpdateChecker.shared.session = makeMockSession()
+            UpdateChecker.shared.suppressAlerts = true
+        }
+
+        let expectation = XCTestExpectation(description: "updateCheckDidComplete posted")
+        var receivedUserInfo: [AnyHashable: Any]?
+        let token = NotificationCenter.default.addObserver(
+            forName: .updateCheckDidComplete, object: nil, queue: nil
+        ) { notification in
+            receivedUserInfo = notification.userInfo
+            expectation.fulfill()
+        }
+        defer { NotificationCenter.default.removeObserver(token) }
+
+        await MainActor.run { UpdateChecker.shared.checkForUpdatesNow() }
+        await fulfillment(of: [expectation], timeout: 5.0)
+
+        XCTAssertEqual(receivedUserInfo?["updateAvailable"] as? Bool, true)
+    }
+
+    func testUpdateCheckDidComplete_NoUpdate_Notification() async throws {
+        // Respond with a version older than the installed app → updateAvailable = false.
+        let oldReleaseJSON = """
+            {
+                "tag_name": "v0.0.1",
+                "name": "Hermes 0.0.1",
+                "body": null,
+                "html_url": "https://github.com/Djspaceg/Hermes/releases/tag/v0.0.1",
+                "prerelease": false,
+                "assets": []
+            }
+            """
+        MockURLProtocol.requestHandler = { _ in
+            let data = oldReleaseJSON.data(using: .utf8)!
+            let response = HTTPURLResponse(
+                url: URL(string: "https://api.github.com")!,
+                statusCode: 200, httpVersion: nil, headerFields: nil
+            )!
+            return (response, data)
+        }
+        await MainActor.run {
+            UpdateChecker.shared.session = makeMockSession()
+            UpdateChecker.shared.suppressAlerts = true
+        }
+
+        let expectation = XCTestExpectation(description: "updateCheckDidComplete posted")
+        var receivedUserInfo: [AnyHashable: Any]?
+        let token = NotificationCenter.default.addObserver(
+            forName: .updateCheckDidComplete, object: nil, queue: nil
+        ) { notification in
+            receivedUserInfo = notification.userInfo
+            expectation.fulfill()
+        }
+        defer { NotificationCenter.default.removeObserver(token) }
+
+        await MainActor.run { UpdateChecker.shared.checkForUpdatesNow() }
+        await fulfillment(of: [expectation], timeout: 5.0)
+
+        XCTAssertEqual(receivedUserInfo?["updateAvailable"] as? Bool, false)
+    }
+
+    func testUpdateCheckDidFail_Notification() async throws {
+        MockURLProtocol.requestHandler = { _ in throw URLError(.notConnectedToInternet) }
+        await MainActor.run {
+            UpdateChecker.shared.session = makeMockSession()
+            UpdateChecker.shared.suppressAlerts = true
+        }
+
+        let expectation = XCTestExpectation(description: "updateCheckDidFail posted")
+        var receivedUserInfo: [AnyHashable: Any]?
+        let token = NotificationCenter.default.addObserver(
+            forName: .updateCheckDidFail, object: nil, queue: nil
+        ) { notification in
+            receivedUserInfo = notification.userInfo
+            expectation.fulfill()
+        }
+        defer { NotificationCenter.default.removeObserver(token) }
+
+        await MainActor.run { UpdateChecker.shared.checkForUpdatesNow() }
+        await fulfillment(of: [expectation], timeout: 5.0)
+
+        XCTAssertNotNil(receivedUserInfo?["error"])
     }
 
     // MARK: - GitHubRelease Decoding

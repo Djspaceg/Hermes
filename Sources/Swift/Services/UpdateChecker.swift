@@ -91,6 +91,12 @@ final class UpdateChecker: ObservableObject {
 
     private let lastCheckKey = "HermesLastUpdateCheck"
 
+    /// Session used for network requests. Replace in tests to inject stub responses.
+    internal var session: URLSession = URLSession(configuration: .ephemeral)
+
+    /// When `true`, suppresses modal alert dialogs. Set to `true` in unit tests.
+    internal var suppressAlerts: Bool = false
+
     // MARK: - Init
 
     private init() {}
@@ -142,9 +148,9 @@ final class UpdateChecker: ObservableObject {
             updateAvailable = hasUpdate
 
             if hasUpdate {
-                presentUpdateAlert(release: release)
+                if !suppressAlerts { presentUpdateAlert(release: release) }
             } else if userInitiated {
-                presentUpToDateAlert(currentVersion: currentVersion)
+                if !suppressAlerts { presentUpToDateAlert(currentVersion: currentVersion) }
             }
 
             NotificationCenter.default.post(
@@ -153,7 +159,7 @@ final class UpdateChecker: ObservableObject {
                 userInfo: ["updateAvailable": hasUpdate]
             )
         } catch {
-            if userInitiated {
+            if userInitiated && !suppressAlerts {
                 presentErrorAlert(error: error)
             }
             NotificationCenter.default.post(
@@ -174,7 +180,6 @@ final class UpdateChecker: ObservableObject {
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         request.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
 
-        let session = URLSession(configuration: .ephemeral)
         let data: Data
         do {
             let (responseData, response) = try await session.data(for: request)
