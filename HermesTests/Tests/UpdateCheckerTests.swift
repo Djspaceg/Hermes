@@ -41,6 +41,13 @@ final class UpdateCheckerTests: XCTestCase {
         XCTAssertFalse(UpdateChecker.isNewerVersion("2.1", than: "2.1.1"))
     }
 
+    func testIsNewerVersion_AlphanumericInstalledVersion_ParsesLeadingNumeric() {
+        // "1.3.2d1" (current CFBundleShortVersionString format) is treated as "1.3.2"
+        XCTAssertTrue(UpdateChecker.isNewerVersion("1.3.3", than: "1.3.2d1"))
+        XCTAssertFalse(UpdateChecker.isNewerVersion("1.3.2", than: "1.3.2d1"))
+        XCTAssertFalse(UpdateChecker.isNewerVersion("1.3.1", than: "1.3.2d1"))
+    }
+
     // MARK: - GitHubRelease Decoding
 
     func testGitHubRelease_Decode_BasicFields() throws {

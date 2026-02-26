@@ -215,7 +215,10 @@ final class UpdateChecker: ObservableObject {
     }
 
     private static func versionComponents(_ version: String) -> [Int] {
-        version.split(separator: ".").compactMap { Int($0) }
+        version.split(separator: ".").map { component -> Int in
+            let numericPrefix = component.prefix { $0.isNumber }
+            return Int(numericPrefix) ?? 0
+        }
     }
 
     // MARK: - Alerts

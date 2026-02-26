@@ -78,7 +78,7 @@ struct HermesApp: App {
                 .keyboardShortcut("t", modifiers: .command)
             }
             
-            CommandGroup(replacing: .appInfo) {
+            CommandGroup(after: .appInfo) {
                 Button("Check for Updates...") {
                     UpdateChecker.shared.checkForUpdatesNow()
                 }
