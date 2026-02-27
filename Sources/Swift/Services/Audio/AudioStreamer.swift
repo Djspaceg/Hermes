@@ -362,6 +362,11 @@ public final class AudioStreamer: NSObject, AudioStreaming {
     /// Timer for scheduled reconnect attempts
     var reconnectSource: DispatchSourceTimer?
     
+    /// Whether the HTTP stream completed normally (server delivered all data).
+    /// When true, draining buffers represent the natural end of the song,
+    /// not a network stall — starvation detection should be suppressed.
+    private var httpStreamCompleted = false
+    
     /// Whether we've registered a listener for default output device changes
     private var hasDeviceChangeListener = false
     
@@ -470,6 +475,7 @@ public final class AudioStreamer: NSObject, AudioStreaming {
         reconnectAttempts = 0
         stallDetector.reset()
         lastFillRatio = 0.0
+        httpStreamCompleted = false
     }
     
     @discardableResult
@@ -758,6 +764,9 @@ private extension AudioStreamer {
         if case .paused = state { return }
         if case .rebuffering = state { return }
         
+        // HTTP stream already delivered all data — buffers are just draining naturally
+        if httpStreamCompleted { return }
+        
         let currentFillRatio = bufferCount > 0 ? Double(buffersUsed) / Double(bufferCount) : 0.0
         
         if eventCount > 0 {
@@ -982,6 +991,10 @@ private extension AudioStreamer {
         guard bitrateNotificationSent else { return }
         guard bufferCount > 0 else { return }
         
+        // If the HTTP stream completed normally, buffers are draining because
+        // the song is ending — not because of a network stall. Don't reconnect.
+        guard !httpStreamCompleted else { return }
+        
         let fillRatio = Double(buffersUsed) / Double(bufferCount)
         let isReconnecting = state == .rebuffering || isRetrying
         
@@ -1065,6 +1078,9 @@ private extension AudioStreamer {
     /// Opens the HTTP data task using URLSession
     func openReadStream() -> Bool {
         guard dataTask == nil else { return false }
+        
+        // New HTTP connection — stream hasn't completed yet
+        httpStreamCompleted = false
         
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
@@ -1251,7 +1267,9 @@ extension AudioStreamer: URLSessionDataDelegate {
                 failWithError(.networkConnectionFailed(underlyingError: error.localizedDescription))
             }
         } else {
-            // Stream completed normally
+            // Stream completed normally — server delivered all audio data.
+            httpStreamCompleted = true
+            
             timeoutSource?.cancel()
             timeoutSource = nil
             
@@ -1260,6 +1278,9 @@ extension AudioStreamer: URLSessionDataDelegate {
                 _ = enqueueBuffer()
             }
             
+            // If we're still waiting for data, we can transition immediately.
+            // If playing/rebuffering, the AudioQueue will drain remaining buffers
+            // and handleBufferComplete will detect buffersUsed == 0 to finish.
             if case .waitingForData = state {
                 setState(.done(reason: .endOfFile))
             }
