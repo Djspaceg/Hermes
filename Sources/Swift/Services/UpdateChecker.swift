@@ -156,9 +156,9 @@ final class UpdateChecker: ObservableObject {
             updateAvailable = hasUpdate
 
             if hasUpdate {
-                if !suppressAlerts { presentUpdateAlert(release: release) }
+                if !suppressAlerts { await presentUpdateAlert(release: release) }
             } else if userInitiated {
-                if !suppressAlerts { presentUpToDateAlert(currentVersion: currentVersion) }
+                if !suppressAlerts { await presentUpToDateAlert(currentVersion: currentVersion) }
             }
 
             NotificationCenter.default.post(
@@ -168,7 +168,7 @@ final class UpdateChecker: ObservableObject {
             )
         } catch {
             if userInitiated && !suppressAlerts {
-                presentErrorAlert(error: error)
+                await presentErrorAlert(error: error)
             }
             NotificationCenter.default.post(
                 name: .updateCheckDidFail,
@@ -217,7 +217,7 @@ final class UpdateChecker: ObservableObject {
     ///
     /// Compares dot-separated integer components, padding with zeros where
     /// component counts differ (e.g. "2.1" vs "2.1.0").
-    static func isNewerVersion(_ candidate: String, than installed: String) -> Bool {
+    nonisolated static func isNewerVersion(_ candidate: String, than installed: String) -> Bool {
         let lhs = versionComponents(candidate)
         let rhs = versionComponents(installed)
         let count = max(lhs.count, rhs.count)
@@ -229,7 +229,7 @@ final class UpdateChecker: ObservableObject {
         return false
     }
 
-    private static func versionComponents(_ version: String) -> [Int] {
+    nonisolated private static func versionComponents(_ version: String) -> [Int] {
         version.split(separator: ".").map { component -> Int in
             let numericPrefix = component.prefix { $0.isNumber }
             // Components without a leading numeric portion (e.g. "alpha") are treated as 0.
@@ -239,7 +239,7 @@ final class UpdateChecker: ObservableObject {
 
     // MARK: - Alerts
 
-    private func presentUpdateAlert(release: GitHubRelease) {
+    private func presentUpdateAlert(release: GitHubRelease) async {
         let displayVersion = release.version
         let releaseName = release.name.flatMap { $0.isEmpty ? nil : $0 } ?? "v\(displayVersion)"
 
@@ -252,7 +252,8 @@ final class UpdateChecker: ObservableObject {
         alert.addButton(withTitle: "Download Update")
         alert.addButton(withTitle: "Later")
 
-        let response = alert.runModal()
+        guard let window = NSApp.keyWindow ?? NSApp.windows.first else { return }
+        let response = await alert.beginSheetModal(for: window)
         if response == .alertFirstButtonReturn {
             if let url = URL(string: release.htmlUrl) {
                 NSWorkspace.shared.open(url)
@@ -260,21 +261,25 @@ final class UpdateChecker: ObservableObject {
         }
     }
 
-    private func presentUpToDateAlert(currentVersion: String) {
+    private func presentUpToDateAlert(currentVersion: String) async {
         let alert = NSAlert()
         alert.messageText = "Hermes is up to date."
         alert.informativeText = "You have the latest version (\(currentVersion))."
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")
-        alert.runModal()
+
+        guard let window = NSApp.keyWindow ?? NSApp.windows.first else { return }
+        await alert.beginSheetModal(for: window)
     }
 
-    private func presentErrorAlert(error: Error) {
+    private func presentErrorAlert(error: Error) async {
         let alert = NSAlert()
         alert.messageText = "Could not check for updates."
         alert.informativeText = error.localizedDescription
         alert.alertStyle = .warning
         alert.addButton(withTitle: "OK")
-        alert.runModal()
+
+        guard let window = NSApp.keyWindow ?? NSApp.windows.first else { return }
+        await alert.beginSheetModal(for: window)
     }
 }

@@ -254,6 +254,21 @@ public final class AudioStreamer: NSObject, AudioStreaming {
     
     // MARK: - Private Properties
     
+    /// Dedicated high-priority serial queue for all network data processing,
+    /// audio file stream parsing, and buffer filling. Keeps audio pipeline
+    /// off the main thread so UI work never starves playback.
+    private let streamQueue = DispatchQueue(label: "com.hermes.audiostreamer.stream", qos: .userInteractive)
+    
+    /// Operation queue wrapping streamQueue, used as the URLSession delegate queue
+    /// so network callbacks arrive directly on our audio processing queue.
+    private lazy var streamOperationQueue: OperationQueue = {
+        let q = OperationQueue()
+        q.name = "com.hermes.audiostreamer.stream"
+        q.maxConcurrentOperationCount = 1
+        q.underlyingQueue = streamQueue
+        return q
+    }()
+    
     /// Synchronization queue for thread-safe buffer management
     private let bufferQueue = DispatchQueue(label: "com.hermes.audiostreamer.buffer", qos: .userInteractive)
     
@@ -272,7 +287,7 @@ public final class AudioStreamer: NSObject, AudioStreaming {
     }
     
     // Timeout management
-    private var timeoutTimer: Timer?
+    private var timeoutSource: DispatchSourceTimer?
     private var isUnscheduled = false
     private var isRescheduled = false
     private var eventCount = 0
@@ -324,7 +339,7 @@ public final class AudioStreamer: NSObject, AudioStreaming {
     // Connection retry management
     private var connectionResetCount: Int = 0
     private var maxConnectionResets: Int = 5
-    private var retryTimer: Timer?
+    private var retrySource: DispatchSourceTimer?
     private var isRetrying = false
     
     // MARK: - Reconnection State
@@ -345,7 +360,7 @@ public final class AudioStreamer: NSObject, AudioStreaming {
     private(set) var lastFillRatio: Double = 0.0
     
     /// Timer for scheduled reconnect attempts
-    var reconnectTimer: Timer?
+    var reconnectSource: DispatchSourceTimer?
     
     /// Whether we've registered a listener for default output device changes
     private var hasDeviceChangeListener = false
@@ -398,16 +413,16 @@ public final class AudioStreamer: NSObject, AudioStreaming {
             return false
         }
         
-        // Schedule timeout timer on main run loop
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            self.timeoutTimer = Timer.scheduledTimer(
-                withTimeInterval: TimeInterval(self.timeoutInterval),
-                repeats: true
-            ) { [weak self] _ in
-                self?.checkTimeout()
-            }
+        // Schedule timeout timer on the stream queue so it fires
+        // independently of main-thread activity.
+        let source = DispatchSource.makeTimerSource(queue: streamQueue)
+        source.schedule(deadline: .now() + .seconds(timeoutInterval),
+                        repeating: .seconds(timeoutInterval))
+        source.setEventHandler { [weak self] in
+            self?.checkTimeout()
         }
+        source.resume()
+        timeoutSource = source
         
         return true
     }
@@ -417,13 +432,13 @@ public final class AudioStreamer: NSObject, AudioStreaming {
             setState(.stopped)
         }
         
-        // Invalidate timers
-        timeoutTimer?.invalidate()
-        timeoutTimer = nil
-        retryTimer?.invalidate()
-        retryTimer = nil
-        reconnectTimer?.invalidate()
-        reconnectTimer = nil
+        // Cancel dispatch timer sources
+        timeoutSource?.cancel()
+        timeoutSource = nil
+        retrySource?.cancel()
+        retrySource = nil
+        reconnectSource?.cancel()
+        reconnectSource = nil
         
         // Clean up streams
         closeReadStream()
@@ -705,10 +720,10 @@ private extension AudioStreamer {
         setState(.done(reason: .error(error)))
         
         // Clean up resources (but don't change state again)
-        timeoutTimer?.invalidate()
-        timeoutTimer = nil
-        retryTimer?.invalidate()
-        retryTimer = nil
+        timeoutSource?.cancel()
+        timeoutSource = nil
+        retrySource?.cancel()
+        retrySource = nil
         
         closeReadStream()
         
@@ -789,17 +804,17 @@ private extension AudioStreamer {
         
         print("Retrying connection in \(delay)s...")
         
-        // Schedule retry with exponential backoff
+        // Schedule retry with exponential backoff on the stream queue
         isRetrying = true
-        DispatchQueue.main.async { [weak self] in
+        retrySource?.cancel()
+        let source = DispatchSource.makeTimerSource(queue: streamQueue)
+        source.schedule(deadline: .now() + delay)
+        source.setEventHandler { [weak self] in
             guard let self = self else { return }
-            
-            self.retryTimer?.invalidate()
-            self.retryTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
-                guard let self = self else { return }
-                self.retryConnection(fromProgress: currentProgress)
-            }
+            self.retryConnection(fromProgress: currentProgress)
         }
+        source.resume()
+        retrySource = source
     }
     
     func retryConnection(fromProgress progress: Double) {
@@ -808,8 +823,8 @@ private extension AudioStreamer {
         print("Attempting to reconnect and resume from \(progress)s...")
         
         isRetrying = false
-        retryTimer?.invalidate()
-        retryTimer = nil
+        retrySource?.cancel()
+        retrySource = nil
         
         // If we have bitrate info, seek to the last position
         if progress > 0, calculatedBitRate() != nil {
@@ -858,8 +873,8 @@ private extension AudioStreamer {
         // Guard against exceeding max attempts
         guard reconnectAttempts < maxReconnectAttempts else {
             print("⚠️ [\(ts)] max reconnect attempts (\(maxReconnectAttempts)) exceeded")
-            reconnectTimer?.invalidate()
-            reconnectTimer = nil
+            reconnectSource?.cancel()
+            reconnectSource = nil
             failWithError(.networkConnectionFailed(underlyingError: "Max reconnect attempts exceeded"))
             return
         }
@@ -888,28 +903,29 @@ private extension AudioStreamer {
         // Mark as discontinuous so the AudioFileStream parser handles the gap
         isDiscontinuous = true
         
-        // Schedule the reconnect after the backoff delay
-        reconnectTimer?.invalidate()
-        DispatchQueue.main.async { [weak self] in
+        // Schedule the reconnect after the backoff delay on the stream queue
+        reconnectSource?.cancel()
+        let source = DispatchSource.makeTimerSource(queue: streamQueue)
+        source.schedule(deadline: .now() + delay)
+        source.setEventHandler { [weak self] in
             guard let self = self else { return }
-            self.reconnectTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
-                guard let self = self else { return }
-                self.reconnectTimer = nil
-                
-                // Bail if we were stopped while waiting
-                guard !self.isDone else {
-                    print("⚠️ [\(self.ts)] reconnect bailing — done: \(self.state)")
-                    return
-                }
-                
-                if !self.openReadStream() {
-                    print("⚠️ [\(self.ts)] openReadStream failed, retrying")
-                    self.attemptInPlaceReconnect()
-                } else {
-                    print("🔄 [\(self.ts)] stream reopened | \(self.state)")
-                }
+            self.reconnectSource = nil
+            
+            // Bail if we were stopped while waiting
+            guard !self.isDone else {
+                print("⚠️ [\(self.ts)] reconnect bailing — done: \(self.state)")
+                return
+            }
+            
+            if !self.openReadStream() {
+                print("⚠️ [\(self.ts)] openReadStream failed, retrying")
+                self.attemptInPlaceReconnect()
+            } else {
+                print("🔄 [\(self.ts)] stream reopened | \(self.state)")
             }
         }
+        source.resume()
+        reconnectSource = source
     }
     
     /// Updates `seekByteOffset` and `seekTime` based on current playback progress,
@@ -1088,7 +1104,7 @@ private extension AudioStreamer {
             break // URLSession uses system proxy by default
         }
         
-        let session = URLSession(configuration: config, delegate: self, delegateQueue: .main)
+        let session = URLSession(configuration: config, delegate: self, delegateQueue: streamOperationQueue)
         urlSession = session
         
         let task = session.dataTask(with: request)
@@ -1236,8 +1252,8 @@ extension AudioStreamer: URLSessionDataDelegate {
             }
         } else {
             // Stream completed normally
-            timeoutTimer?.invalidate()
-            timeoutTimer = nil
+            timeoutSource?.cancel()
+            timeoutSource = nil
             
             // Flush remaining data
             if bytesFilled > 0 {
@@ -1488,9 +1504,7 @@ private func defaultOutputDeviceChanged(
 ) -> OSStatus {
     guard let clientData = clientData else { return noErr }
     let streamer = Unmanaged<AudioStreamer>.fromOpaque(clientData).takeUnretainedValue()
-    DispatchQueue.main.async {
-        streamer.setDefaultOutputDevice()
-    }
+    streamer.handleDefaultOutputDeviceChanged()
     return noErr
 }
 
@@ -1569,6 +1583,14 @@ private extension AudioStreamer {
         setMagicCookie()
     }
 
+    
+    /// Called from the CoreAudio device-change C callback; dispatches to
+    /// the stream queue so the AudioQueue property update stays off main.
+    func handleDefaultOutputDeviceChanged() {
+        streamQueue.async { [weak self] in
+            self?.setDefaultOutputDevice()
+        }
+    }
     
     func setDefaultOutputDevice() {
         guard let audioQueue = audioQueue else { return }
@@ -1717,7 +1739,7 @@ private extension AudioStreamer {
         guard stream != nil, let audioQueue = audioQueue else { return -1 }
         
         // Serialize buffer tracking mutations through bufferQueue.
-        // enqueueBuffer is called from the main thread (via stream callbacks),
+        // enqueueBuffer is called from the stream queue (via URLSession callbacks),
         // so we use sync to get the result back immediately.
         // Requirements: 7.1, 7.3, 7.4
         let index = bufferQueue.sync { () -> Int? in
@@ -1872,7 +1894,7 @@ private extension AudioStreamer {
             // If we were waiting for a buffer, process cached data
             if self.waitingOnBuffer {
                 self.waitingOnBuffer = false
-                DispatchQueue.main.async { [weak self] in
+                self.streamQueue.async { [weak self] in
                     self?.enqueueCachedData()
                 }
             }
