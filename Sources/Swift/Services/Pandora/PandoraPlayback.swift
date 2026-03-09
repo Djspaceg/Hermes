@@ -92,17 +92,6 @@ extension PandoraClient {
                 if let audioUrlMap = item["audioUrlMap"] as? [String: Any] {
                     if let highQuality = audioUrlMap["highQuality"] as? [String: Any],
                        let audioUrl = highQuality["audioUrl"] as? String {
-                        // Bitrate might be String or Int
-                        let bitrate: Int
-                        if let bitrateInt = highQuality["bitrate"] as? Int {
-                            bitrate = bitrateInt
-                        } else if let bitrateString = highQuality["bitrate"] as? String,
-                                  let bitrateInt = Int(bitrateString) {
-                            bitrate = bitrateInt
-                        } else {
-                            bitrate = 0
-                        }
-                        
                         // Always set highUrl if we have it
                         song.highUrl = audioUrl
                     }
@@ -129,7 +118,7 @@ extension PandoraClient {
                 NSLog("fetchPlaylist WARNING for '\(station.name)': No songs parsed from \(items.count) items")
             }
             
-            let notificationName = "hermes.fragment-fetched.\(station.token ?? "")"
+            let notificationName = "hermes.fragment-fetched.\(station.token)"
             self.postNotification(notificationName, userInfo: ["songs": songs])
         }
         
@@ -289,40 +278,26 @@ extension PandoraClient {
     /// - Returns: Array of songs
     /// - Throws: PandoraError on failure
     func fetchPlaylistAsync(for station: Station) async throws -> [Song] {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[Song], Error>) in
-            var observer: NSObjectProtocol?
-            var errorObserver: NSObjectProtocol?
+        let notificationName = Notification.Name("hermes.fragment-fetched.\(station.token)")
+        
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[Song], Error>) in
+            let bridge = NotificationContinuation<[Song]>()
             
-            let notificationName = Notification.Name("hermes.fragment-fetched.\(station.token ?? "")")
-            
-            observer = NotificationCenter.default.addObserver(
-                forName: notificationName,
-                object: nil,
-                queue: .main
-            ) { notification in
-                if let obs = observer { NotificationCenter.default.removeObserver(obs) }
-                if let obs = errorObserver { NotificationCenter.default.removeObserver(obs) }
-                
-                let songs = notification.userInfo?["songs"] as? [Song] ?? []
-                continuation.resume(returning: songs)
-            }
-            
-            errorObserver = NotificationCenter.default.addObserver(
-                forName: .pandoraDidError,
-                object: nil,
-                queue: .main
-            ) { notification in
-                if let obs = observer { NotificationCenter.default.removeObserver(obs) }
-                if let obs = errorObserver { NotificationCenter.default.removeObserver(obs) }
-                
-                let errorMessage = notification.userInfo?["err"] as? String ?? "Failed to fetch playlist"
-                continuation.resume(throwing: PandoraError.apiError(code: 0, message: errorMessage))
-            }
+            bridge.observe(
+                success: notificationName,
+                error: .pandoraDidError,
+                continuation: continuation,
+                onSuccess: { notification in
+                    notification.userInfo?["songs"] as? [Song] ?? []
+                },
+                onError: { notification in
+                    let errorMessage = notification.userInfo?["err"] as? String ?? "Failed to fetch playlist"
+                    return PandoraError.apiError(code: 0, message: errorMessage)
+                }
+            )
             
             if !self.fetchPlaylist(for: station) {
-                if let obs = observer { NotificationCenter.default.removeObserver(obs) }
-                if let obs = errorObserver { NotificationCenter.default.removeObserver(obs) }
-                continuation.resume(throwing: PandoraError.notAuthenticated)
+                bridge.cancel(continuation: continuation, error: PandoraError.notAuthenticated)
             }
         }
     }
@@ -334,35 +309,21 @@ extension PandoraClient {
     /// - Throws: PandoraError on failure
     func rateSongAsync(_ song: Song, liked: Bool) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            var observer: NSObjectProtocol?
-            var errorObserver: NSObjectProtocol?
+            let bridge = NotificationContinuation<Void>()
             
-            observer = NotificationCenter.default.addObserver(
-                forName: .pandoraDidRateSong,
-                object: nil,
-                queue: .main
-            ) { _ in
-                if let obs = observer { NotificationCenter.default.removeObserver(obs) }
-                if let obs = errorObserver { NotificationCenter.default.removeObserver(obs) }
-                continuation.resume()
-            }
-            
-            errorObserver = NotificationCenter.default.addObserver(
-                forName: .pandoraDidError,
-                object: nil,
-                queue: .main
-            ) { notification in
-                if let obs = observer { NotificationCenter.default.removeObserver(obs) }
-                if let obs = errorObserver { NotificationCenter.default.removeObserver(obs) }
-                
-                let errorMessage = notification.userInfo?["err"] as? String ?? "Failed to rate song"
-                continuation.resume(throwing: PandoraError.apiError(code: 0, message: errorMessage))
-            }
+            bridge.observe(
+                success: .pandoraDidRateSong,
+                error: .pandoraDidError,
+                continuation: continuation,
+                onSuccess: { _ in () },
+                onError: { notification in
+                    let errorMessage = notification.userInfo?["err"] as? String ?? "Failed to rate song"
+                    return PandoraError.apiError(code: 0, message: errorMessage)
+                }
+            )
             
             if !self.rateSong(song, as: liked) {
-                if let obs = observer { NotificationCenter.default.removeObserver(obs) }
-                if let obs = errorObserver { NotificationCenter.default.removeObserver(obs) }
-                continuation.resume(throwing: PandoraError.notAuthenticated)
+                bridge.cancel(continuation: continuation, error: PandoraError.notAuthenticated)
             }
         }
     }

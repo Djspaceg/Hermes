@@ -274,7 +274,7 @@ private extension PlaybackController {
                     if let station = self.playing {
                         // Small delay to let the network stabilize
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                            guard let self = self else { return }
+                            guard self != nil else { return }
                             // Only retry if still not playing
                             if station.isIdle() || station.isError() {
                                 print("📡 [Network] retrying station '\(station.name)'")
@@ -575,14 +575,14 @@ extension PlaybackController {
         let songIsPlaying = playing?.playingSong === song
         
         if rating == -1 {
-            pandora?.rateSong(song, as: false)
+            _ = pandora?.rateSong(song, as: false)
             if songIsPlaying {
                 next()
             }
         } else if rating == 0 {
-            pandora?.deleteRating(song)
+            _ = pandora?.deleteRating(song)
         } else if rating == 1 {
-            pandora?.rateSong(song, as: true)
+            _ = pandora?.rateSong(song, as: true)
         }
         
         postStateChange()
@@ -617,7 +617,7 @@ extension PlaybackController {
     func tiredOfCurrent() {
         guard let station = playing, let song = station.playingSong else { return }
         
-        pandora?.tired(of: song)
+        _ = pandora?.tired(of: song)
         next()
     }
     

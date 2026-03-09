@@ -14,7 +14,7 @@ struct RatingControlsView: View {
   // MARK: - Properties
   
   let isLiked: Bool
-  let onNext: () -> Void
+//  let onNext: () -> Void
   let onLike: () -> Void
   let onDislike: () -> Void
   let onTired: () -> Void
@@ -24,15 +24,15 @@ struct RatingControlsView: View {
   var body: some View {
     GlassEffectContainer(spacing: 24) {
       VStack(spacing: 2) {
-        Button(action: onNext) {
-          Image(systemName: "forward.fill")
-            .frame(width: 32, height: 32)
-        }
-        .buttonStyle(.glass)
-        .buttonBorderShape(.circle)
-        .help("Next")
-
-        Color.clear.frame(width: 4, height: 4)
+//        Button(action: onNext) {
+//          Image(systemName: "forward.fill")
+//            .frame(width: 32, height: 32)
+//        }
+//        .buttonStyle(.glass)
+//        .buttonBorderShape(.circle)
+//        .help("Next")
+//
+//        Color.clear.frame(width: 4, height: 4)
 
         // Like and dislike buttons with no spacer - they morph together
         Button(action: onLike) {
@@ -74,7 +74,7 @@ struct RatingControlsView: View {
 #Preview("Not Liked") {
   RatingControlsView(
     isLiked: false,
-    onNext: { print("Next") },
+//    onNext: { print("Next") },
     onLike: { print("Like") },
     onDislike: { print("Dislike") },
     onTired: { print("Tired") }
@@ -87,7 +87,7 @@ struct RatingControlsView: View {
 #Preview("Liked") {
   RatingControlsView(
     isLiked: true,
-    onNext: { print("Next") },
+//    onNext: { print("Next") },
     onLike: { print("Unlike") },
     onDislike: { print("Dislike") },
     onTired: { print("Tired") }

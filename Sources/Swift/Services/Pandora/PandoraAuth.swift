@@ -196,44 +196,26 @@ extension PandoraClient {
     /// - Throws: PandoraError on failure
     func authenticate(username: String, password: String) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            var observer: NSObjectProtocol?
-            var errorObserver: NSObjectProtocol?
+            let bridge = NotificationContinuation<Void>()
             
-            // Observe success
-            observer = NotificationCenter.default.addObserver(
-                forName: .pandoraDidAuthenticate,
-                object: nil,
-                queue: .main
-            ) { _ in
-                if let obs = observer { NotificationCenter.default.removeObserver(obs) }
-                if let obs = errorObserver { NotificationCenter.default.removeObserver(obs) }
-                continuation.resume()
-            }
-            
-            // Observe error
-            errorObserver = NotificationCenter.default.addObserver(
-                forName: .pandoraDidError,
-                object: nil,
-                queue: .main
-            ) { notification in
-                if let obs = observer { NotificationCenter.default.removeObserver(obs) }
-                if let obs = errorObserver { NotificationCenter.default.removeObserver(obs) }
-                
-                let errorMessage = notification.userInfo?["err"] as? String ?? "Authentication failed"
-                let code = notification.userInfo?["code"] as? Int
-                
-                if let code = code, let pandoraError = PandoraError.from(code: code) {
-                    continuation.resume(throwing: pandoraError)
-                } else {
-                    continuation.resume(throwing: PandoraError.apiError(code: code ?? 0, message: errorMessage))
+            bridge.observe(
+                success: .pandoraDidAuthenticate,
+                error: .pandoraDidError,
+                continuation: continuation,
+                onSuccess: { _ in () },
+                onError: { notification in
+                    let errorMessage = notification.userInfo?["err"] as? String ?? "Authentication failed"
+                    let code = notification.userInfo?["code"] as? Int
+                    
+                    if let code = code, let pandoraError = PandoraError.from(code: code) {
+                        return pandoraError
+                    }
+                    return PandoraError.apiError(code: code ?? 0, message: errorMessage)
                 }
-            }
+            )
             
-            // Start authentication
             if !self.authenticate(username, password: password, request: nil) {
-                if let obs = observer { NotificationCenter.default.removeObserver(obs) }
-                if let obs = errorObserver { NotificationCenter.default.removeObserver(obs) }
-                continuation.resume(throwing: PandoraError.networkError(HTTPClientError.invalidResponse))
+                bridge.cancel(continuation: continuation, error: PandoraError.networkError(HTTPClientError.invalidResponse))
             }
         }
     }

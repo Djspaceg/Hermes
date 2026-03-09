@@ -279,19 +279,15 @@ final class Station: Playlist, NSSecureCoding, Identifiable {
         let quality = UserDefaults.standard.integer(forKey: UserDefaultsKeys.audioQuality)
         
         var urlString: String?
-        var qualityName: String
         
         // Quality values from Constants.swift: 0=High, 1=Medium, 2=Low
         switch quality {
         case 2: // Low
             urlString = song.lowUrl ?? song.medUrl ?? song.highUrl
-            qualityName = "Low"
         case 1: // Medium
             urlString = song.medUrl ?? song.highUrl ?? song.lowUrl
-            qualityName = "Medium"
         default: // High (0 or any other value)
             urlString = song.highUrl ?? song.medUrl ?? song.lowUrl
-            qualityName = "High"
         }
         
         guard let urlString = urlString, let url = URL(string: urlString) else {
@@ -329,14 +325,14 @@ final class Station: Playlist, NSSecureCoding, Identifiable {
         guard notification.object as? Station === self else { return }
         
         // Request more songs from Pandora
-        radio?.fetchPlaylist(for: self)
+        _ = radio?.fetchPlaylist(for: self)
     }
     
     @objc private func handleNoSongsLeft(_ notification: Notification) {
         guard notification.object as? Station === self else { return }
         
         // Request songs from Pandora
-        radio?.fetchPlaylist(for: self)
+        _ = radio?.fetchPlaylist(for: self)
     }
     
     @objc private func handleStreamError(_ notification: Notification) {
@@ -372,7 +368,7 @@ final class Station: Playlist, NSSecureCoding, Identifiable {
     
     /// Convenience initializer for looking up by token
     convenience init?(forToken token: String) {
-        guard let existing = Station.stationRegistry[token] else {
+        guard Station.stationRegistry[token] != nil else {
             return nil
         }
         // Return nil - caller should use the static method instead

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		2131EFB7363647799BE4288A /* NotificationContinuation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18DB0642B5AC47B997EB35D4 /* NotificationContinuation.swift */; };
 		05C0BB8F3C1940D8BEBFA6F2 /* NetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D276383AE2745A59B7165F6 /* NetworkMonitor.swift */; };
 		16A03D4CD43741B4A5967EE7 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D19183DC23704102B6CFDB12 /* MenuBarView.swift */; };
 		1A615A41A03E43DBB8C0DDF5 /* PandoraPlayback.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87DB5AE4398A41328C29E895 /* PandoraPlayback.swift */; };
@@ -135,6 +136,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		18DB0642B5AC47B997EB35D4 /* NotificationContinuation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NotificationContinuation.swift; path = Sources/Swift/Services/Pandora/NotificationContinuation.swift; sourceTree = SOURCE_ROOT; };
 		089C165DFE840E0CC02AAC07 /* English */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = English; path = English.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		0E81F712705C47EEA429934D /* PandoraProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PandoraProtocol.swift; path = Sources/Swift/Models/PandoraProtocol.swift; sourceTree = SOURCE_ROOT; };
 		197AFF42DDEA46718095DC3F /* NotificationNames.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NotificationNames.swift; path = Sources/Swift/Utilities/NotificationNames.swift; sourceTree = SOURCE_ROOT; };
@@ -312,7 +314,8 @@
 				5F5C950BC79C4DBAB560C9EE /* PandoraStations.swift */,
 				1C67A2A19BEF4175B91E6442 /* PandoraAuth.swift */,
 				6A0035B3D8264B15AA05105B /* PandoraModels.swift */,
-			);
+			
+				18DB0642B5AC47B997EB35D4 /* NotificationContinuation.swift */,);
 			path = Pandora;
 			sourceTree = "<group>";
 		};
@@ -701,7 +704,8 @@
 				42F388EA7D0A48E69072BBCF /* PandoraStations.swift in Sources */,
 				F3758E07F47648BF8FD86559 /* PandoraAuth.swift in Sources */,
 				45E083D7892741638D71D5A7 /* PandoraModels.swift in Sources */,
-			);
+			
+						2131EFB7363647799BE4288A /* NotificationContinuation.swift in Sources */,);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */

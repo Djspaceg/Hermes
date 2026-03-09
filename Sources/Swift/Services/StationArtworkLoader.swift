@@ -66,8 +66,8 @@ final class StationArtworkLoader: ObservableObject {
     /// Request artwork for a station if not already loaded or pending
     /// - Parameter station: The station to load artwork for
     func loadArtworkIfNeeded(for station: Station) {
-        let stationId = station.stationId ?? ""
-        let stationName = station.name ?? ""
+        let stationId = station.stationId
+        let stationName = station.name
         
         guard !stationId.isEmpty else { return }
         
@@ -117,7 +117,7 @@ final class StationArtworkLoader: ObservableObject {
         stationNameToId[stationName] = stationId
         
         // Fetch station info (which includes artwork URL)
-        pandora?.fetchStationInfo(station)
+        _ = pandora?.fetchStationInfo(station)
     }
     
     /// Check if artwork has been loaded for a station
@@ -204,7 +204,7 @@ final class StationArtworkLoader: ObservableObject {
             return
         }
         
-        let stationId = station.stationId ?? ""
+        let stationId = station.stationId
         var artUrl: String?
         var genres: [String] = []
         

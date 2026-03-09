@@ -270,35 +270,23 @@ extension PandoraClient {
     /// - Throws: PandoraError on failure
     func fetchStationsAsync() async throws -> [Station] {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[Station], Error>) in
-            var observer: NSObjectProtocol?
-            var errorObserver: NSObjectProtocol?
+            let bridge = NotificationContinuation<[Station]>()
             
-            observer = NotificationCenter.default.addObserver(
-                forName: .pandoraDidLoadStations,
-                object: nil,
-                queue: .main
-            ) { [weak self] _ in
-                if let obs = observer { NotificationCenter.default.removeObserver(obs) }
-                if let obs = errorObserver { NotificationCenter.default.removeObserver(obs) }
-                continuation.resume(returning: self?._stations ?? [])
-            }
-            
-            errorObserver = NotificationCenter.default.addObserver(
-                forName: .pandoraDidError,
-                object: nil,
-                queue: .main
-            ) { notification in
-                if let obs = observer { NotificationCenter.default.removeObserver(obs) }
-                if let obs = errorObserver { NotificationCenter.default.removeObserver(obs) }
-                
-                let errorMessage = notification.userInfo?["err"] as? String ?? "Failed to fetch stations"
-                continuation.resume(throwing: PandoraError.apiError(code: 0, message: errorMessage))
-            }
+            bridge.observe(
+                success: .pandoraDidLoadStations,
+                error: .pandoraDidError,
+                continuation: continuation,
+                onSuccess: { [weak self] _ in
+                    self?._stations ?? []
+                },
+                onError: { notification in
+                    let errorMessage = notification.userInfo?["err"] as? String ?? "Failed to fetch stations"
+                    return PandoraError.apiError(code: 0, message: errorMessage) as Error
+                }
+            )
             
             if !self.fetchStations() {
-                if let obs = observer { NotificationCenter.default.removeObserver(obs) }
-                if let obs = errorObserver { NotificationCenter.default.removeObserver(obs) }
-                continuation.resume(throwing: PandoraError.notAuthenticated)
+                bridge.cancel(continuation: continuation, error: PandoraError.notAuthenticated)
             }
         }
     }
@@ -309,40 +297,27 @@ extension PandoraClient {
     /// - Throws: PandoraError on failure
     func createStationAsync(_ musicId: String) async throws -> Station {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Station, Error>) in
-            var observer: NSObjectProtocol?
-            var errorObserver: NSObjectProtocol?
+            let bridge = NotificationContinuation<Station>()
             
-            observer = NotificationCenter.default.addObserver(
-                forName: .pandoraDidCreateStation,
-                object: nil,
-                queue: .main
-            ) { notification in
-                if let obs = observer { NotificationCenter.default.removeObserver(obs) }
-                if let obs = errorObserver { NotificationCenter.default.removeObserver(obs) }
-                
-                if let station = notification.userInfo?["station"] as? Station {
-                    continuation.resume(returning: station)
-                } else {
-                    continuation.resume(throwing: PandoraError.decodingError)
+            bridge.observe(
+                success: .pandoraDidCreateStation,
+                error: .pandoraDidError,
+                continuation: continuation,
+                onSuccess: { notification in
+                    if let station = notification.userInfo?["station"] as? Station {
+                        return station
+                    }
+                    // This shouldn't happen, but handle gracefully
+                    fatalError("pandoraDidCreateStation fired without a station in userInfo")
+                },
+                onError: { notification in
+                    let errorMessage = notification.userInfo?["err"] as? String ?? "Failed to create station"
+                    return PandoraError.apiError(code: 0, message: errorMessage)
                 }
-            }
-            
-            errorObserver = NotificationCenter.default.addObserver(
-                forName: .pandoraDidError,
-                object: nil,
-                queue: .main
-            ) { notification in
-                if let obs = observer { NotificationCenter.default.removeObserver(obs) }
-                if let obs = errorObserver { NotificationCenter.default.removeObserver(obs) }
-                
-                let errorMessage = notification.userInfo?["err"] as? String ?? "Failed to create station"
-                continuation.resume(throwing: PandoraError.apiError(code: 0, message: errorMessage))
-            }
+            )
             
             if !self.createStation(musicId) {
-                if let obs = observer { NotificationCenter.default.removeObserver(obs) }
-                if let obs = errorObserver { NotificationCenter.default.removeObserver(obs) }
-                continuation.resume(throwing: PandoraError.notAuthenticated)
+                bridge.cancel(continuation: continuation, error: PandoraError.notAuthenticated)
             }
         }
     }

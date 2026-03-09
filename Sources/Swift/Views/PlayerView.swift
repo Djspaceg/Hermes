@@ -114,12 +114,27 @@ struct PlayerControlsView<ViewModel: PlayerViewModelProtocol & Observable>: View
         VStack(spacing: 0) {
           // Upper box: expands, centers play button
           ZStack {
-            // Play button centered in full area
-            PlayPauseButton(
-              isPlaying: viewModel.isPlaying,
-              action: { viewModel.playPause() }
-            )
-            .padding(.horizontal, paddingOutside)
+            GlassEffectContainer(spacing: 24) {
+              HStack(spacing: 2) {
+                Spacer()
+                  .frame(width: 32, height: 32)
+
+                // Play button centered in full area
+                PlayPauseButton(
+                  isPlaying: viewModel.isPlaying,
+                  action: { viewModel.playPause() }
+                )
+                .padding(.horizontal, 2)
+
+                Button(action: { viewModel.next() }) {
+                  Image(systemName: "forward.fill")
+                    .frame(width: 32, height: 32)
+                }
+                .buttonStyle(.glass)
+                .buttonBorderShape(.circle)
+                .help("Next")
+              }
+            }
 
             // Song info - bottom leading
             SongInfoView(song: song)
@@ -162,7 +177,7 @@ struct PlayerControlsView<ViewModel: PlayerViewModelProtocol & Observable>: View
         // Rating controls - top left corner
         RatingControlsView(
           isLiked: viewModel.isLiked,
-          onNext: { viewModel.next() },
+//          onNext: { viewModel.next() },
           onLike: { viewModel.like() },
           onDislike: { viewModel.dislike() },
           onTired: { viewModel.tired() }

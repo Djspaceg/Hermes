@@ -133,7 +133,7 @@ final class StationAddViewModel: StationAddViewModelProtocol {
         isSearching = true
         errorMessage = nil
         searchResults = []
-        pandora.search(query)
+        _ = pandora.search(query)
     }
     
     private func handleSearchResults(_ notification: Notification) {
@@ -189,13 +189,13 @@ final class StationAddViewModel: StationAddViewModelProtocol {
     func createStation(from result: SearchResult) {
         isCreating = true
         errorMessage = nil
-        pandora.createStation(result.musicToken)
+        _ = pandora.createStation(result.musicToken)
     }
     
     func createStation(fromGenre genre: Genre) {
         isCreating = true
         errorMessage = nil
-        pandora.createStation(genre.stationToken)
+        _ = pandora.createStation(genre.stationToken)
     }
     
     private func handleStationCreated() {
@@ -206,7 +206,7 @@ final class StationAddViewModel: StationAddViewModelProtocol {
     // MARK: - Genres
     func loadGenres() {
         guard genres.isEmpty else { return }
-        pandora.fetchGenreStations()
+        _ = pandora.fetchGenreStations()
     }
     
     private func handleGenreStations(_ notification: Notification) {

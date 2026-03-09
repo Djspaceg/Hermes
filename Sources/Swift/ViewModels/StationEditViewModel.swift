@@ -78,7 +78,7 @@ final class StationEditViewModel: StationEditViewModelProtocol {
     init(station: Station, pandora: PandoraProtocol? = nil) {
         self.station = station
         self.pandora = pandora ?? AppState.shared.pandora
-        self.stationName = station.name ?? ""
+        self.stationName = station.name
         setupSeedSearchDebounce()
         setupNotificationObservers()
         // Don't load details immediately - wait for explicit call
@@ -156,8 +156,8 @@ final class StationEditViewModel: StationEditViewModelProtocol {
     
     private func loadStationDetails() {
         isLoading = true
-        stationName = station.name ?? ""
-        pandora.fetchStationInfo(station)
+        stationName = station.name
+        _ = pandora.fetchStationInfo(station)
     }
     
     private func handleStationInfo(_ notification: Notification) {
@@ -286,7 +286,7 @@ final class StationEditViewModel: StationEditViewModelProtocol {
     func renameStation(to newName: String) {
         guard !newName.isEmpty, newName != stationName else { return }
         isSaving = true
-        pandora.renameStation(station.token, to: newName)
+        _ = pandora.renameStation(station.token, to: newName)
     }
     
     private func handleStationRenamed() {
@@ -322,7 +322,7 @@ final class StationEditViewModel: StationEditViewModelProtocol {
     func searchSeeds(_ query: String) {
         isSearchingSeeds = true
         seedSearchResults = []
-        pandora.search(query)
+        _ = pandora.search(query)
     }
     
     private func handleSeedSearchResults(_ notification: Notification) {
@@ -372,7 +372,7 @@ final class StationEditViewModel: StationEditViewModelProtocol {
     // MARK: - Seed Management
     
     func addSeed(_ result: SeedSearchResult) {
-        pandora.addSeed(result.musicToken, to: station)
+        _ = pandora.addSeed(result.musicToken, to: station)
         seedSearchQuery = ""
         seedSearchResults = []
     }
@@ -383,7 +383,7 @@ final class StationEditViewModel: StationEditViewModelProtocol {
     }
     
     func deleteSeed(_ seed: Seed) {
-        pandora.removeSeed(seed.seedId)
+        _ = pandora.removeSeed(seed.seedId)
     }
     
     private func handleSeedDeleted() {
@@ -394,7 +394,7 @@ final class StationEditViewModel: StationEditViewModelProtocol {
     // MARK: - Feedback Management
     
     func deleteFeedback(_ item: FeedbackItem) {
-        pandora.deleteFeedback(item.feedbackId)
+        _ = pandora.deleteFeedback(item.feedbackId)
     }
     
     private func handleFeedbackDeleted(_ notification: Notification) {
