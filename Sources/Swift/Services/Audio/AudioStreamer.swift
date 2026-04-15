@@ -254,9 +254,9 @@ public final class AudioStreamer: NSObject, AudioStreaming {
     
     // MARK: - Private Properties
     
-    /// Dedicated high-priority serial queue for all network data processing,
-    /// audio file stream parsing, and buffer filling. Keeps audio pipeline
-    /// off the main thread so UI work never starves playback.
+    /// Key used to detect if we're already executing on the stream queue,
+    /// avoiding deadlock when stop() dispatches cleanup synchronously.
+    private let streamQueueKey = DispatchSpecificKey<Bool>()
     private let streamQueue = DispatchQueue(label: "com.hermes.audiostreamer.stream", qos: .userInteractive)
     
     /// Operation queue wrapping streamQueue, used as the URLSession delegate queue
@@ -370,11 +370,22 @@ public final class AudioStreamer: NSObject, AudioStreaming {
     /// Whether we've registered a listener for default output device changes
     private var hasDeviceChangeListener = false
     
+    /// True while inside AudioFileStreamParseBytes — disposal of the
+    /// AudioQueue and AudioFileStream must be deferred until parsing returns,
+    /// otherwise the parser dereferences freed internal state (crash).
+    private var isParsing = false
+    
+    /// When failWithError is called mid-parse, the error is stashed here
+    /// and cleanup runs after AudioFileStreamParseBytes returns.
+    private var deferredError: AudioStreamerError?
+    
     // MARK: - Initialization
     
     public init(url: URL) {
         self.url = url
         self.packetDescriptions = Array(repeating: AudioStreamPacketDescription(), count: Int(kAQMaxPacketDescs))
+        super.init()
+        streamQueue.setSpecific(key: streamQueueKey, value: true)
     }
     
     deinit {
@@ -445,37 +456,54 @@ public final class AudioStreamer: NSObject, AudioStreaming {
         reconnectSource?.cancel()
         reconnectSource = nil
         
-        // Clean up streams
+        // Cancel the network task immediately to stop new data arriving.
+        // This is safe to call from any thread.
         closeReadStream()
         
-        if let audioFileStream = audioFileStream {
-            AudioFileStreamClose(audioFileStream)
-            self.audioFileStream = nil
+        // Dispose AudioQueue and AudioFileStream on the stream queue so we
+        // serialize with any in-flight AudioFileStreamParseBytes call.
+        // If we're already on the stream queue, run inline.
+        let cleanup = { [self] in
+            if let audioFileStream = audioFileStream {
+                AudioFileStreamClose(audioFileStream)
+                self.audioFileStream = nil
+            }
+            
+            if let audioQueue = audioQueue {
+                AudioQueueStop(audioQueue, true)
+                AudioQueueDispose(audioQueue, true)
+                self.audioQueue = nil
+            }
+            
+            // Remove audio device change listener
+            removeDeviceChangeListener()
+            
+            bufferQueue.sync {
+                buffers.removeAll()
+                bufferInUse.removeAll()
+            }
+            
+            httpHeaders = nil
+            bytesFilled = 0
+            packetsFilled = 0
+            seekByteOffset = 0
+            packetBufferSize = 0
+            connectionResetCount = 0
+            isRetrying = false
+            isParsing = false
+            deferredError = nil
+            reconnectAttempts = 0
+            stallDetector.reset()
+            lastFillRatio = 0.0
+            httpStreamCompleted = false
         }
         
-        if let audioQueue = audioQueue {
-            AudioQueueStop(audioQueue, true)
-            AudioQueueDispose(audioQueue, true)
-            self.audioQueue = nil
+        // Detect if we're already on the stream queue to avoid deadlock
+        if DispatchQueue.getSpecific(key: streamQueueKey) == true {
+            cleanup()
+        } else {
+            streamQueue.sync(execute: cleanup)
         }
-        
-        // Remove audio device change listener
-        removeDeviceChangeListener()
-        
-        buffers.removeAll()
-        bufferInUse.removeAll()
-        
-        httpHeaders = nil
-        bytesFilled = 0
-        packetsFilled = 0
-        seekByteOffset = 0
-        packetBufferSize = 0
-        connectionResetCount = 0
-        isRetrying = false
-        reconnectAttempts = 0
-        stallDetector.reset()
-        lastFillRatio = 0.0
-        httpStreamCompleted = false
     }
     
     @discardableResult
@@ -717,6 +745,17 @@ private extension AudioStreamer {
         
         print("❌ [\(ts)] TERMINAL: \(error) | \(state) | buffers=\(buffersUsed)/\(bufferCount) | reconnect=\(reconnectAttempts)")
         
+        // If we're inside AudioFileStreamParseBytes, disposing the AudioQueue
+        // or AudioFileStream now would free memory the parser is still using,
+        // causing a SIGSEGV. Stash the error and let the parse-site run cleanup.
+        if isParsing {
+            print("⚠️ [\(ts)] mid-parse — deferring cleanup")
+            errorCode = error
+            deferredError = error
+            setState(.done(reason: .error(error)))
+            return
+        }
+        
         // Save last progress
         _ = progress()
         
@@ -725,6 +764,12 @@ private extension AudioStreamer {
         // Set done-with-error state BEFORE cleanup so Playlist sees the error
         setState(.done(reason: .error(error)))
         
+        performErrorCleanup()
+    }
+    
+    /// Tears down audio resources. Separated from failWithError so it can
+    /// be called after AudioFileStreamParseBytes returns when deferred.
+    func performErrorCleanup() {
         // Clean up resources (but don't change state again)
         timeoutSource?.cancel()
         timeoutSource = nil
@@ -1228,12 +1273,16 @@ extension AudioStreamer: URLSessionDataDelegate {
             }
         }
         
-        // Parse the audio data
+        // Parse the audio data — guard the call with isParsing so that
+        // failWithError (called synchronously from parser callbacks) defers
+        // AudioQueue/AudioFileStream disposal until after parsing returns.
         let parseFlags: AudioFileStreamParseFlags = isDiscontinuous ? .discontinuity : []
+        isParsing = true
         data.withUnsafeBytes { ptr in
             guard let baseAddress = ptr.baseAddress else { return }
+            guard let afs = audioFileStream else { return }
             let status = AudioFileStreamParseBytes(
-                audioFileStream!,
+                afs,
                 UInt32(data.count),
                 baseAddress,
                 parseFlags
@@ -1241,6 +1290,13 @@ extension AudioStreamer: URLSessionDataDelegate {
             if status != noErr {
                 failWithError(.fileStreamParseFailed(status: status))
             }
+        }
+        isParsing = false
+        
+        // If failWithError was called during parsing, run the deferred cleanup now
+        if deferredError != nil {
+            deferredError = nil
+            performErrorCleanup()
         }
     }
     
