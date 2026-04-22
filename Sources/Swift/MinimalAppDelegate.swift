@@ -73,6 +73,12 @@ import Combine
         saveState()
     }
     
+    // MARK: - Dock Menu
+    
+    func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+        DockMenuBuilder.makeMenu(playerViewModel: AppState.shared.playerViewModel)
+    }
+    
     // MARK: - Notification Observers
     
     private func setupNotificationObservers() {

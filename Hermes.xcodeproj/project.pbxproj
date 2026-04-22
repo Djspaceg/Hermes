@@ -56,6 +56,7 @@
 		634D8E902F1719EA0069FD8F /* StationEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634D8E8F2F1719EA0069FD8F /* StationEditView.swift */; };
 		634D8E922F171F060069FD8F /* SettingsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634D8E912F171F060069FD8F /* SettingsManager.swift */; };
 		634D8E942F171F070069FD8F /* WindowTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634D8E932F171F070069FD8F /* WindowTracker.swift */; };
+		DCB01A1E2F20010100AA00AA /* DockMenuBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCB01A1F2F20010100AA00AA /* DockMenuBuilder.swift */; };
 		634D8E962F171FFF0069FD8F /* PreviewMocks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634D8E952F171FFF0069FD8F /* PreviewMocks.swift */; };
 		634D8E982F1720000069FD8F /* KeychainManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634D8E972F1720000069FD8F /* KeychainManager.swift */; };
 		634D90EA2F19AD5E0069FD8F /* AppleScriptSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634D90E72F19AD5E0069FD8F /* AppleScriptSupport.swift */; };
@@ -187,6 +188,7 @@
 		634D8E8F2F1719EA0069FD8F /* StationEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StationEditView.swift; sourceTree = "<group>"; };
 		634D8E912F171F060069FD8F /* SettingsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsManager.swift; sourceTree = "<group>"; };
 		634D8E932F171F070069FD8F /* WindowTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowTracker.swift; sourceTree = "<group>"; };
+		DCB01A1F2F20010100AA00AA /* DockMenuBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockMenuBuilder.swift; sourceTree = "<group>"; };
 		634D8E952F171FFF0069FD8F /* PreviewMocks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewMocks.swift; sourceTree = "<group>"; };
 		634D8E972F1720000069FD8F /* KeychainManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainManager.swift; sourceTree = "<group>"; };
 		634D8E972F187B0D0069FD8F /* HermesTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HermesTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -362,6 +364,7 @@
 			children = (
 				634D8E912F171F060069FD8F /* SettingsManager.swift */,
 				634D8E932F171F070069FD8F /* WindowTracker.swift */,
+				DCB01A1F2F20010100AA00AA /* DockMenuBuilder.swift */,
 				634D8E972F1720000069FD8F /* KeychainManager.swift */,
 				634D8E5C2F16EE7A0069FD8F /* NotificationBridge.swift */,
 				634D8E5D2F16EE7A0069FD8F /* NotificationManager.swift */,
@@ -656,6 +659,7 @@
 				634D8E8C2F1718140069FD8F /* StationAddView.swift in Sources */,
 				634D8E922F171F060069FD8F /* SettingsManager.swift in Sources */,
 				634D8E942F171F070069FD8F /* WindowTracker.swift in Sources */,
+				DCB01A1E2F20010100AA00AA /* DockMenuBuilder.swift in Sources */,
 				634D8E982F1720000069FD8F /* KeychainManager.swift in Sources */,
 				634D8E7F2F16EE7A0069FD8F /* AppState.swift in Sources */,
 				634D90EA2F19AD5E0069FD8F /* AppleScriptSupport.swift in Sources */,
