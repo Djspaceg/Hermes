@@ -17,7 +17,8 @@ This plan implements a dependency injection system for Hermes to enable test iso
   - Add computed property wrappers where needed for protocol compatibility
   - _Requirements: 1.6_
 
-- [ ] 3. Create mock implementation for testing
+- [x] 3. Create mock implementation for testing
+  - Reconciled 2026-09-16: `HermesTests/Mocks/MockPandora.swift`, `HermesTests/Tests/MockPandoraTests.swift`, and `HermesTests/Tests/MockPandoraConfigurationTests.swift` verify the listed implementation.
   - [x] 3.1 Create MockPandora class in `HermesTests/Mocks/MockPandora.swift`
     - Implement PandoraProtocol with call recording infrastructure
     - Add Call struct with Method enum covering all protocol operations
@@ -52,7 +53,8 @@ This plan implements a dependency injection system for Hermes to enable test iso
     - Implement callCount() method to count invocations
     - _Requirements: 3.6_
 
-- [ ] 4. Refactor AppState for dependency injection
+- [x] 4. Refactor AppState for dependency injection
+  - Reconciled 2026-09-16: `Sources/Swift/ViewModels/AppState.swift` contains the production and test factories and injects the selected `PandoraProtocol` instance.
   - [x] 4.1 Add factory methods to AppState
     - Create static production() factory returning AppState with PandoraClient
     - Create static test() factory accepting PandoraProtocol parameter
@@ -66,7 +68,8 @@ This plan implements a dependency injection system for Hermes to enable test iso
     - Pass pandora to ViewModel initializers
     - _Requirements: 4.1, 4.6_
 
-  - [ ] 4.3 Write unit tests for AppState factories
+  - [x] 4.3 Write unit tests for AppState factories
+    - Reconciled 2026-09-16: `HermesTests/Tests/AppStateFactoryTests.swift` covers production, test, and shared-singleton behavior.
     - Test production() creates AppState with PandoraClient
     - Test test() creates AppState with mock Pandora
     - Verify singleton pattern still works for production
@@ -75,7 +78,8 @@ This plan implements a dependency injection system for Hermes to enable test iso
 - [x] 5. Checkpoint - Verify foundation
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 6. Migrate LoginViewModel to dependency injection
+- [x] 6. Migrate LoginViewModel to dependency injection
+  - Reconciled 2026-09-16: `HermesTests/Tests/LoginViewModelTests.swift` constructs `LoginViewModel` with `MockPandora` and exercises injected-instance behavior.
   - [x] 6.1 Update LoginViewModel for DI
     - Add pandora: PandoraProtocol parameter with default value (AppState.shared.pandora)
     - Store pandora as private property

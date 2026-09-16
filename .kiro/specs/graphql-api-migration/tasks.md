@@ -313,10 +313,10 @@ This implementation plan migrates Hermes from the legacy Pandora JSON API v5 to 
     - _Requirements: 11.4_
   
   - [ ] 17.3 Remove legacy Pandora API code (after verification)
-    - Remove Blowfish encryption (Crypt.h/m)
+    - [x] Remove the Objective-C Blowfish implementation (`Crypt.h`/`Crypt.m`) - completed before 2026-09-16; neither file exists in the tracked tree
     - Remove PandoraDevice configuration
-    - Remove sync time mechanism from Pandora.m
-    - Update bridging header
+    - Remove the sync-time mechanism from the Swift Pandora client
+    - [x] Remove the obsolete bridging-header dependency - completed before 2026-09-16; no bridging header or current build setting remains
     - _Requirements: 12.2, 12.3, 12.4_
 
 - [ ] 18. Final checkpoint - Full integration verification

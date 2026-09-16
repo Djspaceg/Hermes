@@ -1,5 +1,7 @@
 # Manual Steps Required to Complete Swift Frontend Migration
 
+> **SUPERSEDED - no manual steps remain; reconciled 2026-09-16.** `Sources/Swift/HermesApp.swift` and `Sources/Swift/MinimalAppDelegate.swift` are already in the Hermes target's Sources build phase, and the target uses Swift 5. The tracked tree contains no Objective-C `.m`/`.h` files or bridging header, and the current project has no `SWIFT_OBJC_BRIDGING_HEADER` setting. See `.kiro/specs/full-swift-migration/` for the completed migration record.
+
 ## Current Status
 
 ✅ All Swift source files have been created in `Sources/Swift/`

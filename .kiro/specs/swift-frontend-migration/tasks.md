@@ -1,5 +1,7 @@
 # Implementation Plan: Swift Frontend Migration
 
+> **SUPERSEDED - implementation completed before 2026-09-16; reconciled 2026-09-16.** Every `.m`, `.h`, `main.m`, and `.xib` target named by this plan is absent from the tracked tree. The application now enters through `Sources/Swift/HermesApp.swift`, and current Swift migration history is recorded in `.kiro/specs/full-swift-migration/`. The unchecked boxes below are retained as historical planning detail and are not current backlog.
+
 ## Overview
 
 This plan properly migrates Hermes to a 100% Swift/SwiftUI frontend with Objective-C business logic. The migration removes all XIB dependencies and uses SwiftUI's native lifecycle.

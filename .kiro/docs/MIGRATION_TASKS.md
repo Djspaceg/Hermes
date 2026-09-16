@@ -1,9 +1,12 @@
 # Objective-C to Swift Migration Tasks
 
-**Goal:** Migrate all feasible Objective-C code to modern Swift, keeping only core business logic in Objective-C.
+> **RECONCILED - complete before 2026-09-16.** The implementation predates this reconciliation. This document is retained as migration history; it is not an active backlog. See `.kiro/specs/objc-to-swift-migration/` and `.kiro/specs/full-swift-migration/` for the completed successor plans.
 
-**Status:** Phase 3 - Starting migration
-**Started:** January 15, 2026
+**Historical Goal:** Migrate all feasible Objective-C code to modern Swift, keeping only core business logic in Objective-C.<br>
+**Outcome:** The application source is now Swift, including the components this plan originally proposed keeping in Objective-C.<br>
+**Status:** COMPLETE<br>
+**Started:** January 15, 2026<br>
+**Reconciled:** September 16, 2026
 
 ---
 
@@ -11,7 +14,7 @@
 
 ### Task 1: Migrate Notifications.{h,m} ✅
 
-**Status:** COMPLETE  
+**Status:** COMPLETE<br>
 **Priority:** High  
 **Effort:** 1 hour (completed)  
 **Files:**
@@ -42,15 +45,17 @@
 
 ---
 
-### Task 2: Migrate HermesConstants.h ⏳
+### Task 2: Migrate HermesConstants.h ✅
 
-**Status:** Not Started  
+**Status:** COMPLETE<br>
 **Priority:** High  
 **Effort:** 15 minutes  
 **Files:**
 
-- Delete: `Sources/HermesConstants.h`
-- Create: `Sources/Swift/Utilities/Constants.swift`
+- Deleted: `Sources/HermesConstants.h`
+- Created: `Sources/Swift/Utilities/Constants.swift`
+
+**Completion note (verified 2026-09-16):** The Objective-C header is absent, and `Constants.swift` is present in the Hermes target's Sources build phase.
 
 **Description:**
 
@@ -66,15 +71,17 @@
 
 ---
 
-### Task 3: Delete Keychain.{h,m} ⏳
+### Task 3: Delete Keychain.{h,m} ✅
 
-**Status:** Not Started  
+**Status:** COMPLETE<br>
 **Priority:** High  
 **Effort:** 5 minutes  
 **Files:**
 
-- Delete: `Sources/Integration/Keychain.{h,m}`
-- Already replaced by: `Sources/Swift/Utilities/KeychainManager.swift`
+- Deleted: `Sources/Integration/Keychain.{h,m}`
+- Replaced by: `Sources/Swift/Utilities/KeychainManager.swift`
+
+**Completion note (verified 2026-09-16):** The Objective-C files are absent, `KeychainManager.swift` is in the Sources build phase, and the current project has no bridging-header setting.
 
 **Description:**
 
@@ -92,16 +99,18 @@
 
 ## Phase 4: Modernization (Networking & Images)
 
-### Task 4: Migrate ImageLoader.{h,m} ⏳
+### Task 4: Migrate ImageLoader.{h,m} ✅
 
-**Status:** Not Started  
+**Status:** COMPLETE<br>
 **Priority:** Medium  
 **Effort:** 1-2 hours  
 **Files:**
 
-- Delete: `Sources/Models/ImageLoader.{h,m}`
-- Create: `Sources/Swift/Utilities/ImageCache.swift`
-- Update: Views using ImageLoader
+- Deleted: `Sources/Models/ImageLoader.{h,m}`
+- Created: `Sources/Swift/Utilities/ImageCache.swift`
+- Updated: Image-loading consumers
+
+**Completion note (verified 2026-09-16):** The Objective-C files are absent, and `ImageCache.swift` is present in the Sources build phase.
 
 **Description:**
 
@@ -119,15 +128,17 @@
 
 ---
 
-### Task 5: Migrate NetworkConnection.{h,m} ⏳
+### Task 5: Migrate NetworkConnection.{h,m} ✅
 
-**Status:** Not Started  
+**Status:** COMPLETE<br>
 **Priority:** Medium  
 **Effort:** 30 minutes  
 **Files:**
 
-- Delete: `Sources/NetworkConnection.{h,m}`
-- Create: `Sources/Swift/Utilities/NetworkMonitor.swift`
+- Deleted: `Sources/NetworkConnection.{h,m}`
+- Created: `Sources/Swift/Utilities/NetworkMonitor.swift`
+
+**Completion note (verified 2026-09-16):** The Objective-C files are absent, and `NetworkMonitor.swift` is present in the Sources build phase.
 
 **Description:**
 
@@ -143,15 +154,17 @@
 
 ---
 
-### Task 6: Migrate URLConnection.{h,m} ⏳
+### Task 6: Migrate URLConnection.{h,m} ✅
 
-**Status:** Not Started  
+**Status:** COMPLETE<br>
 **Priority:** Medium  
 **Effort:** 1 hour  
 **Files:**
 
-- Delete: `Sources/URLConnection.{h,m}`
-- Create: `Sources/Swift/Utilities/HTTPClient.swift`
+- Deleted: `Sources/URLConnection.{h,m}`
+- Created: `Sources/Swift/Utilities/HTTPClient.swift`
+
+**Completion note (verified 2026-09-16):** The Objective-C files are absent, and `HTTPClient.swift` is present in the Sources build phase.
 
 **Description:**
 
@@ -169,15 +182,17 @@
 
 ## Phase 5: Advanced Migrations
 
-### Task 7: Migrate Scrobbler.{h,m} ⏳
+### Task 7: Migrate Scrobbler.{h,m} ✅
 
-**Status:** Not Started  
+**Status:** COMPLETE<br>
 **Priority:** Low  
 **Effort:** 2-3 hours  
 **Files:**
 
-- Delete: `Sources/Integration/Scrobbler.{h,m}`
-- Create: `Sources/Swift/Services/LastFMService.swift`
+- Deleted: `Sources/Integration/Scrobbler.{h,m}`
+- Created: `Sources/Swift/Services/LastFMService.swift`
+
+**Completion note (verified 2026-09-16):** The Objective-C files are absent, and `LastFMService.swift` is present in the Sources build phase.
 
 **Description:**
 
@@ -195,15 +210,17 @@
 
 ---
 
-### Task 8: Migrate AppleScript.{h,m} ⏳
+### Task 8: Migrate AppleScript.{h,m} ✅
 
-**Status:** Not Started  
+**Status:** COMPLETE<br>
 **Priority:** Low  
 **Effort:** 2 hours  
 **Files:**
 
-- Delete: `Sources/Integration/AppleScript.{h,m}`
-- Create: `Sources/Swift/Services/AppleScriptSupport.swift`
+- Deleted: `Sources/Integration/AppleScript.{h,m}`
+- Created: `Sources/Swift/Services/AppleScriptSupport.swift`
+
+**Completion note (verified 2026-09-16):** The Objective-C files are absent, and `AppleScriptSupport.swift` is present in the Sources build phase.
 
 **Description:**
 
@@ -218,15 +235,17 @@
 
 ---
 
-### Task 9: Delete HermesApp.{h,m} ⏳
+### Task 9: Delete HermesApp.{h,m} ✅
 
-**Status:** Not Started  
+**Status:** COMPLETE<br>
 **Priority:** Low  
 **Effort:** 30 minutes  
 **Files:**
 
-- Delete: `Sources/HermesApp.{h,m}`
-- Already replaced by: `Sources/Swift/AppState.swift`
+- Deleted: `Sources/HermesApp.{h,m}`
+- Replaced by: `Sources/Swift/ViewModels/AppState.swift`
+
+**Completion note (verified 2026-09-16):** The Objective-C files are absent, and `AppState.swift` is present in the Sources build phase.
 
 **Description:**
 
@@ -287,42 +306,50 @@
 
 ---
 
-## Keep in Objective-C (Core Business Logic)
+## Formerly Kept in Objective-C (Now Swift)
 
-### ✅ PlaybackController.{h,m}
+### ✅ PlaybackController.swift
 
-**Reason:** Complex audio state management, working, stable  
-**Status:** Keep as-is
+**Historical reason:** Complex audio state management, working, stable<br>
+**Status:** Migrated to `Sources/Swift/Services/PlaybackController.swift` (verified 2026-09-16)
 
-### ✅ Pandora API (Pandora/)
+### ✅ Pandora API
 
-**Reason:** Complex networking, encryption, API client - working, stable  
-**Status:** Keep as-is
+**Historical reason:** Complex networking, encryption, API client - working, stable<br>
+**Status:** Migrated to `Sources/Swift/Services/Pandora/` (verified 2026-09-16)
 
-### ✅ AudioStreamer (AudioStreamer/)
+### ✅ AudioStreamer.swift
 
-**Reason:** CoreAudio wrapper, streaming engine - working, stable  
-**Status:** Keep as-is
+**Historical reason:** CoreAudio wrapper, streaming engine - working, stable<br>
+**Status:** Migrated to `Sources/Swift/Services/Audio/AudioStreamer.swift` (verified 2026-09-16)
 
 ---
 
 ## Progress Tracking
 
-**Total Tasks:** 11  
-**Completed:** 3 ✅  
-**In Progress:** 0  
-**Not Started:** 8  
+**Total Tasks:** 11<br>
+**Completed:** 11 ✅<br>
+**In Progress:** 0<br>
+**Not Started:** 0
 
 **Completed Tasks:**
 
 - ✅ Task 1: Migrate Notifications.{h,m} to Swift (1 hour)
+- ✅ Task 2: Migrate HermesConstants.h
+- ✅ Task 3: Delete Keychain.{h,m}
+- ✅ Task 4: Migrate ImageLoader.{h,m}
+- ✅ Task 5: Migrate NetworkConnection.{h,m}
+- ✅ Task 6: Migrate URLConnection.{h,m}
+- ✅ Task 7: Migrate Scrobbler.{h,m}
+- ✅ Task 8: Migrate AppleScript.{h,m}
+- ✅ Task 9: Delete HermesApp.{h,m}
 - ✅ Task 10: Delete FileReader.{h,m} (5 minutes)
 - ✅ Task 11: Delete NSDrawerWindow Workaround (5 minutes)
 
-**Estimated Total Effort:** 8-10 hours  
-**Time Spent:** 1 hour 10 minutes  
-**Remaining Effort:** 6 hours 50 minutes - 8 hours 50 minutes  
-**Expected Completion:** TBD
+**Historical Estimated Total Effort:** 8-10 hours<br>
+**Actual Time Spent:** Not recorded<br>
+**Remaining Effort:** 0 for this migration checklist<br>
+**Completion:** Implementation completed before the September 16, 2026 reconciliation
 
 ---
 

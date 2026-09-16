@@ -247,39 +247,41 @@ The plan follows a phased approach:
 
 ### Phase 3: Complete Modernization (2-3 months)
 
-- [x] 13. Split AudioStreamer.swift (1910 lines)
+- [ ] 13. Split AudioStreamer.swift (currently 2051 lines)
+  - Reconciled 2026-09-16: only 13.1 is credited as complete. `AudioStreamBuffer.swift`, `AudioStreamDecoder.swift`, and `AudioStreamOutput.swift` are absent, and the core file remains 2,051 lines. Remaining extraction is tracked separately by Project Agent task `audiostreamer-split`.
   - [x] 13.1 Extract AudioStreamState
     - Create `Sources/Swift/Services/Audio/AudioStreamState.swift`
     - Move state management code (~150 lines)
     - _Requirements: 7.2_
   
-  - [x] 13.2 Extract AudioStreamBuffer
+  - [ ] 13.2 Extract AudioStreamBuffer
     - Create `Sources/Swift/Services/Audio/AudioStreamBuffer.swift`
     - Move buffer management code (~200 lines)
     - _Requirements: 7.2_
   
-  - [x] 13.3 Extract AudioStreamDecoder
+  - [ ] 13.3 Extract AudioStreamDecoder
     - Create `Sources/Swift/Services/Audio/AudioStreamDecoder.swift`
     - Move audio decoding code (~200 lines)
     - _Requirements: 7.2_
   
-  - [x] 13.4 Extract AudioStreamOutput
+  - [ ] 13.4 Extract AudioStreamOutput
     - Create `Sources/Swift/Services/Audio/AudioStreamOutput.swift`
     - Move audio output code (~150 lines)
     - _Requirements: 7.2_
   
-  - [x] 13.5 Extract AudioStreamError
+  - [ ] 13.5 Extract AudioStreamError
+    - Reconciled 2026-09-16: `AudioStreamError.swift` exists, but this checklist does not credit the remaining split as complete; Project Agent task `audiostreamer-split` owns the extraction.
     - Create `Sources/Swift/Services/Audio/AudioStreamError.swift`
     - Move error types (~100 lines)
     - _Requirements: 7.2_
   
-  - [x] 13.6 Refactor core AudioStreamer
+  - [ ] 13.6 Refactor core AudioStreamer
     - Keep core streaming engine (~300 lines)
     - Update to use extracted components
     - Add MARK comments for organization
     - _Requirements: 7.2, 7.5_
   
-  - [x] 13.7 Verify AudioStreamer tests still pass
+  - [ ] 13.7 Verify AudioStreamer tests still pass
     - Run all AudioStreamer tests
     - Verify functionality unchanged
     - _Requirements: 7.5_
@@ -452,10 +454,10 @@ The plan follows a phased approach:
     - Ensure comments add value
     - _Requirements: 24.1, 24.2, 24.3, 24.4, 24.5_
 
-- [x] 22. Phase 3 Final Checkpoint
+- [ ] 22. Phase 3 Final Checkpoint
   - Run full test suite and verify all tests pass
   - Verify code coverage meets 90% for Swift code
-  - Verify no files exceed 800 lines
+  - Verify no files exceed 800 lines - NOT MET as of 2026-09-16: `Sources/Swift/Services/Audio/AudioStreamer.swift` is 2,051 lines and `Sources/Swift/Services/PlaybackController.swift` is 895 lines
   - Verify no compilation warnings
   - Generate DocC documentation
   - Run performance benchmarks
@@ -470,7 +472,7 @@ The plan follows a phased approach:
 - Checkpoints ensure incremental validation at phase boundaries
 - Property tests validate universal correctness properties with minimum 100 iterations
 - Unit tests validate specific examples, edge cases, and error conditions
-- All tests use Swift Testing framework with @Test attributes
+- Swift Testing migration is incomplete: 23 files in `HermesTests/Tests/` still import XCTest as of 2026-09-16. The remaining migration is tracked separately by Project Agent task `xctest-to-swift-testing`.
 - File splitting maintains all existing functionality and tests
 - Component extraction follows single-responsibility principle
 - Threading optimization ensures responsive UI
