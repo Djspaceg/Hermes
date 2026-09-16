@@ -42,10 +42,10 @@ upload-release: SCHEME = 'Upload Hermes Release'
 upload-release: hermes
 
 test:
-	$(XCB) $(COMMON_OPTS) -scheme HermesTests test
+	$(XCB) $(COMMON_OPTS) -scheme Hermes test
 
 test-verbose:
-	$(XCB) $(COMMON_OPTS) -scheme HermesTests test | xcpretty
+	$(XCB) $(COMMON_OPTS) -scheme Hermes test | xcpretty
 
 clean:
 	$(XCB) $(COMMON_OPTS) -scheme $(SCHEME) clean
