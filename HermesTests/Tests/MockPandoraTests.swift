@@ -23,7 +23,7 @@ final class MockPandoraTests: XCTestCase {
     override func tearDown() async throws {
         sut = nil
         try await super.tearDown()
-
+    }
 
     // MARK: - Property 3: Mock Configuration Affects Behavior
     //
@@ -478,8 +478,6 @@ final class MockPandoraTests: XCTestCase {
         }
     }
 
-    }
-    
     // MARK: - Property 2: Mock Call Recording is Complete
     //
     // For any sequence of method calls made on a MockPandora instance,
