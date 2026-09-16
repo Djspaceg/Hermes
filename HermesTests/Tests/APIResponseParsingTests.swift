@@ -6,25 +6,12 @@
 //  **Validates: Requirements 4.3, 4.4, 4.5, 4.6, 4.7**
 //
 
-import XCTest
+import Testing
+import Foundation
 @testable import Hermes
 
-final class APIResponseParsingTests: XCTestCase {
-    
-    // MARK: - Test Infrastructure
-    
-    private var pandoraClient: PandoraClient!
-    
-    override func setUp() {
-        super.setUp()
-        pandoraClient = PandoraClient()
-    }
-    
-    override func tearDown() {
-        pandoraClient = nil
-        super.tearDown()
-    }
-    
+@Suite("APIResponseParsingTests", .serialized)
+struct APIResponseParsingTests {
     // MARK: - Property 2: API Response Parsing Correctness
     //
     // For all valid Pandora API response JSON, parsing should produce correctly
@@ -36,6 +23,7 @@ final class APIResponseParsingTests: XCTestCase {
     
     /// Property test: Station list parsing with various valid responses
     /// Tests that all required station fields are populated correctly
+    @Test("Station List Parsing All Required Fields")
     func testStationListParsing_AllRequiredFields() throws {
         // Test with 100+ iterations of different station configurations
         for iteration in 0..<120 {
@@ -46,32 +34,29 @@ final class APIResponseParsingTests: XCTestCase {
             let stations = parseStationList(from: mockResponse)
             
             // Verify count matches
-            XCTAssertEqual(
-                stations.count,
-                stationCount,
-                "Iteration \(iteration): Station count mismatch"
-            )
+            #expect((stations.count) == (stationCount), "Iteration \(iteration): Station count mismatch")
             
             // Verify all required fields are populated
             for (index, station) in stations.enumerated() {
-                XCTAssertFalse(station.name.isEmpty, "Iteration \(iteration), Station \(index): name is empty")
-                XCTAssertFalse(station.stationId.isEmpty, "Iteration \(iteration), Station \(index): stationId is empty")
-                XCTAssertFalse(station.token.isEmpty, "Iteration \(iteration), Station \(index): token is empty")
+                #expect(!(station.name.isEmpty), "Iteration \(iteration), Station \(index): name is empty")
+                #expect(!(station.stationId.isEmpty), "Iteration \(iteration), Station \(index): stationId is empty")
+                #expect(!(station.token.isEmpty), "Iteration \(iteration), Station \(index): token is empty")
                 
                 // Verify boolean fields have valid values
-                XCTAssertNotNil(station.shared, "Iteration \(iteration), Station \(index): shared is nil")
-                XCTAssertNotNil(station.allowAddMusic, "Iteration \(iteration), Station \(index): allowAddMusic is nil")
-                XCTAssertNotNil(station.allowRename, "Iteration \(iteration), Station \(index): allowRename is nil")
+                #expect(Optional(station.shared) != nil, "Iteration \(iteration), Station \(index): shared is nil")
+                #expect(Optional(station.allowAddMusic) != nil, "Iteration \(iteration), Station \(index): allowAddMusic is nil")
+                #expect(Optional(station.allowRename) != nil, "Iteration \(iteration), Station \(index): allowRename is nil")
                 
                 // Verify created timestamp is reasonable (not 0, not in far future)
-                XCTAssertGreaterThan(station.created, 0, "Iteration \(iteration), Station \(index): created timestamp is 0")
-                XCTAssertLessThan(station.created, UInt64(Date().timeIntervalSince1970 * 1000), "Iteration \(iteration), Station \(index): created timestamp is in future")
+                #expect((station.created) > (0), "Iteration \(iteration), Station \(index): created timestamp is 0")
+                #expect((station.created) < (UInt64(Date().timeIntervalSince1970 * 1000)), "Iteration \(iteration), Station \(index): created timestamp is in future")
             }
         }
     }
     
     /// Property test: Station parsing with optional fields
     /// Tests that optional fields (artUrl, genres) are handled correctly
+    @Test("Station Parsing Optional Fields")
     func testStationParsing_OptionalFields() throws {
         for iteration in 0..<100 {
             // Randomly include or exclude optional fields
@@ -88,20 +73,21 @@ final class APIResponseParsingTests: XCTestCase {
             
             // Verify optional fields
             if includeArt {
-                XCTAssertNotNil(station.artUrl, "Iteration \(iteration): artUrl should be present")
-                XCTAssertFalse(station.artUrl!.isEmpty, "Iteration \(iteration): artUrl should not be empty")
+                #expect((station.artUrl) != nil, "Iteration \(iteration): artUrl should be present")
+                #expect(!(station.artUrl!.isEmpty), "Iteration \(iteration): artUrl should not be empty")
             }
             
             if includeGenres {
-                XCTAssertNotNil(station.genres, "Iteration \(iteration): genres should not be nil")
-                XCTAssertFalse(station.genres?.isEmpty ?? true, "Iteration \(iteration): genres should not be empty")
-                XCTAssertEqual(station.genres?.count ?? 0, genreCount, "Iteration \(iteration): genre count mismatch")
+                #expect((station.genres) != nil, "Iteration \(iteration): genres should not be nil")
+                #expect(!(station.genres?.isEmpty ?? true), "Iteration \(iteration): genres should not be empty")
+                #expect((station.genres?.count ?? 0) == (genreCount), "Iteration \(iteration): genre count mismatch")
             }
         }
     }
     
     /// Property test: QuickMix station detection
     /// Tests that QuickMix stations are properly identified and named
+    @Test("Station Parsing Quick Mix Detection")
     func testStationParsing_QuickMixDetection() throws {
         for _ in 0..<50 {
             let isQuickMix = Bool.random()
@@ -110,10 +96,10 @@ final class APIResponseParsingTests: XCTestCase {
             let station = parseStation(from: mockStation)
             
             if isQuickMix {
-                XCTAssertTrue(station.isQuickMix, "QuickMix flag should be set")
-                XCTAssertTrue(station.name.contains("Shuffle") || station.name.contains("🔀"), "QuickMix should have Shuffle in name")
+                #expect(station.isQuickMix, "QuickMix flag should be set")
+                #expect(station.name.contains("Shuffle") || station.name.contains("🔀"), "QuickMix should have Shuffle in name")
             } else {
-                XCTAssertFalse(station.isQuickMix, "Non-QuickMix station should not have flag set")
+                #expect(!(station.isQuickMix), "Non-QuickMix station should not have flag set")
             }
         }
     }
@@ -122,6 +108,7 @@ final class APIResponseParsingTests: XCTestCase {
     
     /// Property test: Playlist (song list) parsing with various configurations
     /// Tests that all required song fields are populated correctly
+    @Test("Playlist Parsing All Required Fields")
     func testPlaylistParsing_AllRequiredFields() throws {
         for iteration in 0..<120 {
             let songCount = Int.random(in: 1...10)
@@ -130,26 +117,27 @@ final class APIResponseParsingTests: XCTestCase {
             let songs = parsePlaylist(from: mockResponse)
             
             // Verify count (may be less than songCount if ads are filtered)
-            XCTAssertLessThanOrEqual(songs.count, songCount, "Iteration \(iteration): Too many songs")
-            XCTAssertGreaterThan(songs.count, 0, "Iteration \(iteration): No songs parsed")
+            #expect((songs.count) <= (songCount), "Iteration \(iteration): Too many songs")
+            #expect((songs.count) > (0), "Iteration \(iteration): No songs parsed")
             
             // Verify all required fields
             for (index, song) in songs.enumerated() {
-                XCTAssertFalse(song.artist.isEmpty, "Iteration \(iteration), Song \(index): artist is empty")
-                XCTAssertFalse(song.title.isEmpty, "Iteration \(iteration), Song \(index): title is empty")
-                XCTAssertFalse(song.album.isEmpty, "Iteration \(iteration), Song \(index): album is empty")
-                XCTAssertNotNil(song.token, "Iteration \(iteration), Song \(index): token is nil")
-                XCTAssertNotNil(song.stationId, "Iteration \(iteration), Song \(index): stationId is nil")
+                #expect(!(song.artist.isEmpty), "Iteration \(iteration), Song \(index): artist is empty")
+                #expect(!(song.title.isEmpty), "Iteration \(iteration), Song \(index): title is empty")
+                #expect(!(song.album.isEmpty), "Iteration \(iteration), Song \(index): album is empty")
+                #expect((song.token) != nil, "Iteration \(iteration), Song \(index): token is nil")
+                #expect((song.stationId) != nil, "Iteration \(iteration), Song \(index): stationId is nil")
                 
                 // Verify at least one audio URL is present
                 let hasAudioUrl = song.lowUrl != nil || song.medUrl != nil || song.highUrl != nil
-                XCTAssertTrue(hasAudioUrl, "Iteration \(iteration), Song \(index): No audio URLs present")
+                #expect(hasAudioUrl, "Iteration \(iteration), Song \(index): No audio URLs present")
             }
         }
     }
     
     /// Property test: Song audio URL parsing with different quality levels
     /// Tests that audio URLs are correctly assigned to low/med/high quality
+    @Test("Song Parsing Audio URL Assignment")
     func testSongParsing_AudioURLAssignment() throws {
         for iteration in 0..<100 {
             // Generate songs with different URL configurations
@@ -161,17 +149,17 @@ final class APIResponseParsingTests: XCTestCase {
             // Verify URL assignment based on count
             switch urlCount {
             case 1:
-                XCTAssertNotNil(song.lowUrl, "Iteration \(iteration): lowUrl should be set")
-                XCTAssertNotNil(song.medUrl, "Iteration \(iteration): medUrl should fallback to lowUrl")
-                XCTAssertNotNil(song.highUrl, "Iteration \(iteration): highUrl should fallback to medUrl")
+                #expect((song.lowUrl) != nil, "Iteration \(iteration): lowUrl should be set")
+                #expect((song.medUrl) != nil, "Iteration \(iteration): medUrl should fallback to lowUrl")
+                #expect((song.highUrl) != nil, "Iteration \(iteration): highUrl should fallback to medUrl")
             case 2:
-                XCTAssertNotNil(song.lowUrl, "Iteration \(iteration): lowUrl should be set")
-                XCTAssertNotNil(song.medUrl, "Iteration \(iteration): medUrl should be set")
-                XCTAssertNotNil(song.highUrl, "Iteration \(iteration): highUrl should fallback to medUrl")
+                #expect((song.lowUrl) != nil, "Iteration \(iteration): lowUrl should be set")
+                #expect((song.medUrl) != nil, "Iteration \(iteration): medUrl should be set")
+                #expect((song.highUrl) != nil, "Iteration \(iteration): highUrl should fallback to medUrl")
             case 3:
-                XCTAssertNotNil(song.lowUrl, "Iteration \(iteration): lowUrl should be set")
-                XCTAssertNotNil(song.medUrl, "Iteration \(iteration): medUrl should be set")
-                XCTAssertNotNil(song.highUrl, "Iteration \(iteration): highUrl should be set")
+                #expect((song.lowUrl) != nil, "Iteration \(iteration): lowUrl should be set")
+                #expect((song.medUrl) != nil, "Iteration \(iteration): medUrl should be set")
+                #expect((song.highUrl) != nil, "Iteration \(iteration): highUrl should be set")
             default:
                 break
             }
@@ -180,6 +168,7 @@ final class APIResponseParsingTests: XCTestCase {
     
     /// Property test: Song rating parsing
     /// Tests that song ratings are correctly parsed and represented
+    @Test("Song Parsing Rating Values")
     func testSongParsing_RatingValues() throws {
         for iteration in 0..<100 {
             // Test all possible rating values: -1 (dislike), 0 (none), 1 (like)
@@ -188,17 +177,14 @@ final class APIResponseParsingTests: XCTestCase {
             
             let song = parseSong(from: mockSong)
             
-            XCTAssertNotNil(song.nrating, "Iteration \(iteration): rating should not be nil")
-            XCTAssertEqual(
-                song.nrating?.intValue,
-                ratingValue,
-                "Iteration \(iteration): rating value mismatch"
-            )
+            #expect((song.nrating) != nil, "Iteration \(iteration): rating should not be nil")
+            #expect((song.nrating?.intValue) == (ratingValue), "Iteration \(iteration): rating value mismatch")
         }
     }
     
     /// Property test: Song optional fields (artwork, URLs, trackGain)
     /// Tests that optional song fields are handled correctly
+    @Test("Song Parsing Optional Fields")
     func testSongParsing_OptionalFields() throws {
         for iteration in 0..<100 {
             let includeArt = Bool.random()
@@ -216,25 +202,26 @@ final class APIResponseParsingTests: XCTestCase {
             let song = parseSong(from: mockSong)
             
             if includeArt {
-                XCTAssertNotNil(song.art, "Iteration \(iteration): art should be present")
+                #expect((song.art) != nil, "Iteration \(iteration): art should be present")
             }
             
             if includeUrls {
-                XCTAssertNotNil(song.albumUrl, "Iteration \(iteration): albumUrl should be present")
-                XCTAssertNotNil(song.artistUrl, "Iteration \(iteration): artistUrl should be present")
-                XCTAssertNotNil(song.titleUrl, "Iteration \(iteration): titleUrl should be present")
+                #expect((song.albumUrl) != nil, "Iteration \(iteration): albumUrl should be present")
+                #expect((song.artistUrl) != nil, "Iteration \(iteration): artistUrl should be present")
+                #expect((song.titleUrl) != nil, "Iteration \(iteration): titleUrl should be present")
             }
             
             if includeTrackGain {
-                XCTAssertNotNil(song.trackGain, "Iteration \(iteration): trackGain should be present")
+                #expect((song.trackGain) != nil, "Iteration \(iteration): trackGain should be present")
             }
             
-            XCTAssertEqual(song.allowFeedback, allowFeedback, "Iteration \(iteration): allowFeedback mismatch")
+            #expect((song.allowFeedback) == (allowFeedback), "Iteration \(iteration): allowFeedback mismatch")
         }
     }
     
     /// Property test: Ad token filtering
     /// Tests that items with adToken are filtered out from playlists
+    @Test("Playlist Parsing Ad Filtering")
     func testPlaylistParsing_AdFiltering() throws {
         for iteration in 0..<50 {
             let songCount = Int.random(in: 3...10)
@@ -248,16 +235,12 @@ final class APIResponseParsingTests: XCTestCase {
             let songs = parsePlaylist(from: mockResponse)
             
             // Verify ads are filtered out
-            XCTAssertEqual(
-                songs.count,
-                songCount,
-                "Iteration \(iteration): Ads should be filtered out"
-            )
+            #expect((songs.count) == (songCount), "Iteration \(iteration): Ads should be filtered out")
             
             // Verify no song has an adToken
             for song in songs {
                 // Songs should not have any ad-related properties
-                XCTAssertNotNil(song.token, "Songs should have track tokens, not ad tokens")
+                #expect((song.token) != nil, "Songs should have track tokens, not ad tokens")
             }
         }
     }
@@ -266,6 +249,7 @@ final class APIResponseParsingTests: XCTestCase {
     
     /// Property test: Search results parsing for songs and artists
     /// Tests that search results are correctly categorized and parsed
+    @Test("Search Results Parsing Songs And Artists")
     func testSearchResultsParsing_SongsAndArtists() throws {
         for iteration in 0..<100 {
             let songResultCount = Int.random(in: 0...20)
@@ -279,40 +263,33 @@ final class APIResponseParsingTests: XCTestCase {
             let results = parseSearchResults(from: mockResponse)
             
             // Verify both categories exist
-            XCTAssertNotNil(results["Songs"], "Iteration \(iteration): Songs array should exist")
-            XCTAssertNotNil(results["Artists"], "Iteration \(iteration): Artists array should exist")
+            #expect((results["Songs"]) != nil, "Iteration \(iteration): Songs array should exist")
+            #expect((results["Artists"]) != nil, "Iteration \(iteration): Artists array should exist")
             
             let songs = results["Songs"] as? [PandoraSearchResult] ?? []
             let artists = results["Artists"] as? [PandoraSearchResult] ?? []
             
             // Verify counts
-            XCTAssertEqual(
-                songs.count,
-                songResultCount,
-                "Iteration \(iteration): Song result count mismatch"
-            )
-            XCTAssertEqual(
-                artists.count,
-                artistResultCount,
-                "Iteration \(iteration): Artist result count mismatch"
-            )
+            #expect((songs.count) == (songResultCount), "Iteration \(iteration): Song result count mismatch")
+            #expect((artists.count) == (artistResultCount), "Iteration \(iteration): Artist result count mismatch")
             
             // Verify all results have required fields
             for (index, result) in songs.enumerated() {
-                XCTAssertFalse(result.name.isEmpty, "Iteration \(iteration), Song \(index): name is empty")
-                XCTAssertFalse(result.value.isEmpty, "Iteration \(iteration), Song \(index): musicToken is empty")
-                XCTAssertTrue(result.name.contains(" - "), "Iteration \(iteration), Song \(index): name should contain ' - ' separator")
+                #expect(!(result.name.isEmpty), "Iteration \(iteration), Song \(index): name is empty")
+                #expect(!(result.value.isEmpty), "Iteration \(iteration), Song \(index): musicToken is empty")
+                #expect(result.name.contains(" - "), "Iteration \(iteration), Song \(index): name should contain ' - ' separator")
             }
             
             for (index, result) in artists.enumerated() {
-                XCTAssertFalse(result.name.isEmpty, "Iteration \(iteration), Artist \(index): name is empty")
-                XCTAssertFalse(result.value.isEmpty, "Iteration \(iteration), Artist \(index): musicToken is empty")
+                #expect(!(result.name.isEmpty), "Iteration \(iteration), Artist \(index): name is empty")
+                #expect(!(result.value.isEmpty), "Iteration \(iteration), Artist \(index): musicToken is empty")
             }
         }
     }
     
     /// Property test: Empty search results handling
     /// Tests that empty search results are handled gracefully
+    @Test("Search Results Parsing Empty Results")
     func testSearchResultsParsing_EmptyResults() throws {
         for _ in 0..<50 {
             let mockResponse = generateMockSearchResponse(songCount: 0, artistCount: 0)
@@ -322,13 +299,14 @@ final class APIResponseParsingTests: XCTestCase {
             let songs = results["Songs"] as? [PandoraSearchResult] ?? []
             let artists = results["Artists"] as? [PandoraSearchResult] ?? []
             
-            XCTAssertTrue(songs.isEmpty, "Empty search should return empty songs array")
-            XCTAssertTrue(artists.isEmpty, "Empty search should return empty artists array")
+            #expect(songs.isEmpty, "Empty search should return empty songs array")
+            #expect(artists.isEmpty, "Empty search should return empty artists array")
         }
     }
     
     /// Property test: Search result music token validity
     /// Tests that all search results have valid music tokens for station creation
+    @Test("Search Results Parsing Music Token Validity")
     func testSearchResultsParsing_MusicTokenValidity() throws {
         for iteration in 0..<100 {
             let resultCount = Int.random(in: 1...10)
@@ -343,12 +321,9 @@ final class APIResponseParsingTests: XCTestCase {
             
             // Verify all music tokens are non-empty and have expected format
             for result in songs + artists {
-                XCTAssertFalse(result.value.isEmpty, "Iteration \(iteration): musicToken should not be empty")
+                #expect(!(result.value.isEmpty), "Iteration \(iteration): musicToken should not be empty")
                 // Music tokens typically start with 'S' for songs or 'R' for artists
-                XCTAssertTrue(
-                    result.value.hasPrefix("S") || result.value.hasPrefix("R") || result.value.hasPrefix("T"),
-                    "Iteration \(iteration): musicToken should have valid prefix"
-                )
+                #expect(result.value.hasPrefix("S") || result.value.hasPrefix("R") || result.value.hasPrefix("T"), "Iteration \(iteration): musicToken should have valid prefix")
             }
         }
     }

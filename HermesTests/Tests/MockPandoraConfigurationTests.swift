@@ -6,26 +6,43 @@
 //  **Validates: Requirements 3.3, 3.4**
 //
 
-import XCTest
+import Testing
+import Foundation
 @testable import Hermes
 
 @MainActor
-final class MockPandoraConfigurationTests: XCTestCase {
-    
-    var sut: MockPandora!
-    
-    override func setUp() async throws {
-        try await super.setUp()
+@Suite("MockPandoraConfigurationTests", .serialized)
+struct MockPandoraConfigurationTests {
+    let sut: MockPandora
+
+    init() {
         sut = MockPandora()
     }
-    
-    override func tearDown() async throws {
-        sut = nil
-        try await super.tearDown()
+
+    private func performExpectingErrorNotification(
+        _ operation: () -> Bool
+    ) async -> Bool {
+        var result = false
+        await confirmation("Posts hermes.error notification") { confirmation in
+            let observer = NotificationCenter.default.addObserver(
+                forName: Notification.Name("hermes.error"),
+                object: nil,
+                queue: nil
+            ) { _ in
+                confirmation()
+            }
+            defer {
+                NotificationCenter.default.removeObserver(observer)
+            }
+
+            result = operation()
+        }
+        return result
     }
     
     // MARK: - Return Value Configuration Tests
     
+    @Test("Authenticate Result Can Be Configured")
     func testAuthenticateResult_CanBeConfigured() throws {
         // Given: Mock configured to fail authentication
         sut.authenticateResult = false
@@ -34,10 +51,11 @@ final class MockPandoraConfigurationTests: XCTestCase {
         let result = sut.authenticate("user@example.com", password: "password", request: nil)
         
         // Then: Authentication fails as configured
-        XCTAssertFalse(result)
-        XCTAssertFalse(sut.isAuthenticatedValue)
+        #expect(!(result))
+        #expect(!(sut.isAuthenticatedValue))
     }
     
+    @Test("Fetch Stations Result Can Be Configured")
     func testFetchStationsResult_CanBeConfigured() throws {
         // Given: Mock configured to fail fetching stations
         sut.fetchStationsResult = false
@@ -46,9 +64,10 @@ final class MockPandoraConfigurationTests: XCTestCase {
         let result = sut.fetchStations()
         
         // Then: Fetch fails as configured
-        XCTAssertFalse(result)
+        #expect(!(result))
     }
     
+    @Test("Create Station Result Can Be Configured")
     func testCreateStationResult_CanBeConfigured() throws {
         // Given: Mock configured to fail creating station
         sut.createStationResult = false
@@ -57,9 +76,10 @@ final class MockPandoraConfigurationTests: XCTestCase {
         let result = sut.createStation("M12345")
         
         // Then: Creation fails as configured
-        XCTAssertFalse(result)
+        #expect(!(result))
     }
     
+    @Test("Rate Song Result Can Be Configured")
     func testRateSongResult_CanBeConfigured() throws {
         // Given: Mock configured to fail rating song
         sut.rateSongResult = false
@@ -70,67 +90,66 @@ final class MockPandoraConfigurationTests: XCTestCase {
         let result = sut.rateSong(song, as: true)
         
         // Then: Rating fails as configured
-        XCTAssertFalse(result)
+        #expect(!(result))
     }
     
     // MARK: - Error Simulation Tests
     
-    func testAuthenticateError_PostsErrorNotification() throws {
+    @Test("Authenticate Error Posts Error Notification")
+    func testAuthenticateError_PostsErrorNotification() async throws {
         // Given: Mock configured with authentication error
-        let expectation = expectation(forNotification: Notification.Name("hermes.error"), object: nil)
-        
         enum TestError: Error {
             case authFailed
         }
         sut.authenticateError = TestError.authFailed
         
         // When: Attempting to authenticate
-        let result = sut.authenticate("user@example.com", password: "password", request: nil)
+        let result = await performExpectingErrorNotification {
+            sut.authenticate("user@example.com", password: "password", request: nil)
+        }
         
         // Then: Error notification is posted and authentication fails
-        wait(for: [expectation], timeout: 1.0)
-        XCTAssertFalse(result)
-        XCTAssertFalse(sut.isAuthenticatedValue)
+        #expect(!(result))
+        #expect(!(sut.isAuthenticatedValue))
     }
     
-    func testFetchStationsError_PostsErrorNotification() throws {
+    @Test("Fetch Stations Error Posts Error Notification")
+    func testFetchStationsError_PostsErrorNotification() async throws {
         // Given: Mock configured with fetch stations error
-        let expectation = expectation(forNotification: Notification.Name("hermes.error"), object: nil)
-        
         enum TestError: Error {
             case networkError
         }
         sut.fetchStationsError = TestError.networkError
         
         // When: Attempting to fetch stations
-        let result = sut.fetchStations()
+        let result = await performExpectingErrorNotification {
+            sut.fetchStations()
+        }
         
         // Then: Error notification is posted and fetch fails
-        wait(for: [expectation], timeout: 1.0)
-        XCTAssertFalse(result)
+        #expect(!(result))
     }
     
-    func testCreateStationError_PostsErrorNotification() throws {
+    @Test("Create Station Error Posts Error Notification")
+    func testCreateStationError_PostsErrorNotification() async throws {
         // Given: Mock configured with create station error
-        let expectation = expectation(forNotification: Notification.Name("hermes.error"), object: nil)
-        
         enum TestError: Error {
             case invalidMusicId
         }
         sut.createStationError = TestError.invalidMusicId
         
         // When: Attempting to create station
-        let result = sut.createStation("INVALID")
+        let result = await performExpectingErrorNotification {
+            sut.createStation("INVALID")
+        }
         
         // Then: Error notification is posted and creation fails
-        wait(for: [expectation], timeout: 1.0)
-        XCTAssertFalse(result)
+        #expect(!(result))
     }
     
-    func testRateSongError_PostsErrorNotification() throws {
+    @Test("Rate Song Error Posts Error Notification")
+    func testRateSongError_PostsErrorNotification() async throws {
         // Given: Mock configured with rate song error
-        let expectation = expectation(forNotification: Notification.Name("hermes.error"), object: nil)
-        
         enum TestError: Error {
             case ratingFailed
         }
@@ -140,15 +159,17 @@ final class MockPandoraConfigurationTests: XCTestCase {
         song.token = "SONG123"
         
         // When: Attempting to rate song
-        let result = sut.rateSong(song, as: true)
+        let result = await performExpectingErrorNotification {
+            sut.rateSong(song, as: true)
+        }
         
         // Then: Error notification is posted and rating fails
-        wait(for: [expectation], timeout: 1.0)
-        XCTAssertFalse(result)
+        #expect(!(result))
     }
     
     // MARK: - Mock Stations Configuration Tests
     
+    @Test("Mock Stations Can Be Configured")
     func testMockStations_CanBeConfigured() throws {
         // Given: Mock configured with test stations
         let station1 = Station()
@@ -165,11 +186,12 @@ final class MockPandoraConfigurationTests: XCTestCase {
         let stations = sut.stations as? [Station]
         
         // Then: Returns configured stations
-        XCTAssertEqual(stations?.count, 2)
-        XCTAssertEqual(stations?[0].token, "ST001")
-        XCTAssertEqual(stations?[1].token, "ST002")
+        #expect((stations?.count) == (2))
+        #expect((stations?[0].token) == ("ST001"))
+        #expect((stations?[1].token) == ("ST002"))
     }
     
+    @Test("Mock Stations Defaults To Empty Array")
     func testMockStations_DefaultsToEmptyArray() throws {
         // Given: Fresh mock instance
         let mock = MockPandora()
@@ -178,12 +200,13 @@ final class MockPandoraConfigurationTests: XCTestCase {
         let stations = mock.stations as? [Station]
         
         // Then: Returns empty array
-        XCTAssertNotNil(stations)
-        XCTAssertEqual(stations?.count, 0)
+        #expect((stations) != nil)
+        #expect((stations?.count) == (0))
     }
     
     // MARK: - Reset Behavior Tests
     
+    @Test("Reset Clears All Configuration")
     func testReset_ClearsAllConfiguration() throws {
         // Given: Mock with various configurations
         enum TestError: Error {
@@ -204,16 +227,17 @@ final class MockPandoraConfigurationTests: XCTestCase {
         sut.reset()
         
         // Then: All configuration is reset to defaults
-        XCTAssertTrue(sut.authenticateResult)
-        XCTAssertNil(sut.authenticateError)
-        XCTAssertTrue(sut.fetchStationsResult)
-        XCTAssertNil(sut.fetchStationsError)
-        XCTAssertFalse(sut.isAuthenticatedValue)
-        XCTAssertEqual((sut.mockStations as? [Station])?.count, 0)
+        #expect(sut.authenticateResult)
+        #expect((sut.authenticateError) == nil)
+        #expect(sut.fetchStationsResult)
+        #expect((sut.fetchStationsError) == nil)
+        #expect(!(sut.isAuthenticatedValue))
+        #expect(((sut.mockStations as? [Station])?.count) == (0))
     }
     
     // MARK: - Combined Configuration Tests
     
+    @Test("Multiple Errors Can Be Configured")
     func testMultipleErrorsCanBeConfigured() throws {
         // Given: Mock configured with multiple errors
         enum TestError: Error {
@@ -235,11 +259,12 @@ final class MockPandoraConfigurationTests: XCTestCase {
         let rateResult = sut.rateSong(song, as: true)
         
         // Then: All methods fail as configured
-        XCTAssertFalse(authResult)
-        XCTAssertFalse(stationsResult)
-        XCTAssertFalse(rateResult)
+        #expect(!(authResult))
+        #expect(!(stationsResult))
+        #expect(!(rateResult))
     }
     
+    @Test("Success And Error Can Be Configured Independently")
     func testSuccessAndErrorCanBeConfiguredIndependently() throws {
         // Given: Mock with some methods configured to succeed and others to fail
         enum TestError: Error {
@@ -254,7 +279,7 @@ final class MockPandoraConfigurationTests: XCTestCase {
         let stationsResult = sut.fetchStations()
         
         // Then: Results match configuration
-        XCTAssertFalse(authResult)  // Failed due to error
-        XCTAssertTrue(stationsResult)  // Succeeded
+        #expect(!(authResult))  // Failed due to error
+        #expect(stationsResult)  // Succeeded
     }
 }

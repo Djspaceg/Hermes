@@ -5,82 +5,93 @@
 //  Unit tests for test helper utilities
 //
 
-import XCTest
+import Testing
+import Foundation
 @testable import Hermes
 
 @MainActor
-final class TestHelpersTests: XCTestCase {
+@Suite("TestHelpersTests", .serialized)
+struct TestHelpersTests {
     
     // MARK: - AppState.testInstance Tests
     
+    @Test("App State Test Instance Creates Both Instances")
     func testAppStateTestInstance_CreatesBothInstances() {
         let (appState, mockPandora) = AppState.testInstance()
         
-        XCTAssertNotNil(appState)
-        XCTAssertNotNil(mockPandora)
+        #expect(Optional(appState) != nil)
+        #expect(Optional(mockPandora) != nil)
     }
     
+    @Test("App State Test Instance Uses Mock Pandora")
     func testAppStateTestInstance_UsesMockPandora() {
         let (appState, mockPandora) = AppState.testInstance()
         
         // The appState should use the mock pandora
-        XCTAssertTrue(appState.pandora === mockPandora)
+        #expect(appState.pandora === mockPandora)
     }
     
     // MARK: - LoginViewModel.testInstance Tests
     
+    @Test("Login View Model Test Instance Creates Both Instances")
     func testLoginViewModelTestInstance_CreatesBothInstances() {
         let (viewModel, mockPandora) = LoginViewModel.testInstance()
         
-        XCTAssertNotNil(viewModel)
-        XCTAssertNotNil(mockPandora)
+        #expect(Optional(viewModel) != nil)
+        #expect(Optional(mockPandora) != nil)
     }
     
     // MARK: - StationsViewModel.testInstance Tests
     
+    @Test("Stations View Model Test Instance Creates Both Instances")
     func testStationsViewModelTestInstance_CreatesBothInstances() {
         let (viewModel, mockPandora) = StationsViewModel.testInstance()
         
-        XCTAssertNotNil(viewModel)
-        XCTAssertNotNil(mockPandora)
+        #expect(Optional(viewModel) != nil)
+        #expect(Optional(mockPandora) != nil)
     }
     
+    @Test("Stations View Model Test Instance With Stations")
     func testStationsViewModelTestInstance_WithStations() {
         let stations = TestDataFactory.createStations(count: 3)
         let (viewModel, mockPandora) = StationsViewModel.testInstance(withStations: stations)
         
-        XCTAssertNotNil(viewModel)
-        XCTAssertNotNil(mockPandora)
-        XCTAssertEqual(viewModel.stations.count, 3)
+        #expect(Optional(viewModel) != nil)
+        #expect(Optional(mockPandora) != nil)
+        #expect((viewModel.stations.count) == (3))
     }
     
     // MARK: - HistoryViewModel.testInstance Tests
     
+    @Test("History View Model Test Instance Creates Instance")
     func testHistoryViewModelTestInstance_CreatesInstance() {
         let viewModel = HistoryViewModel.testInstance()
         
-        XCTAssertNotNil(viewModel)
+        #expect(Optional(viewModel) != nil)
     }
     
+    @Test("History View Model Test Instance With Items")
     func testHistoryViewModelTestInstance_WithItems() {
         let songs = TestDataFactory.createSongs(count: 5)
         let viewModel = HistoryViewModel.testInstance(withItems: songs)
         
-        XCTAssertNotNil(viewModel)
-        XCTAssertEqual(viewModel.historyItems.count, 5)
+        #expect(Optional(viewModel) != nil)
+        #expect((viewModel.historyItems.count) == (5))
     }
     
     // MARK: - TestDataFactory.createStation Tests
     
+    @Test("Create Station Default Values")
     func testCreateStation_DefaultValues() {
         let station = TestDataFactory.createStation()
         
-        XCTAssertEqual(station.name, "Test Station")
-        XCTAssertEqual(station.token, "test-token-123")
-        XCTAssertEqual(station.stationId, "station-id-123")
-        XCTAssertGreaterThan(station.created, 0)
+        #expect((station.name) == ("Test Station"))
+        #expect((station.token) == ("test-token-123"))
+        #expect((station.stationId) == ("station-id-123"))
+        #expect((station.created) > (0))
     }
     
+    @Test("Create Station Custom Values")
     func testCreateStation_CustomValues() {
         let station = TestDataFactory.createStation(
             name: "Custom Station",
@@ -88,19 +99,21 @@ final class TestHelpersTests: XCTestCase {
             stationId: "custom-id"
         )
         
-        XCTAssertEqual(station.name, "Custom Station")
-        XCTAssertEqual(station.token, "custom-token")
-        XCTAssertEqual(station.stationId, "custom-id")
+        #expect((station.name) == ("Custom Station"))
+        #expect((station.token) == ("custom-token"))
+        #expect((station.stationId) == ("custom-id"))
     }
     
     // MARK: - TestDataFactory.createStations Tests
     
+    @Test("Create Stations Creates Correct Count")
     func testCreateStations_CreatesCorrectCount() {
         let stations = TestDataFactory.createStations(count: 5)
         
-        XCTAssertEqual(stations.count, 5)
+        #expect((stations.count) == (5))
     }
     
+    @Test("Create Stations Has Unique Values")
     func testCreateStations_HasUniqueValues() {
         let stations = TestDataFactory.createStations(count: 3)
         
@@ -108,22 +121,24 @@ final class TestHelpersTests: XCTestCase {
         let tokens = Set(stations.map { $0.token })
         let ids = Set(stations.map { $0.stationId })
         
-        XCTAssertEqual(names.count, 3)
-        XCTAssertEqual(tokens.count, 3)
-        XCTAssertEqual(ids.count, 3)
+        #expect((names.count) == (3))
+        #expect((tokens.count) == (3))
+        #expect((ids.count) == (3))
     }
     
     // MARK: - TestDataFactory.createSong Tests
     
+    @Test("Create Song Default Values")
     func testCreateSong_DefaultValues() {
         let song = TestDataFactory.createSong()
         
-        XCTAssertEqual(song.title, "Test Song")
-        XCTAssertEqual(song.artist, "Test Artist")
-        XCTAssertEqual(song.album, "Test Album")
-        XCTAssertEqual(song.token, "song-token-123")
+        #expect((song.title) == ("Test Song"))
+        #expect((song.artist) == ("Test Artist"))
+        #expect((song.album) == ("Test Album"))
+        #expect((song.token) == ("song-token-123"))
     }
     
+    @Test("Create Song Custom Values")
     func testCreateSong_CustomValues() {
         let song = TestDataFactory.createSong(
             title: "Custom Title",
@@ -132,27 +147,29 @@ final class TestHelpersTests: XCTestCase {
             token: "custom-token"
         )
         
-        XCTAssertEqual(song.title, "Custom Title")
-        XCTAssertEqual(song.artist, "Custom Artist")
-        XCTAssertEqual(song.album, "Custom Album")
-        XCTAssertEqual(song.token, "custom-token")
+        #expect((song.title) == ("Custom Title"))
+        #expect((song.artist) == ("Custom Artist"))
+        #expect((song.album) == ("Custom Album"))
+        #expect((song.token) == ("custom-token"))
     }
     
     // MARK: - TestDataFactory.createSongs Tests
     
+    @Test("Create Songs Creates Correct Count")
     func testCreateSongs_CreatesCorrectCount() {
         let songs = TestDataFactory.createSongs(count: 5)
         
-        XCTAssertEqual(songs.count, 5)
+        #expect((songs.count) == (5))
     }
     
+    @Test("Create Songs Has Unique Values")
     func testCreateSongs_HasUniqueValues() {
         let songs = TestDataFactory.createSongs(count: 3)
         
         let titles = Set(songs.map { $0.title })
         let tokens = Set(songs.map { $0.token ?? "" })
         
-        XCTAssertEqual(titles.count, 3)
-        XCTAssertEqual(tokens.count, 3)
+        #expect((titles.count) == (3))
+        #expect((tokens.count) == (3))
     }
 }

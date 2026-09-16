@@ -6,10 +6,12 @@
 //  **Validates: Requirements 7.9**
 //
 
-import XCTest
+import Testing
+import Foundation
 @testable import Hermes
 
-final class StatePersistenceTests: XCTestCase {
+@Suite("StatePersistenceTests", .serialized)
+final class StatePersistenceTests {
     
     // MARK: - Property 6: State Persistence Round-Trip
     //
@@ -23,25 +25,19 @@ final class StatePersistenceTests: XCTestCase {
     
     // MARK: - Test Setup
     
-    private var testDirectory: String!
-    
-    override func setUp() {
-        super.setUp()
-        
+    private let testDirectory: String
+
+    init() {
         // Create a unique test directory for each test
         let testId = UUID().uuidString
         let folder = NSString(string: "~/Library/Application Support/HermesTests/\(testId)").expandingTildeInPath
         try? FileManager.default.createDirectory(atPath: folder, withIntermediateDirectories: true, attributes: nil)
         testDirectory = folder
     }
-    
-    override func tearDown() {
+
+    deinit {
         // Clean up test directory
-        if let testDirectory = testDirectory {
-            try? FileManager.default.removeItem(atPath: testDirectory)
-        }
-        
-        super.tearDown()
+        try? FileManager.default.removeItem(atPath: testDirectory)
     }
     
     @MainActor
@@ -79,6 +75,7 @@ final class StatePersistenceTests: XCTestCase {
     /// Property test: Station properties are preserved through save/restore cycle
     /// Tests that all station properties survive serialization and deserialization
     @MainActor
+    @Test("Property Station Properties Preserved")
     func testProperty_StationPropertiesPreserved() throws {
         // Create a station with specific properties
         let originalStation = createTestStation(
@@ -105,26 +102,27 @@ final class StatePersistenceTests: XCTestCase {
             ofClass: Station.self,
             from: restoredData
         ) else {
-            XCTFail("Failed to unarchive station")
+            Issue.record("Failed to unarchive station")
             return
         }
         
         // Verify all properties are preserved
-        XCTAssertEqual(restoredStation.name, originalStation.name, "Station name should be preserved")
-        XCTAssertEqual(restoredStation.token, originalStation.token, "Station token should be preserved")
-        XCTAssertEqual(restoredStation.stationId, originalStation.stationId, "Station ID should be preserved")
-        XCTAssertEqual(restoredStation.created, originalStation.created, "Creation timestamp should be preserved")
-        XCTAssertEqual(restoredStation.shared, originalStation.shared, "Shared flag should be preserved")
-        XCTAssertEqual(restoredStation.allowRename, originalStation.allowRename, "Allow rename flag should be preserved")
-        XCTAssertEqual(restoredStation.allowAddMusic, originalStation.allowAddMusic, "Allow add music flag should be preserved")
-        XCTAssertEqual(restoredStation.isQuickMix, originalStation.isQuickMix, "QuickMix flag should be preserved")
-        XCTAssertEqual(restoredStation.artUrl, originalStation.artUrl, "Art URL should be preserved")
-        XCTAssertEqual(restoredStation.genres, originalStation.genres, "Genres should be preserved")
+        #expect((restoredStation.name) == (originalStation.name), "Station name should be preserved")
+        #expect((restoredStation.token) == (originalStation.token), "Station token should be preserved")
+        #expect((restoredStation.stationId) == (originalStation.stationId), "Station ID should be preserved")
+        #expect((restoredStation.created) == (originalStation.created), "Creation timestamp should be preserved")
+        #expect((restoredStation.shared) == (originalStation.shared), "Shared flag should be preserved")
+        #expect((restoredStation.allowRename) == (originalStation.allowRename), "Allow rename flag should be preserved")
+        #expect((restoredStation.allowAddMusic) == (originalStation.allowAddMusic), "Allow add music flag should be preserved")
+        #expect((restoredStation.isQuickMix) == (originalStation.isQuickMix), "QuickMix flag should be preserved")
+        #expect((restoredStation.artUrl) == (originalStation.artUrl), "Art URL should be preserved")
+        #expect((restoredStation.genres) == (originalStation.genres), "Genres should be preserved")
     }
     
     /// Property test: Multiple stations with different properties are preserved
     /// Tests that the persistence mechanism works for various station configurations
     @MainActor
+    @Test("Property Multiple Station Configurations Preserved")
     func testProperty_MultipleStationConfigurationsPreserved() throws {
         let testCases: [(name: String, shared: Bool, quickMix: Bool, genres: [String]?)] = [
             ("Rock Station", false, false, ["Rock", "Metal"]),
@@ -151,21 +149,22 @@ final class StatePersistenceTests: XCTestCase {
                 ofClass: Station.self,
                 from: restoredData
             ) else {
-                XCTFail("Failed to unarchive station for test case \(index)")
+                Issue.record("Failed to unarchive station for test case \(index)")
                 continue
             }
             
             // Verify properties
-            XCTAssertEqual(restoredStation.name, testCase.name, "Name should be preserved for test case \(index)")
-            XCTAssertEqual(restoredStation.shared, testCase.shared, "Shared flag should be preserved for test case \(index)")
-            XCTAssertEqual(restoredStation.isQuickMix, testCase.quickMix, "QuickMix flag should be preserved for test case \(index)")
-            XCTAssertEqual(restoredStation.genres, testCase.genres, "Genres should be preserved for test case \(index)")
+            #expect((restoredStation.name) == (testCase.name), "Name should be preserved for test case \(index)")
+            #expect((restoredStation.shared) == (testCase.shared), "Shared flag should be preserved for test case \(index)")
+            #expect((restoredStation.isQuickMix) == (testCase.quickMix), "QuickMix flag should be preserved for test case \(index)")
+            #expect((restoredStation.genres) == (testCase.genres), "Genres should be preserved for test case \(index)")
         }
     }
     
     /// Property test: PlaybackController saveState and restore cycle
     /// Tests the complete save/restore workflow through PlaybackController
     @MainActor
+    @Test("Property Playback Controller Save Restore Cycle")
     func testProperty_PlaybackControllerSaveRestoreCycle() throws {
         // This test verifies the actual PlaybackController.saveState() method
         // and demonstrates how to restore state (even though restoreState() doesn't exist yet)
@@ -195,7 +194,7 @@ final class StatePersistenceTests: XCTestCase {
             ofClass: Station.self,
             from: restoredData
         ) else {
-            XCTFail("Failed to unarchive station")
+            Issue.record("Failed to unarchive station")
             return
         }
         
@@ -204,15 +203,16 @@ final class StatePersistenceTests: XCTestCase {
         newController.playStation(restoredStation)
         
         // Verify the state is equivalent
-        XCTAssertEqual(newController.playing?.name, originalStation.name, "Station name should be preserved")
-        XCTAssertEqual(newController.playing?.token, originalStation.token, "Station token should be preserved")
-        XCTAssertEqual(newController.playing?.stationId, originalStation.stationId, "Station ID should be preserved")
-        XCTAssertEqual(newController.volume, 75, "Volume should be preserved")
+        #expect((newController.playing?.name) == (originalStation.name), "Station name should be preserved")
+        #expect((newController.playing?.token) == (originalStation.token), "Station token should be preserved")
+        #expect((newController.playing?.stationId) == (originalStation.stationId), "Station ID should be preserved")
+        #expect((newController.volume) == (75), "Volume should be preserved")
     }
     
     /// Property test: Volume persistence through UserDefaults
     /// Tests that volume is correctly saved and restored via UserDefaults
     @MainActor
+    @Test("Property Volume Persisted Through User Defaults")
     func testProperty_VolumePersistedThroughUserDefaults() throws {
         // Test various volume values
         // Note: Volume 0 is treated specially - it defaults to 100 on init
@@ -231,13 +231,13 @@ final class StatePersistenceTests: XCTestCase {
             
             // Verify it was saved to UserDefaults
             let savedVolume = testDefaults.integer(forKey: "hermes.volume")
-            XCTAssertEqual(savedVolume, volume, "Volume \(volume) should be saved to UserDefaults")
+            #expect((savedVolume) == (volume), "Volume \(volume) should be saved to UserDefaults")
             
             // Create new controller (simulating app restart)
             let newController = PlaybackController(userDefaults: testDefaults)
             
             // Verify volume was restored
-            XCTAssertEqual(newController.volume, volume, "Volume \(volume) should be restored from UserDefaults")
+            #expect((newController.volume) == (volume), "Volume \(volume) should be restored from UserDefaults")
         }
         
         // Test volume 0 separately - it defaults to 100
@@ -251,16 +251,17 @@ final class StatePersistenceTests: XCTestCase {
         controller0.volume = 0
         
         // Volume 0 is saved
-        XCTAssertEqual(testDefaults0.integer(forKey: "hermes.volume"), 0, "Volume 0 should be saved")
+        #expect((testDefaults0.integer(forKey: "hermes.volume")) == (0), "Volume 0 should be saved")
         
         // But on restore, it defaults to 100 (this is the expected behavior)
         let newController0 = PlaybackController(userDefaults: testDefaults0)
-        XCTAssertEqual(newController0.volume, 100, "Volume 0 should default to 100 on restore")
+        #expect((newController0.volume) == (100), "Volume 0 should default to 100 on restore")
     }
     
     /// Property test: Station with nil optional properties
     /// Tests that stations with nil optional fields are correctly preserved
     @MainActor
+    @Test("Property Station With Nil Optional Properties")
     func testProperty_StationWithNilOptionalProperties() throws {
         let originalStation = createTestStation(name: "Minimal Station")
         originalStation.artUrl = nil
@@ -276,19 +277,20 @@ final class StatePersistenceTests: XCTestCase {
             ofClass: Station.self,
             from: restoredData
         ) else {
-            XCTFail("Failed to unarchive station")
+            Issue.record("Failed to unarchive station")
             return
         }
         
         // Verify nil properties are preserved
-        XCTAssertNil(restoredStation.artUrl, "Nil art URL should be preserved")
-        XCTAssertNil(restoredStation.genres, "Nil genres should be preserved")
-        XCTAssertEqual(restoredStation.name, originalStation.name, "Name should still be preserved")
+        #expect((restoredStation.artUrl) == nil, "Nil art URL should be preserved")
+        #expect((restoredStation.genres) == nil, "Nil genres should be preserved")
+        #expect((restoredStation.name) == (originalStation.name), "Name should still be preserved")
     }
     
     /// Property test: Empty string properties are preserved
     /// Tests that empty strings are correctly distinguished from nil
     @MainActor
+    @Test("Property Empty String Properties Preserved")
     func testProperty_EmptyStringPropertiesPreserved() throws {
         let originalStation = createTestStation(name: "")
         originalStation.artUrl = ""
@@ -303,18 +305,19 @@ final class StatePersistenceTests: XCTestCase {
             ofClass: Station.self,
             from: restoredData
         ) else {
-            XCTFail("Failed to unarchive station")
+            Issue.record("Failed to unarchive station")
             return
         }
         
         // Verify empty strings are preserved (not converted to nil)
-        XCTAssertEqual(restoredStation.name, "", "Empty name should be preserved")
-        XCTAssertEqual(restoredStation.artUrl, "", "Empty art URL should be preserved")
+        #expect((restoredStation.name) == (""), "Empty name should be preserved")
+        #expect((restoredStation.artUrl) == (""), "Empty art URL should be preserved")
     }
     
     /// Property test: Large timestamp values are preserved
     /// Tests that timestamp values don't overflow or lose precision
     @MainActor
+    @Test("Property Large Timestamp Values Preserved")
     func testProperty_LargeTimestampValuesPreserved() throws {
         // Test timestamps that fit within Int64 range (since Station encodes as Int64)
         let timestamps: [UInt64] = [
@@ -338,18 +341,19 @@ final class StatePersistenceTests: XCTestCase {
                 ofClass: Station.self,
                 from: restoredData
             ) else {
-                XCTFail("Failed to unarchive station with timestamp \(timestamp)")
+                Issue.record("Failed to unarchive station with timestamp \(timestamp)")
                 continue
             }
             
             // Verify timestamp is preserved exactly
-            XCTAssertEqual(restoredStation.created, timestamp, "Timestamp \(timestamp) should be preserved exactly")
+            #expect((restoredStation.created) == (timestamp), "Timestamp \(timestamp) should be preserved exactly")
         }
     }
     
     /// Property test: Unicode characters in station names are preserved
     /// Tests that non-ASCII characters are correctly encoded and decoded
     @MainActor
+    @Test("Property Unicode Characters Preserved")
     func testProperty_UnicodeCharactersPreserved() throws {
         let unicodeNames = [
             "Rock 🎸 Station",
@@ -373,18 +377,19 @@ final class StatePersistenceTests: XCTestCase {
                 ofClass: Station.self,
                 from: restoredData
             ) else {
-                XCTFail("Failed to unarchive station with name '\(name)'")
+                Issue.record("Failed to unarchive station with name '\(name)'")
                 continue
             }
             
             // Verify unicode name is preserved exactly
-            XCTAssertEqual(restoredStation.name, name, "Unicode name '\(name)' should be preserved exactly")
+            #expect((restoredStation.name) == (name), "Unicode name '\(name)' should be preserved exactly")
         }
     }
     
     /// Property test: Idempotent save/restore cycles
     /// Tests that multiple save/restore cycles produce identical results
     @MainActor
+    @Test("Property Idempotent Save Restore Cycles")
     func testProperty_IdempotentSaveRestoreCycles() throws {
         let originalStation = createTestStation(name: "Idempotent Test Station")
         originalStation.genres = ["Rock", "Alternative", "Indie"]
@@ -405,15 +410,15 @@ final class StatePersistenceTests: XCTestCase {
                 ofClass: Station.self,
                 from: restoredData
             ) else {
-                XCTFail("Failed to unarchive station in cycle \(cycle)")
+                Issue.record("Failed to unarchive station in cycle \(cycle)")
                 return
             }
             
             // Verify properties remain identical
-            XCTAssertEqual(restoredStation.name, originalStation.name, "Name should remain identical after cycle \(cycle)")
-            XCTAssertEqual(restoredStation.token, originalStation.token, "Token should remain identical after cycle \(cycle)")
-            XCTAssertEqual(restoredStation.stationId, originalStation.stationId, "Station ID should remain identical after cycle \(cycle)")
-            XCTAssertEqual(restoredStation.genres, originalStation.genres, "Genres should remain identical after cycle \(cycle)")
+            #expect((restoredStation.name) == (originalStation.name), "Name should remain identical after cycle \(cycle)")
+            #expect((restoredStation.token) == (originalStation.token), "Token should remain identical after cycle \(cycle)")
+            #expect((restoredStation.stationId) == (originalStation.stationId), "Station ID should remain identical after cycle \(cycle)")
+            #expect((restoredStation.genres) == (originalStation.genres), "Genres should remain identical after cycle \(cycle)")
             
             // Use restored station for next cycle
             currentStation = restoredStation
@@ -423,6 +428,7 @@ final class StatePersistenceTests: XCTestCase {
     /// Property test: Concurrent save operations don't corrupt data
     /// Tests that saving multiple stations concurrently works correctly
     @MainActor
+    @Test("Property Concurrent Save Operations")
     func testProperty_ConcurrentSaveOperations() throws {
         let stationCount = 10
         var stations: [Station] = []
@@ -448,12 +454,12 @@ final class StatePersistenceTests: XCTestCase {
                 ofClass: Station.self,
                 from: restoredData
             ) else {
-                XCTFail("Failed to unarchive station \(index)")
+                Issue.record("Failed to unarchive station \(index)")
                 continue
             }
             
-            XCTAssertEqual(restoredStation.name, originalStation.name, "Station \(index) name should be preserved")
-            XCTAssertEqual(restoredStation.token, originalStation.token, "Station \(index) token should be preserved")
+            #expect((restoredStation.name) == (originalStation.name), "Station \(index) name should be preserved")
+            #expect((restoredStation.token) == (originalStation.token), "Station \(index) token should be preserved")
         }
     }
 }

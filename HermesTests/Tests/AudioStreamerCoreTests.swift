@@ -7,25 +7,17 @@
 //  **Validates: Requirements 20.1**
 //
 
-import XCTest
+import Testing
+import Foundation
 import AudioToolbox
 @testable import Hermes
 
-final class AudioStreamerCoreTests: XCTestCase {
-    
-    // MARK: - Test Lifecycle
-    
-    override func setUp() {
-        super.setUp()
-    }
-    
-    override func tearDown() {
-        super.tearDown()
-    }
-    
+@Suite("AudioStreamerCoreTests", .serialized)
+struct AudioStreamerCoreTests {
     // MARK: - AudioStreamerError Tests
     
     /// Test that all error types have proper descriptions
+    @Test("Error Descriptions")
     func testErrorDescriptions() throws {
         let errors: [AudioStreamerError] = [
             .networkConnectionFailed(underlyingError: "Connection refused"),
@@ -55,125 +47,76 @@ final class AudioStreamerCoreTests: XCTestCase {
         ]
         
         for error in errors {
-            XCTAssertNotNil(error.errorDescription, "Error \(error) should have a description")
-            XCTAssertFalse(error.errorDescription!.isEmpty, "Error description should not be empty")
+            #expect((error.errorDescription) != nil, "Error \(error) should have a description")
+            #expect(!(error.errorDescription!.isEmpty), "Error description should not be empty")
         }
     }
     
     /// Test error equality for same error types
+    @Test("Error Equality")
     func testErrorEquality() throws {
         // Same errors should be equal
-        XCTAssertEqual(
-            AudioStreamerError.timeout,
-            AudioStreamerError.timeout
-        )
-        XCTAssertEqual(
-            AudioStreamerError.audioDataNotFound,
-            AudioStreamerError.audioDataNotFound
-        )
-        XCTAssertEqual(
-            AudioStreamerError.audioStreamerFailed,
-            AudioStreamerError.audioStreamerFailed
-        )
-        XCTAssertEqual(
-            AudioStreamerError.audioQueueBufferMismatch,
-            AudioStreamerError.audioQueueBufferMismatch
-        )
-        XCTAssertEqual(
-            AudioStreamerError.audioBufferTooSmall,
-            AudioStreamerError.audioBufferTooSmall
-        )
+        #expect((AudioStreamerError.timeout) == (AudioStreamerError.timeout))
+        #expect((AudioStreamerError.audioDataNotFound) == (AudioStreamerError.audioDataNotFound))
+        #expect((AudioStreamerError.audioStreamerFailed) == (AudioStreamerError.audioStreamerFailed))
+        #expect((AudioStreamerError.audioQueueBufferMismatch) == (AudioStreamerError.audioQueueBufferMismatch))
+        #expect((AudioStreamerError.audioBufferTooSmall) == (AudioStreamerError.audioBufferTooSmall))
         
         // Same errors with same parameters should be equal
-        XCTAssertEqual(
-            AudioStreamerError.networkConnectionFailed(underlyingError: "test"),
-            AudioStreamerError.networkConnectionFailed(underlyingError: "test")
-        )
-        XCTAssertEqual(
-            AudioStreamerError.networkConnectionFailed(underlyingError: nil),
-            AudioStreamerError.networkConnectionFailed(underlyingError: nil)
-        )
-        XCTAssertEqual(
-            AudioStreamerError.fileStreamOpenFailed(status: -50),
-            AudioStreamerError.fileStreamOpenFailed(status: -50)
-        )
-        XCTAssertEqual(
-            AudioStreamerError.audioQueueCreationFailed(status: 100),
-            AudioStreamerError.audioQueueCreationFailed(status: 100)
-        )
+        #expect((AudioStreamerError.networkConnectionFailed(underlyingError: "test")) == (AudioStreamerError.networkConnectionFailed(underlyingError: "test")))
+        #expect((AudioStreamerError.networkConnectionFailed(underlyingError: nil)) == (AudioStreamerError.networkConnectionFailed(underlyingError: nil)))
+        #expect((AudioStreamerError.fileStreamOpenFailed(status: -50)) == (AudioStreamerError.fileStreamOpenFailed(status: -50)))
+        #expect((AudioStreamerError.audioQueueCreationFailed(status: 100)) == (AudioStreamerError.audioQueueCreationFailed(status: 100)))
     }
     
     /// Test error inequality for different error types
+    @Test("Error Inequality")
     func testErrorInequality() throws {
         // Different error types should not be equal
-        XCTAssertNotEqual(
-            AudioStreamerError.timeout,
-            AudioStreamerError.audioDataNotFound
-        )
-        XCTAssertNotEqual(
-            AudioStreamerError.audioStreamerFailed,
-            AudioStreamerError.audioBufferTooSmall
-        )
+        #expect((AudioStreamerError.timeout) != (AudioStreamerError.audioDataNotFound))
+        #expect((AudioStreamerError.audioStreamerFailed) != (AudioStreamerError.audioBufferTooSmall))
         
         // Same error type with different parameters should not be equal
-        XCTAssertNotEqual(
-            AudioStreamerError.networkConnectionFailed(underlyingError: "error1"),
-            AudioStreamerError.networkConnectionFailed(underlyingError: "error2")
-        )
-        XCTAssertNotEqual(
-            AudioStreamerError.networkConnectionFailed(underlyingError: "test"),
-            AudioStreamerError.networkConnectionFailed(underlyingError: nil)
-        )
-        XCTAssertNotEqual(
-            AudioStreamerError.fileStreamOpenFailed(status: -50),
-            AudioStreamerError.fileStreamOpenFailed(status: -51)
-        )
-        XCTAssertNotEqual(
-            AudioStreamerError.audioQueueCreationFailed(status: 100),
-            AudioStreamerError.audioQueueCreationFailed(status: 200)
-        )
+        #expect((AudioStreamerError.networkConnectionFailed(underlyingError: "error1")) != (AudioStreamerError.networkConnectionFailed(underlyingError: "error2")))
+        #expect((AudioStreamerError.networkConnectionFailed(underlyingError: "test")) != (AudioStreamerError.networkConnectionFailed(underlyingError: nil)))
+        #expect((AudioStreamerError.fileStreamOpenFailed(status: -50)) != (AudioStreamerError.fileStreamOpenFailed(status: -51)))
+        #expect((AudioStreamerError.audioQueueCreationFailed(status: 100)) != (AudioStreamerError.audioQueueCreationFailed(status: 200)))
     }
     
     /// Test error descriptions contain relevant information
+    @Test("Error Descriptions Contain Relevant Info")
     func testErrorDescriptionsContainRelevantInfo() throws {
         // Network error with underlying error should include it
         let networkError = AudioStreamerError.networkConnectionFailed(underlyingError: "Connection refused")
-        XCTAssertTrue(
-            networkError.errorDescription!.contains("Connection refused"),
-            "Network error description should contain underlying error"
-        )
+        #expect(networkError.errorDescription!.contains("Connection refused"), "Network error description should contain underlying error")
         
         // OSStatus errors should include the status code
         let fileStreamError = AudioStreamerError.fileStreamOpenFailed(status: -50)
-        XCTAssertTrue(
-            fileStreamError.errorDescription!.contains("-50"),
-            "File stream error should contain OSStatus code"
-        )
+        #expect(fileStreamError.errorDescription!.contains("-50"), "File stream error should contain OSStatus code")
         
         let audioQueueError = AudioStreamerError.audioQueueCreationFailed(status: 1234)
-        XCTAssertTrue(
-            audioQueueError.errorDescription!.contains("1234"),
-            "Audio queue error should contain OSStatus code"
-        )
+        #expect(audioQueueError.errorDescription!.contains("1234"), "Audio queue error should contain OSStatus code")
     }
     
     // MARK: - Configuration Tests
     
     /// Test default configuration values
+    @Test("Default Configuration")
     func testDefaultConfiguration() throws {
         let streamer = AudioStreamer(url: URL(string: "http://example.com/test.mp3")!)
         
         // Verify default values
-        XCTAssertEqual(streamer.bufferCount, kDefaultNumAQBufs, "Default buffer count should be \(kDefaultNumAQBufs)")
-        XCTAssertEqual(streamer.bufferSize, kDefaultAQDefaultBufSize, "Default buffer size should be \(kDefaultAQDefaultBufSize)")
-        XCTAssertFalse(streamer.bufferInfinite, "Buffer infinite should be false by default")
-        XCTAssertEqual(streamer.timeoutInterval, 10, "Default timeout should be 10 seconds")
-        XCTAssertNil(streamer.fileType, "File type should be nil by default")
+        #expect((streamer.bufferCount) == (kDefaultNumAQBufs), "Default buffer count should be \(kDefaultNumAQBufs)")
+        #expect((streamer.bufferSize) == (kDefaultAQDefaultBufSize), "Default buffer size should be \(kDefaultAQDefaultBufSize)")
+        #expect(!(streamer.bufferInfinite), "Buffer infinite should be false by default")
+        #expect((streamer.timeoutInterval) == (10), "Default timeout should be 10 seconds")
+        #expect((streamer.fileType) == nil, "File type should be nil by default")
         
         streamer.stop()
     }
     
     /// Test configuration can be modified before start
+    @Test("Configuration Modification")
     func testConfigurationModification() throws {
         let streamer = AudioStreamer(url: URL(string: "http://example.com/test.mp3")!)
         
@@ -184,31 +127,33 @@ final class AudioStreamerCoreTests: XCTestCase {
         streamer.timeoutInterval = 30
         
         // Verify modifications
-        XCTAssertEqual(streamer.bufferCount, 32)
-        XCTAssertEqual(streamer.bufferSize, 4096)
-        XCTAssertTrue(streamer.bufferInfinite)
-        XCTAssertEqual(streamer.timeoutInterval, 30)
+        #expect((streamer.bufferCount) == (32))
+        #expect((streamer.bufferSize) == (4096))
+        #expect(streamer.bufferInfinite)
+        #expect((streamer.timeoutInterval) == (30))
         
         streamer.stop()
     }
     
     /// Test URL is correctly stored
+    @Test("URL Storage")
     func testURLStorage() throws {
         let testURL = URL(string: "http://example.com/test.mp3")!
         let streamer = AudioStreamer(url: testURL)
         
-        XCTAssertEqual(streamer.url, testURL, "URL should be stored correctly")
+        #expect((streamer.url) == (testURL), "URL should be stored correctly")
         
         streamer.stop()
     }
     
     /// Test factory method creates streamer correctly
+    @Test("Factory Method")
     func testFactoryMethod() throws {
         let testURL = URL(string: "http://example.com/test.mp3")!
         let streamer = AudioStreamer.stream(with: testURL)
         
-        XCTAssertEqual(streamer.url, testURL, "Factory method should create streamer with correct URL")
-        XCTAssertEqual(streamer.state, .initialized, "Factory method should create streamer in initialized state")
+        #expect((streamer.url) == (testURL), "Factory method should create streamer with correct URL")
+        #expect((streamer.state) == (.initialized), "Factory method should create streamer in initialized state")
         
         streamer.stop()
     }
@@ -216,6 +161,7 @@ final class AudioStreamerCoreTests: XCTestCase {
     // MARK: - Proxy Configuration Tests
     
     /// Test HTTP proxy configuration
+    @Test("HTTP Proxy Configuration")
     func testHTTPProxyConfiguration() throws {
         let streamer = AudioStreamer(url: URL(string: "http://example.com/test.mp3")!)
         
@@ -223,12 +169,13 @@ final class AudioStreamerCoreTests: XCTestCase {
         streamer.setHTTPProxy(host: "proxy.example.com", port: 8080)
         
         // Streamer should still be in initialized state
-        XCTAssertEqual(streamer.state, .initialized)
+        #expect((streamer.state) == (.initialized))
         
         streamer.stop()
     }
     
     /// Test SOCKS proxy configuration
+    @Test("SOCKS Proxy Configuration")
     func testSOCKSProxyConfiguration() throws {
         let streamer = AudioStreamer(url: URL(string: "http://example.com/test.mp3")!)
         
@@ -236,7 +183,7 @@ final class AudioStreamerCoreTests: XCTestCase {
         streamer.setSOCKSProxy(host: "socks.example.com", port: 1080)
         
         // Streamer should still be in initialized state
-        XCTAssertEqual(streamer.state, .initialized)
+        #expect((streamer.state) == (.initialized))
         
         streamer.stop()
     }
@@ -244,51 +191,55 @@ final class AudioStreamerCoreTests: XCTestCase {
     // MARK: - Initial State Tests
     
     /// Test initial state properties
+    @Test("Initial State Properties")
     func testInitialStateProperties() throws {
         let streamer = AudioStreamer(url: URL(string: "http://example.com/test.mp3")!)
         
         // Initial state checks
-        XCTAssertEqual(streamer.state, .initialized)
-        XCTAssertFalse(streamer.isPlaying)
-        XCTAssertFalse(streamer.isPaused)
-        XCTAssertFalse(streamer.isWaiting)
-        XCTAssertFalse(streamer.isDone)
-        XCTAssertNil(streamer.doneReason)
-        XCTAssertNil(streamer.httpHeaders)
+        #expect((streamer.state) == (.initialized))
+        #expect(!(streamer.isPlaying))
+        #expect(!(streamer.isPaused))
+        #expect(!(streamer.isWaiting))
+        #expect(!(streamer.isDone))
+        #expect((streamer.doneReason) == nil)
+        #expect((streamer.httpHeaders) == nil)
         
         streamer.stop()
     }
     
     /// Test progress and duration return nil before streaming
+    @Test("Progress And Duration Before Streaming")
     func testProgressAndDurationBeforeStreaming() throws {
         let streamer = AudioStreamer(url: URL(string: "http://example.com/test.mp3")!)
         
         // Progress and duration should be nil before streaming starts
-        XCTAssertNil(streamer.progress(), "Progress should be nil before streaming")
-        XCTAssertNil(streamer.duration(), "Duration should be nil before streaming")
-        XCTAssertNil(streamer.calculatedBitRate(), "Bit rate should be nil before streaming")
+        #expect((streamer.progress()) == nil, "Progress should be nil before streaming")
+        #expect((streamer.duration()) == nil, "Duration should be nil before streaming")
+        #expect((streamer.calculatedBitRate()) == nil, "Bit rate should be nil before streaming")
         
         streamer.stop()
     }
     
     /// Test volume setting before audio queue is ready
+    @Test("Volume Setting Before Audio Queue")
     func testVolumeSettingBeforeAudioQueue() throws {
         let streamer = AudioStreamer(url: URL(string: "http://example.com/test.mp3")!)
         
         // Setting volume before audio queue should return false
         let result = streamer.setVolume(0.5)
-        XCTAssertFalse(result, "setVolume should return false when audio queue is not ready")
+        #expect(!(result), "setVolume should return false when audio queue is not ready")
         
         streamer.stop()
     }
     
     /// Test seek before streaming
+    @Test("Seek Before Streaming")
     func testSeekBeforeStreaming() throws {
         let streamer = AudioStreamer(url: URL(string: "http://example.com/test.mp3")!)
         
         // Seeking before streaming should return false
         let result = streamer.seekToTime(30.0)
-        XCTAssertFalse(result, "seekToTime should return false before streaming")
+        #expect(!(result), "seekToTime should return false before streaming")
         
         streamer.stop()
     }
@@ -296,10 +247,11 @@ final class AudioStreamerCoreTests: XCTestCase {
     // MARK: - Constants Tests
     
     /// Test that constants have expected values
+    @Test("Constants")
     func testConstants() throws {
-        XCTAssertEqual(kAQMaxPacketDescs, 512, "kAQMaxPacketDescs should be 512")
-        XCTAssertEqual(kDefaultNumAQBufs, 32, "kDefaultNumAQBufs should be 32")
-        XCTAssertEqual(kDefaultAQDefaultBufSize, 4096, "kDefaultAQDefaultBufSize should be 4096")
-        XCTAssertEqual(kBitRateEstimationMinPackets, 50, "kBitRateEstimationMinPackets should be 50")
+        #expect((kAQMaxPacketDescs) == (512), "kAQMaxPacketDescs should be 512")
+        #expect((kDefaultNumAQBufs) == (32), "kDefaultNumAQBufs should be 32")
+        #expect((kDefaultAQDefaultBufSize) == (4096), "kDefaultAQDefaultBufSize should be 4096")
+        #expect((kBitRateEstimationMinPackets) == (50), "kBitRateEstimationMinPackets should be 50")
     }
 }

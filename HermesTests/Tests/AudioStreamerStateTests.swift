@@ -6,10 +6,12 @@
 //  **Validates: Requirements 2.2**
 //
 
-import XCTest
+import Testing
+import Foundation
 @testable import Hermes
 
-final class AudioStreamerStateTests: XCTestCase {
+@Suite("AudioStreamerStateTests", .serialized)
+struct AudioStreamerStateTests {
     
     // MARK: - Property 5: Playback State Machine (Partial)
     //
@@ -29,19 +31,20 @@ final class AudioStreamerStateTests: XCTestCase {
     
     /// Property test: Valid state transitions
     /// Tests that the AudioStreamer correctly transitions through valid states
+    @Test("Valid State Transitions")
     func testValidStateTransitions() throws {
         // Test transition: initialized → waitingForData (via start)
         let streamer1 = AudioStreamer(url: URL(string: "http://example.com/test.mp3")!)
-        XCTAssertEqual(streamer1.state, .initialized, "Initial state should be initialized")
+        #expect((streamer1.state) == (.initialized), "Initial state should be initialized")
         
         // Note: start() requires network connection, so we can't fully test it here
         // We'll test the state enum transitions directly
         
         // Test state enum properties
-        XCTAssertFalse(AudioStreamerState.initialized.isDone, "initialized should not be done")
-        XCTAssertFalse(AudioStreamerState.playing.isDone, "playing should not be done")
-        XCTAssertTrue(AudioStreamerState.stopped.isDone, "stopped should be done")
-        XCTAssertTrue(AudioStreamerState.done(reason: .endOfFile).isDone, "done should be done")
+        #expect(!(AudioStreamerState.initialized.isDone), "initialized should not be done")
+        #expect(!(AudioStreamerState.playing.isDone), "playing should not be done")
+        #expect(AudioStreamerState.stopped.isDone, "stopped should be done")
+        #expect(AudioStreamerState.done(reason: .endOfFile).isDone, "done should be done")
         
         // Clean up
         streamer1.stop()
@@ -62,36 +65,37 @@ final class AudioStreamerStateTests: XCTestCase {
             // Verify state properties
             switch state {
             case .stopped, .done:
-                XCTAssertTrue(state.isDone, "State \(state) should be done")
+                #expect(state.isDone, "State \(state) should be done")
             default:
-                XCTAssertFalse(state.isDone, "State \(state) should not be done")
+                #expect(!(state.isDone), "State \(state) should not be done")
             }
         }
     }
     
     /// Property test: Invalid transitions are rejected
     /// Tests that invalid state transitions return false and don't change state
+    @Test("Invalid Transitions Are Rejected")
     func testInvalidTransitionsAreRejected() throws {
         // Test: pause when not playing should return false
         let streamer1 = AudioStreamer(url: URL(string: "http://example.com/test.mp3")!)
-        XCTAssertEqual(streamer1.state, .initialized, "Should start in initialized state")
+        #expect((streamer1.state) == (.initialized), "Should start in initialized state")
         
         let pauseResult = streamer1.pause()
-        XCTAssertFalse(pauseResult, "pause() should return false when not in playing state")
-        XCTAssertEqual(streamer1.state, .initialized, "State should not change on invalid pause")
+        #expect(!(pauseResult), "pause() should return false when not in playing state")
+        #expect((streamer1.state) == (.initialized), "State should not change on invalid pause")
         
         // Test: play when not paused should return false
         let playResult = streamer1.play()
-        XCTAssertFalse(playResult, "play() should return false when not in paused state")
-        XCTAssertEqual(streamer1.state, .initialized, "State should not change on invalid play")
+        #expect(!(playResult), "play() should return false when not in paused state")
+        #expect((streamer1.state) == (.initialized), "State should not change on invalid play")
         
         // Test: start when already started should return false
         let firstStart = streamer1.start()
-        XCTAssertTrue(firstStart, "First start() should return true")
+        #expect(firstStart, "First start() should return true")
         
         // Second start should return false
         let secondStart = streamer1.start()
-        XCTAssertFalse(secondStart, "Second start() should return false")
+        #expect(!(secondStart), "Second start() should return false")
         
         // Clean up
         streamer1.stop()
@@ -99,6 +103,7 @@ final class AudioStreamerStateTests: XCTestCase {
     
     /// Property test: State transition sequence
     /// Tests a complete sequence of valid transitions
+    @Test("State Transition Sequence")
     func testStateTransitionSequence() throws {
         // This test verifies the expected sequence:
         // initialized → (start) → waitingForData → ... → playing → (pause) → paused → (play) → playing → (stop) → stopped
@@ -106,25 +111,23 @@ final class AudioStreamerStateTests: XCTestCase {
         let streamer = AudioStreamer(url: URL(string: "http://example.com/test.mp3")!)
         
         // 1. Initial state
-        XCTAssertEqual(streamer.state, .initialized, "Should start in initialized state")
+        #expect((streamer.state) == (.initialized), "Should start in initialized state")
         
         // 2. Start (will transition to waitingForData, but may fail due to network)
         let startResult = streamer.start()
-        XCTAssertTrue(startResult, "start() should return true on first call")
+        #expect(startResult, "start() should return true on first call")
         
         // State should have changed from initialized
-        XCTAssertNotEqual(streamer.state, .initialized, "State should change after start()")
+        #expect((streamer.state) != (.initialized), "State should change after start()")
         
         // 3. Stop should work from any state
         streamer.stop()
-        XCTAssertTrue(
-            streamer.state == .stopped || streamer.state.isDone,
-            "After stop, state should be stopped or done"
-        )
+        #expect(streamer.state == .stopped || streamer.state.isDone, "After stop, state should be stopped or done")
     }
     
     /// Property test: State query methods consistency
     /// Tests that state query methods (isPlaying, isPaused, etc.) are consistent with state
+    @Test("State Query Methods Consistency")
     func testStateQueryMethodsConsistency() throws {
         let testCases: [(AudioStreamerState, Bool, Bool, Bool, Bool, Bool)] = [
             // (state, isPlaying, isPaused, isWaiting, isDone, isRebuffering)
@@ -142,53 +145,34 @@ final class AudioStreamerStateTests: XCTestCase {
         
         for (state, expectedIsPlaying, expectedIsPaused, expectedIsWaiting, expectedIsDone, expectedIsRebuffering) in testCases {
             // Test state properties directly
-            XCTAssertEqual(
-                state.isWaiting,
-                expectedIsWaiting,
-                "isWaiting should be \(expectedIsWaiting) for state \(state)"
-            )
-            XCTAssertEqual(
-                state.isDone,
-                expectedIsDone,
-                "isDone should be \(expectedIsDone) for state \(state)"
-            )
-            XCTAssertEqual(
-                state.isRebuffering,
-                expectedIsRebuffering,
-                "isRebuffering should be \(expectedIsRebuffering) for state \(state)"
-            )
+            #expect((state.isWaiting) == (expectedIsWaiting), "isWaiting should be \(expectedIsWaiting) for state \(state)")
+            #expect((state.isDone) == (expectedIsDone), "isDone should be \(expectedIsDone) for state \(state)")
+            #expect((state.isRebuffering) == (expectedIsRebuffering), "isRebuffering should be \(expectedIsRebuffering) for state \(state)")
             
             // Test computed properties that check state cases
             let isPlaying = { if case .playing = state { return true } else { return false } }()
             let isPaused = { if case .paused = state { return true } else { return false } }()
             
-            XCTAssertEqual(
-                isPlaying,
-                expectedIsPlaying,
-                "isPlaying should be \(expectedIsPlaying) for state \(state)"
-            )
-            XCTAssertEqual(
-                isPaused,
-                expectedIsPaused,
-                "isPaused should be \(expectedIsPaused) for state \(state)"
-            )
+            #expect((isPlaying) == (expectedIsPlaying), "isPlaying should be \(expectedIsPlaying) for state \(state)")
+            #expect((isPaused) == (expectedIsPaused), "isPaused should be \(expectedIsPaused) for state \(state)")
         }
     }
     
     /// Tests that isRebuffering returns true only for the rebuffering state
     /// Rebuffering is not done, not waiting, and is rebuffering
     /// **Validates: Requirements 2.1**
+    @Test("Rebuffering State Properties")
     func testRebufferingStateProperties() throws {
         let rebuffering = AudioStreamerState.rebuffering
         
         // Rebuffering IS rebuffering
-        XCTAssertTrue(rebuffering.isRebuffering, "rebuffering state should return true for isRebuffering")
+        #expect(rebuffering.isRebuffering, "rebuffering state should return true for isRebuffering")
         
         // Rebuffering is NOT done
-        XCTAssertFalse(rebuffering.isDone, "rebuffering state should not be done")
+        #expect(!(rebuffering.isDone), "rebuffering state should not be done")
         
         // Rebuffering is NOT waiting
-        XCTAssertFalse(rebuffering.isWaiting, "rebuffering state should not be waiting")
+        #expect(!(rebuffering.isWaiting), "rebuffering state should not be waiting")
         
         // All other states are NOT rebuffering
         let nonRebufferingStates: [AudioStreamerState] = [
@@ -204,15 +188,13 @@ final class AudioStreamerStateTests: XCTestCase {
         ]
         
         for state in nonRebufferingStates {
-            XCTAssertFalse(
-                state.isRebuffering,
-                "isRebuffering should be false for state \(state)"
-            )
+            #expect(!(state.isRebuffering), "isRebuffering should be false for state \(state)")
         }
     }
     
     /// Property test: Done reasons are correctly reported
     /// Tests that doneReason property returns correct values
+    @Test("Done Reasons Are Correctly Reported")
     func testDoneReasonsAreCorrectlyReported() throws {
         // Test done reasons using state enum directly (not via AudioStreamer instances)
         // This avoids issues with AudioStreamer lifecycle management in tests
@@ -228,18 +210,18 @@ final class AudioStreamerStateTests: XCTestCase {
         for (state, expectedReason) in doneStates {
             // Test using state enum directly
             if case .done(let reason) = state {
-                XCTAssertEqual(reason, expectedReason, "Done reason should match expected")
+                #expect((reason) == (expectedReason), "Done reason should match expected")
             } else {
-                XCTFail("State should be done")
+                Issue.record("State should be done")
             }
             
             // Test isDone property
-            XCTAssertTrue(state.isDone, "State should be marked as done")
+            #expect(state.isDone, "State should be marked as done")
         }
         
         // Test stopped state
         let stoppedState = AudioStreamerState.stopped
-        XCTAssertTrue(stoppedState.isDone, "Stopped state should be marked as done")
+        #expect(stoppedState.isDone, "Stopped state should be marked as done")
         
         // Test non-done states
         let nonDoneStates: [AudioStreamerState] = [
@@ -252,12 +234,13 @@ final class AudioStreamerStateTests: XCTestCase {
         ]
         
         for state in nonDoneStates {
-            XCTAssertFalse(state.isDone, "State \(state) should not be marked as done")
+            #expect(!(state.isDone), "State \(state) should not be marked as done")
         }
     }
     
     /// Property test: State transitions are idempotent
     /// Tests that calling the same operation multiple times doesn't cause issues
+    @Test("State Transitions Are Idempotent")
     func testStateTransitionsAreIdempotent() throws {
         // Test: Multiple stop calls should be safe
         let streamer1 = AudioStreamer(url: URL(string: "http://example.com/test.mp3")!)
@@ -265,64 +248,50 @@ final class AudioStreamerStateTests: XCTestCase {
         let stateAfterFirstStop = streamer1.state
         streamer1.stop()
         let stateAfterSecondStop = streamer1.state
-        XCTAssertEqual(stateAfterFirstStop, stateAfterSecondStop, "Multiple stop() calls should be idempotent")
+        #expect((stateAfterFirstStop) == (stateAfterSecondStop), "Multiple stop() calls should be idempotent")
         
         // Test: Multiple pause calls when not playing should return false
         let streamer2 = AudioStreamer(url: URL(string: "http://example.com/test.mp3")!)
         let firstPause = streamer2.pause()
         let secondPause = streamer2.pause()
-        XCTAssertFalse(firstPause, "First pause when not playing should return false")
-        XCTAssertFalse(secondPause, "Second pause when not playing should return false")
+        #expect(!(firstPause), "First pause when not playing should return false")
+        #expect(!(secondPause), "Second pause when not playing should return false")
         streamer2.stop()
         
         // Test: Multiple play calls when not paused should return false
         let streamer3 = AudioStreamer(url: URL(string: "http://example.com/test.mp3")!)
         let firstPlay = streamer3.play()
         let secondPlay = streamer3.play()
-        XCTAssertFalse(firstPlay, "First play when not paused should return false")
-        XCTAssertFalse(secondPlay, "Second play when not paused should return false")
+        #expect(!(firstPlay), "First play when not paused should return false")
+        #expect(!(secondPlay), "Second play when not paused should return false")
         streamer3.stop()
     }
     
     /// Property test: State enum equality
     /// Tests that AudioStreamerState equality works correctly
+    @Test("State Enum Equality")
     func testStateEnumEquality() throws {
         // Test basic state equality
-        XCTAssertEqual(AudioStreamerState.initialized, .initialized)
-        XCTAssertEqual(AudioStreamerState.waitingForData, .waitingForData)
-        XCTAssertEqual(AudioStreamerState.waitingForQueueToStart, .waitingForQueueToStart)
-        XCTAssertEqual(AudioStreamerState.playing, .playing)
-        XCTAssertEqual(AudioStreamerState.paused, .paused)
-        XCTAssertEqual(AudioStreamerState.rebuffering, .rebuffering)
-        XCTAssertEqual(AudioStreamerState.stopped, .stopped)
+        #expect((AudioStreamerState.initialized) == (.initialized))
+        #expect((AudioStreamerState.waitingForData) == (.waitingForData))
+        #expect((AudioStreamerState.waitingForQueueToStart) == (.waitingForQueueToStart))
+        #expect((AudioStreamerState.playing) == (.playing))
+        #expect((AudioStreamerState.paused) == (.paused))
+        #expect((AudioStreamerState.rebuffering) == (.rebuffering))
+        #expect((AudioStreamerState.stopped) == (.stopped))
         
         // Test done state equality with same reason
-        XCTAssertEqual(
-            AudioStreamerState.done(reason: .endOfFile),
-            .done(reason: .endOfFile)
-        )
-        XCTAssertEqual(
-            AudioStreamerState.done(reason: .stopped),
-            .done(reason: .stopped)
-        )
-        XCTAssertEqual(
-            AudioStreamerState.done(reason: .error(.timeout)),
-            .done(reason: .error(.timeout))
-        )
+        #expect((AudioStreamerState.done(reason: .endOfFile)) == (.done(reason: .endOfFile)))
+        #expect((AudioStreamerState.done(reason: .stopped)) == (.done(reason: .stopped)))
+        #expect((AudioStreamerState.done(reason: .error(.timeout))) == (.done(reason: .error(.timeout))))
         
         // Test done state inequality with different reasons
-        XCTAssertNotEqual(
-            AudioStreamerState.done(reason: .endOfFile),
-            .done(reason: .stopped)
-        )
-        XCTAssertNotEqual(
-            AudioStreamerState.done(reason: .error(.timeout)),
-            .done(reason: .error(.audioDataNotFound))
-        )
+        #expect((AudioStreamerState.done(reason: .endOfFile)) != (.done(reason: .stopped)))
+        #expect((AudioStreamerState.done(reason: .error(.timeout))) != (.done(reason: .error(.audioDataNotFound))))
         
         // Test different states are not equal
-        XCTAssertNotEqual(AudioStreamerState.initialized, .playing)
-        XCTAssertNotEqual(AudioStreamerState.playing, .paused)
-        XCTAssertNotEqual(AudioStreamerState.stopped, .done(reason: .stopped))
+        #expect((AudioStreamerState.initialized) != (.playing))
+        #expect((AudioStreamerState.playing) != (.paused))
+        #expect((AudioStreamerState.stopped) != (.done(reason: .stopped)))
     }
 }
