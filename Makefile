@@ -5,7 +5,9 @@ XCPIPE        =
 CONFIGURATION = Debug
 SCHEME        = Hermes
 DERIVED_DATA  = $(shell xcodebuild -project Hermes.xcodeproj -showBuildSettings 2>/dev/null | grep "BUILD_DIR" | head -1 | sed 's/.*= //' | xargs dirname | xargs dirname)
-HERMES        = $(DERIVED_DATA)/Build/Products/$(CONFIGURATION)/Hermes.app/Contents/MacOS/Hermes
+BUILD_SETTINGS = $(XCB) $(COMMON_OPTS) -configuration $(CONFIGURATION) -scheme $(SCHEME) -showBuildSettings
+HERMES_APP     = $(shell $(BUILD_SETTINGS) 2>/dev/null | sed -n 's/^[[:space:]]*CODESIGNING_FOLDER_PATH = //p' | head -1)
+HERMES         = $(HERMES_APP)/Contents/MacOS/Hermes
 DEBUGGER      = lldb
 
 # Build without custom SYMROOT to avoid SPM issues
@@ -21,10 +23,15 @@ travis: XCPIPE = | xcpretty -f `xcpretty-travis-formatter`
 travis: hermes
 
 run: hermes
-	$(HERMES)
+	@hermes="$(HERMES)"; \
+	if [ ! -x "$$hermes" ]; then \
+		echo "error: Hermes executable not found at $$hermes" >&2; \
+		exit 1; \
+	fi; \
+	exec "$$hermes"
 
 dbg: hermes
-	$(DEBUGGER) $(HERMES)
+	$(DEBUGGER) "$(HERMES)"
 
 install:
 	$(XCB) $(COMMON_OPTS) -configuration Release -scheme Hermes
