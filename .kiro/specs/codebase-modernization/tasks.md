@@ -248,7 +248,7 @@ The plan follows a phased approach:
 ### Phase 3: Complete Modernization (2-3 months)
 
 - [ ] 13. Split AudioStreamer.swift (currently 1,305 lines)
-  - Reconciled 2026-09-17: supersedes the 2026-09-16 reconciliation after merge commit `cfdb46a`. `AudioStreamBuffer.swift` is 489 lines, `AudioStreamDecoder.swift` is 267 lines, and `AudioStreamer.swift` is 1,305 lines; `AudioStreamOutput.swift` remains absent. Items 13.2 and 13.3 are now credited as complete.
+  - Reconciled 2026-09-17 after merge commit `cfdb46a`: the chosen decomposition is state + buffer/output + decoder + error. `AudioStreamBuffer.swift` contains the planned AudioQueue output layer as well as buffer management, so no separate `AudioStreamOutput.swift` is required. Items 13.2 through 13.5 are complete; items 13.6 and 13.7 and this parent remain open.
   - [x] 13.1 Extract AudioStreamState
     - Create `Sources/Swift/Services/Audio/AudioStreamState.swift`
     - Move state management code (~150 lines)
@@ -264,26 +264,25 @@ The plan follows a phased approach:
     - Move audio decoding code (~200 lines)
     - _Requirements: 7.2_
   
-  - [ ] 13.4 Extract AudioStreamOutput
-    - Create `Sources/Swift/Services/Audio/AudioStreamOutput.swift`
-    - Move audio output code (~150 lines)
+  - [x] 13.4 Extract AudioStreamOutput
+    - Satisfied by `AudioStreamBuffer.swift`, which owns the default-output-device callback, AudioQueue output/property callbacks, queue creation and device setup, buffer sizing/allocation, magic-cookie setup, enqueue/completion accounting, cached replay, and queue-running handler
+    - The risk-bounded split deliberately kept this tightly coupled output and buffer lifecycle together rather than creating `AudioStreamOutput.swift`
     - _Requirements: 7.2_
   
-  - [ ] 13.5 Extract AudioStreamError
-    - Reconciled 2026-09-16: `AudioStreamError.swift` exists, but this checklist does not credit the remaining split as complete; Project Agent task `audiostreamer-split` owns the extraction.
-    - Create `Sources/Swift/Services/Audio/AudioStreamError.swift`
-    - Move error types (~100 lines)
+  - [x] 13.5 Extract AudioStreamError
+    - `Sources/Swift/Services/Audio/AudioStreamError.swift` contains the extracted error types (235 lines)
     - _Requirements: 7.2_
   
   - [ ] 13.6 Refactor core AudioStreamer
+    - Not complete: `AudioStreamer.swift` remains 1,305 lines; the prior split deliberately stopped after the safe buffer/output and decoder extractions
     - Keep core streaming engine (~300 lines)
     - Update to use extracted components
     - Add MARK comments for organization
     - _Requirements: 7.2, 7.5_
   
   - [ ] 13.7 Verify AudioStreamer tests still pass
-    - Run all AudioStreamer tests
-    - Verify functionality unchanged
+    - Exact `make` and exact `make test` passed on the extraction branch and merged `master`; the final suite reported 416 passed and 0 failed
+    - Complete playback verification remains open: the preserved runtime logs cover automatic station restoration, pause/resume, skip, and continued playback, but do not prove a station change or the normal natural-end callback path
     - _Requirements: 7.5_
 
 - [x] 14. Split PandoraClient.swift (1597 lines)
