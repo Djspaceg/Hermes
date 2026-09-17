@@ -27,7 +27,7 @@
 
 ### Objective-C Runtime Interoperability
 
-- The repository contains no `.m`, `.mm`, `.h`, or `.c` source files
+- The tracked repository contains no `.m`, `.mm`, `.h`, or `.c` source files
 - The Hermes Sources build phase contains Swift files only
 - The current Xcode build settings do not define `SWIFT_OBJC_BRIDGING_HEADER` or another project-local umbrella header
 - Some Swift declarations use `@objc`, `NSObject`, and selectors for Cocoa/AppKit, AppleScript, and Objective-C runtime APIs; this is framework interoperability, not a compiled Objective-C application layer

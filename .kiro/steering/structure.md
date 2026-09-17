@@ -78,7 +78,7 @@ The former Objective-C application source was replaced by Swift:
 - Vendored Blowfish C → CryptoSwift used by `PandoraCrypto.swift`
 - FMEngine Objective-C → `LastFMService.swift`
 
-**Migration correction (verified 2026-09-17):** No `.m`, `.mm`, `.h`, or `.c` files exist in the repository, and the Hermes Sources build phase contains Swift files only. The current project has no `SWIFT_OBJC_BRIDGING_HEADER` setting. `Hermes.xcodeproj/project.pbxproj.bak` preserves historical Objective-C references but is not the active project file and is not compiled.
+**Migration correction (verified 2026-09-17):** No tracked `.m`, `.mm`, `.h`, or `.c` files exist in the repository, and the Hermes Sources build phase contains Swift files only. The current project has no `SWIFT_OBJC_BRIDGING_HEADER` setting. `Hermes.xcodeproj/project.pbxproj.bak` preserves historical Objective-C references but is not the active project file and is not compiled.
 
 ## Resources (`Resources/`)
 
