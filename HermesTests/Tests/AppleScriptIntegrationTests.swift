@@ -8,6 +8,7 @@
 
 import Testing
 import Foundation
+import AppKit
 @testable import Hermes
 
 @Suite("AppleScript Integration with DI")
@@ -143,7 +144,97 @@ struct AppleScriptIntegrationTests {
         #expect(PlaybackState.playing.rawValue == 0x706C6179)  // 'play'
         #expect(PlaybackState.paused.rawValue == 0x70617573)   // 'paus'
     }
-    
+
+    @Test("AppleScript playback state is readable from the main actor")
+    @MainActor
+    func testPlaybackStateReadFromMainActor() throws {
+        _ = try #require(MinimalAppDelegate.shared?.playbackController)
+
+        let state = NSApp.playbackState
+
+        #expect([
+            PlaybackState.stopped.rawValue,
+            PlaybackState.playing.rawValue,
+            PlaybackState.paused.rawValue
+        ].contains(state))
+    }
+
+    @Test("AppleScript main-thread helper synchronously marshals off-main callers")
+    func testOnMainThreadMarshalsOffMainCaller() async {
+        let execution = await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let result = AppleScriptSupport.onMainThread {
+                    Thread.isMainThread
+                }
+                continuation.resume(returning: (!Thread.isMainThread, result))
+            }
+        }
+
+        #expect(execution.0)
+        #expect(execution.1)
+    }
+
+    @Test("AppleScript represents a current station with a property specifier")
+    @MainActor
+    func testCurrentStationObjectSpecifier() throws {
+        let station = Station()
+
+        let specifier = try #require(station.objectSpecifier as? NSPropertySpecifier)
+        #expect(specifier.key == "currentStation")
+    }
+
+    @Test("AppleScript exposes shared-station and history-entry inspection state")
+    @MainActor
+    func testAutomationInspectionModels() throws {
+        let station = Station()
+        station.shared = true
+        #expect(station.isShared)
+
+        let song = Song(artist: "Test Artist", title: "Test Title", album: "Test Album")
+        song.stationId = "test-station"
+        song.rating = 1
+
+        let entry = HistoryEntry(song: song, index: 0)
+        #expect(entry.title == "Test Title")
+        #expect(entry.artist == "Test Artist")
+        #expect(entry.album == "Test Album")
+        #expect(entry.stationID == "test-station")
+        #expect(entry.rating == 1)
+        #expect(entry.objectSpecifier is NSIndexSpecifier)
+    }
+
+    @Test("AppleScript dictionary keeps existing terms and adds UI automation terms")
+    func testAutomationDictionaryTerms() throws {
+        let bundle = Bundle(for: MinimalAppDelegate.self)
+        let sdefURL = try #require(bundle.url(forResource: "Hermes", withExtension: "sdef"))
+        let dictionary = try String(contentsOf: sdefURL, encoding: .utf8)
+
+        for term in [
+            "current station",
+            "current song",
+            "thumbs up",
+            "is shared",
+            "history entry",
+            "station count",
+            "history entry count",
+            "interface mode",
+            "main window exists",
+            "select station",
+            "reveal main window"
+        ] {
+            #expect(dictionary.contains("name=\"\(term)\""))
+        }
+    }
+
+    @Test("AppleScript exposes a valid interface mode")
+    @MainActor
+    func testInterfaceModeIsScriptable() {
+        #expect([
+            InterfaceMode.windowed.rawValue,
+            InterfaceMode.menuBar.rawValue
+        ].contains(NSApp.interfaceMode))
+    }
+
     // MARK: - Station Management Tests
     
     @Test("PlaybackController station management works for AppleScript")

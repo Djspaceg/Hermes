@@ -7,12 +7,65 @@
 
 import SwiftUI
 
+@MainActor
+final class MainWindowPresenter {
+    static let shared = MainWindowPresenter()
+
+    private var openMainWindow: (() -> Void)?
+
+    private init() {}
+
+    func register(openWindow: OpenWindowAction) {
+        openMainWindow = {
+            openWindow(id: WindowID.main)
+        }
+    }
+
+    func revealMainWindow() -> Bool {
+        if let window = mainWindow() {
+            bringToFront(window)
+            return true
+        }
+
+        guard let openMainWindow else {
+            return false
+        }
+
+        if NSApp.activationPolicy() == .accessory {
+            NSApp.setActivationPolicy(.regular)
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        openMainWindow()
+        DispatchQueue.main.async { [weak self] in
+            if let window = self?.mainWindow() {
+                self?.bringToFront(window)
+            }
+        }
+        return true
+    }
+
+    private func mainWindow() -> NSWindow? {
+        NSApp.windows.first {
+            $0.identifier?.rawValue == "main" || $0.title == "Hermes"
+        }
+    }
+
+    private func bringToFront(_ window: NSWindow) {
+        if NSApp.activationPolicy() == .accessory {
+            NSApp.setActivationPolicy(.regular)
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+    }
+}
+
 // MARK: - Status Bar Icon
 
 struct StatusBarIcon: View {
     // Use @Bindable to properly observe @Observable PlayerViewModel changes
     @Bindable var playerViewModel: PlayerViewModel
     @ObservedObject private var settings = SettingsManager.shared
+    @Environment(\.openWindow) private var openWindow
     
     var body: some View {
         HStack(spacing: 0) {
@@ -38,6 +91,9 @@ struct StatusBarIcon: View {
                         .fixedSize()
                 }
             }
+        }
+        .onAppear {
+            MainWindowPresenter.shared.register(openWindow: openWindow)
         }
     }
     

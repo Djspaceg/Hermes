@@ -6,6 +6,7 @@
 //  Extends Playlist for audio playback integration
 //
 
+import AppKit
 import Foundation
 import Observation
 
@@ -46,6 +47,9 @@ final class Station: Playlist, NSSecureCoding, Identifiable {
     
     /// Whether the station is shared
     var shared: Bool = false
+
+    /// AppleScript-facing read-only flag for a shared station.
+    @objc var isShared: Bool { shared }
     
     /// Whether the station can be renamed
     var allowRename: Bool = true
@@ -81,6 +85,35 @@ final class Station: Playlist, NSSecureCoding, Identifiable {
     
     /// Unique identifier for the station (uses stationId)
     var id: String { stationId }
+
+    // MARK: - AppleScript Support
+
+    /// Represents this station as the application's current-station property.
+    ///
+    /// Cocoa Scripting needs an object specifier to pass a station back to an
+    /// AppleScript client. The current station may be restored before the
+    /// station collection has finished loading, so use the property
+    /// specifier rather than an index into that collection.
+    override var objectSpecifier: NSScriptObjectSpecifier? {
+        guard let appDescription = NSScriptClassDescription(for: type(of: NSApp)) else {
+            return nil
+        }
+
+        if let index = NSApp.stations.firstIndex(where: { $0 === self }) {
+            return NSIndexSpecifier(
+                containerClassDescription: appDescription,
+                containerSpecifier: nil,
+                key: "stations",
+                index: index
+            )
+        }
+
+        return NSPropertySpecifier(
+            containerClassDescription: appDescription,
+            containerSpecifier: nil,
+            key: "currentStation"
+        )
+    }
     
     // MARK: - Computed Properties
     

@@ -40,10 +40,15 @@
 			<enumerator name="playing" code="play" description="Player is playing"/>
 			<enumerator name="paused" code="paus" description="Player is paused"/>
 		</enumeration>
+		<enumeration name="interface modes" code="eimd" description="Hermes application presentation modes.">
+			<enumerator name="windowed" code="wind" description="Hermes is running as a regular windowed application."/>
+			<enumerator name="menu bar" code="mbar" description="Hermes is running as a menu-bar accessory application."/>
+		</enumeration>
 		<!-- Properties available -->
 		<class name="application" code="capp" description="The Pandora player.">
 			<cocoa class="NSApplication"/>
 			<element type="station" access="r"/>
+			<element type="history entry" access="r"/>
 			<property name="playback volume" code="cvol" description="The current playback volume (0–100)." type="integer">
 				<cocoa key="volume"/>
 			</property>
@@ -52,6 +57,10 @@
 			<property name="current song duration" code="pdur" description="The duration (length) of the current song, in seconds." type="real" access="r"/>
 			<property name="current station" code="pstn" description="The currently selected Pandora station." type="station"/>
 			<property name="current song" code="psng" description="The currently playing (or paused) Pandora song." type="song" access="r"/>
+			<property name="station count" code="stct" description="The number of stations currently loaded by Hermes." type="integer" access="r"/>
+			<property name="history entry count" code="hcnt" description="The number of entries currently shown in the History list." type="integer" access="r"/>
+			<property name="interface mode" code="uimd" description="Whether Hermes is currently windowed or running as a menu-bar accessory." type="interface modes" access="r"/>
+			<property name="main window exists" code="mwex" description="Whether Hermes has created its primary application window." type="boolean" access="r"/>
 		</class>
 		<class name="song" code="ctra" description="A Pandora song (track).">
 			<cocoa class="Song"/>
@@ -74,6 +83,19 @@
 			<cocoa class="Station"/>
 			<property name="name" code="pnam" description="The station’s name." type="text" access="r"/>
 			<property name="station ID" code="pid " description="The station’s ID." type="text" access="r"/>
+			<property name="is shared" code="shrd" description="Whether this station belongs to another Pandora user and cannot accept feedback." type="boolean" access="r">
+				<cocoa key="isShared"/>
+			</property>
+		</class>
+		<class name="history entry" code="hien" description="An immutable snapshot of a song shown in Hermes’s History list.">
+			<cocoa class="HistoryEntry"/>
+			<property name="title" code="htit" description="The song’s title." type="text" access="r"/>
+			<property name="artist" code="hart" description="The song’s artist." type="text" access="r"/>
+			<property name="album" code="halb" description="The song’s album." type="text" access="r"/>
+			<property name="station ID" code="hsid" description="The Pandora station ID associated with this history entry." type="text" access="r">
+				<cocoa key="stationID"/>
+			</property>
+			<property name="rating" code="hrat" description="The song rating captured for this history entry." type="integer" access="r"/>
 		</class>
 		<!-- Playback commands -->
 		<command name="playpause" code="HeRMplpa" description="Play the current song if it is paused; pause the current song if it is playing.">
@@ -113,6 +135,16 @@
 		</command>
 		<command name="unmute" code="HeRMumut" description="Restores the volume to the level prior to muting.">
 			<cocoa class="UnmuteCommand"/>
+		</command>
+		<!-- Automation inspection and window commands -->
+		<command name="select station" code="HeRMsele" description="Select a station and begin playback according to the current playback settings.">
+			<cocoa class="SelectStationCommand"/>
+			<direct-parameter description="The station to select." type="station"/>
+			<result description="true when Hermes accepted the station selection." type="boolean"/>
+		</command>
+		<command name="reveal main window" code="HeRMrevl" description="Bring Hermes’s primary window to the foreground.">
+			<cocoa class="RevealMainWindowCommand"/>
+			<result description="true when Hermes revealed an existing primary window." type="boolean"/>
 		</command>
 	</suite>
 </dictionary>
