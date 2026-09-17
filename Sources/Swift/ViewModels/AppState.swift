@@ -130,6 +130,9 @@ final class AppState {
     private let userDefaults: UserDefaults
 
     @ObservationIgnored
+    private let notificationCenter: NotificationCenter
+
+    @ObservationIgnored
     private let credentialRestorationDeadline: Duration
     
     // MARK: - Private Properties
@@ -151,7 +154,9 @@ final class AppState {
     /// suitable for production use. The singleton `shared` instance uses this factory.
     ///
     /// - Returns: A new AppState configured for production
-    static func production() -> AppState {
+    static func production(
+        notificationCenter: NotificationCenter = .default
+    ) -> AppState {
         let credentialStore = KeychainManager.shared
         let userDefaults = productionUserDefaults
         let pandora = PandoraClient(
@@ -161,7 +166,8 @@ final class AppState {
         return AppState(
             pandora: pandora,
             credentialStore: credentialStore,
-            userDefaults: userDefaults
+            userDefaults: userDefaults,
+            notificationCenter: notificationCenter
         )
     }
     
@@ -173,12 +179,16 @@ final class AppState {
     ///
     /// - Parameter pandora: The PandoraProtocol implementation to use (e.g., MockPandora)
     /// - Returns: A new AppState configured for testing
-    static func test(pandora: PandoraProtocol) -> AppState {
+    static func test(
+        pandora: PandoraProtocol,
+        notificationCenter: NotificationCenter = .default
+    ) -> AppState {
         let userDefaults = UserDefaults(suiteName: "com.hermes.tests.app-state.\(UUID().uuidString)")!
         return AppState(
             pandora: pandora,
             credentialStore: MockKeychainManager(),
             userDefaults: userDefaults,
+            notificationCenter: notificationCenter,
             skipCredentialCheck: true
         )
     }
@@ -203,6 +213,7 @@ final class AppState {
         pandora: PandoraProtocol,
         credentialStore: any CredentialStore,
         userDefaults: UserDefaults,
+        notificationCenter: NotificationCenter = .default,
         credentialRestorationDeadline: Duration = .seconds(2),
         skipCredentialCheck: Bool = false
     ) {
@@ -214,6 +225,7 @@ final class AppState {
         self.pandora = pandora
         self.credentialStore = credentialStore
         self.userDefaults = userDefaults
+        self.notificationCenter = notificationCenter
         self.credentialRestorationDeadline = credentialRestorationDeadline
         
         // Initialize view models with injected dependency
@@ -267,21 +279,21 @@ final class AppState {
     
     private func setupNotificationSubscriptions() {
         // Authentication success
-        NotificationCenter.default.pandoraAuthenticatedPublisher
+        notificationCenter.pandoraAuthenticatedPublisher
             .sink { [weak self] in
                 self?.handleAuthentication()
             }
             .store(in: &cancellables)
         
         // Stations loaded
-        NotificationCenter.default.pandoraStationsLoadedPublisher
+        notificationCenter.pandoraStationsLoadedPublisher
             .sink { [weak self] in
                 self?.handleStationsLoaded()
             }
             .store(in: &cancellables)
         
         // Errors
-        NotificationCenter.default.pandoraErrorPublisher
+        notificationCenter.pandoraErrorPublisher
             .sink { [weak self] errorMessage in
                 self?.handleError(errorMessage)
             }

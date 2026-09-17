@@ -231,33 +231,52 @@ struct AppStateFactoryTests {
     /// **Validates: Requirement 4.2**
     @Test("Production Subscribes To Notifications")
     func testProduction_SubscribesToNotifications() async throws {
-        // Create production AppState
-        let appState = AppState.production()
+        let notificationCenter = NotificationCenter()
+        let appState = AppState.production(notificationCenter: notificationCenter)
+        let errorMessage = "production notification error"
 
-        // Verify AppState is set up to receive notifications
-        // The actual notification handling is tested in AppState integration tests
-        // Here we just verify the factory creates a properly initialized instance
-        #expect((appState) != nil, "production() should create a valid AppState")
         #expect((appState.currentView) == (.login), "Should start in login view")
-        #expect(!(appState.isAuthenticated), "Should not be authenticated initially")
+        notificationCenter.post(
+            name: .pandoraDidError,
+            object: nil,
+            userInfo: ["error": errorMessage]
+        )
+        try await waitUntil {
+            appState.currentView == .error(errorMessage)
+        }
+
+        #expect(
+            appState.currentView == .error(errorMessage),
+            "production() should handle errors from its injected notification center"
+        )
     }
 
     /// Test that test() AppState subscribes to notifications
     /// **Validates: Requirement 4.3**
     @Test("Test Subscribes To Notifications")
     func testTest_SubscribesToNotifications() async throws {
-        // Create mock Pandora
         let mockPandora = MockPandora()
+        let notificationCenter = NotificationCenter()
+        let appState = AppState.test(
+            pandora: mockPandora,
+            notificationCenter: notificationCenter
+        )
+        let errorMessage = "test notification error"
 
-        // Create test AppState
-        let appState = AppState.test(pandora: mockPandora)
-
-        // Verify AppState is set up to receive notifications
-        // The actual notification handling is tested in AppState integration tests
-        // Here we just verify the factory creates a properly initialized instance
-        #expect((appState) != nil, "test() should create a valid AppState")
         #expect((appState.currentView) == (.login), "Should start in login view")
-        #expect(!(appState.isAuthenticated), "Should not be authenticated initially")
+        notificationCenter.post(
+            name: .pandoraDidError,
+            object: nil,
+            userInfo: ["error": errorMessage]
+        )
+        try await waitUntil {
+            appState.currentView == .error(errorMessage)
+        }
+
+        #expect(
+            appState.currentView == .error(errorMessage),
+            "test() should handle errors from its injected notification center"
+        )
     }
 
     // MARK: - Edge Cases
@@ -327,6 +346,20 @@ struct AppStateFactoryTests {
         #expect(appState2.pandora === mockPandora2, "appState2 should use mockPandora2")
     }
 
+    private func waitUntil(
+        timeout: Duration = .seconds(1),
+        condition: @escaping @MainActor () -> Bool
+    ) async throws {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: timeout)
+        while !condition() {
+            guard clock.now < deadline else {
+                Issue.record("Timed out waiting for asynchronous state")
+                return
+            }
+            try await Task.sleep(for: .milliseconds(5))
+        }
+    }
 }
 
 @MainActor
