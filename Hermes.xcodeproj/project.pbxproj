@@ -146,7 +146,6 @@
 		0E81F712705C47EEA429934D /* PandoraProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PandoraProtocol.swift; path = Sources/Swift/Models/PandoraProtocol.swift; sourceTree = SOURCE_ROOT; };
 		197AFF42DDEA46718095DC3F /* NotificationNames.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NotificationNames.swift; path = Sources/Swift/Utilities/NotificationNames.swift; sourceTree = SOURCE_ROOT; };
 		1C67A2A19BEF4175B91E6442 /* PandoraAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PandoraAuth.swift; path = Sources/Swift/Services/Pandora/PandoraAuth.swift; sourceTree = SOURCE_ROOT; };
-		1DDD58150DA1D0A300B32029 /* English */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = English; path = English.lproj/MainMenu.xib; sourceTree = "<group>"; };
 		44310F8A18EB87AB0095359D /* Credits.rtf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.rtf; path = Credits.rtf; sourceTree = "<group>"; };
 		457303C5850141E18298EAB9 /* PlaybackController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlaybackController.swift; path = Sources/Swift/Services/PlaybackController.swift; sourceTree = SOURCE_ROOT; };
 		4912892BCD9F452D912F7C3E /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Constants.swift; path = Sources/Swift/Utilities/Constants.swift; sourceTree = SOURCE_ROOT; };
@@ -300,7 +299,6 @@
 				8D1107310486CEB800E47090 /* Hermes-Info.plist */,
 				FAEFFBFF132D620B007DC6FB /* Icons */,
 				089C165CFE840E0CC02AAC07 /* InfoPlist.strings */,
-				1DDD58140DA1D0A300B32029 /* MainMenu.xib */,
 				FAAB28CE1336FB0300FC04C4 /* pandora.icns */,
 				FA24435F136B3D6C00E126D3 /* README.md */,
 				E137BA0A2132E698002E513C /* RELEASING.md */,
@@ -749,14 +747,6 @@
 			name = InfoPlist.strings;
 			sourceTree = "<group>";
 		};
-		1DDD58140DA1D0A300B32029 /* MainMenu.xib */ = {
-			isa = PBXVariantGroup;
-			children = (
-				1DDD58150DA1D0A300B32029 /* English */,
-			);
-			name = MainMenu.xib;
-			sourceTree = "<group>";
-		};
 /* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
@@ -822,7 +812,6 @@
 				HEADER_SEARCH_PATHS = (
 					"\"$(SRCROOT)\"",
 					"\"$(SRCROOT)/Sources\"/**",
-					"\"$(SRCROOT)/ImportedSources\"",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
@@ -868,7 +857,6 @@
 				HEADER_SEARCH_PATHS = (
 					"\"$(SRCROOT)\"",
 					"\"$(SRCROOT)/Sources\"/**",
-					"\"$(SRCROOT)/ImportedSources\"",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
@@ -900,12 +888,10 @@
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"\"$(SRCROOT)\"",
-					"\"$(SRCROOT)/Frameworks\"",
 				);
 				HEADER_SEARCH_PATHS = (
 					"\"$(SRCROOT)\"",
 					"\"$(SRCROOT)/Sources\"/**",
-					"\"$(SRCROOT)/ImportedSources\"",
 				);
 				INFOPLIST_FILE = "Resources/Hermes-Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -941,12 +927,10 @@
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"\"$(SRCROOT)\"",
-					"\"$(SRCROOT)/Frameworks\"",
 				);
 				HEADER_SEARCH_PATHS = (
 					"\"$(SRCROOT)\"",
 					"\"$(SRCROOT)/Sources\"/**",
-					"\"$(SRCROOT)/ImportedSources\"",
 				);
 				INFOPLIST_FILE = "Resources/Hermes-Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -999,7 +983,6 @@
 				GCC_ENABLE_CPP_EXCEPTIONS = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
-				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
@@ -1049,7 +1032,6 @@
 				GCC_ENABLE_CPP_EXCEPTIONS = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_OPTIMIZATION_LEVEL = s;
-				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
