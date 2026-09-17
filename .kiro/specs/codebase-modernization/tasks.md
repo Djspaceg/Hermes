@@ -247,19 +247,19 @@ The plan follows a phased approach:
 
 ### Phase 3: Complete Modernization (2-3 months)
 
-- [ ] 13. Split AudioStreamer.swift (currently 2051 lines)
-  - Reconciled 2026-09-16: only 13.1 is credited as complete. `AudioStreamBuffer.swift`, `AudioStreamDecoder.swift`, and `AudioStreamOutput.swift` are absent, and the core file remains 2,051 lines. Remaining extraction is tracked separately by Project Agent task `audiostreamer-split`.
+- [ ] 13. Split AudioStreamer.swift (currently 1,305 lines)
+  - Reconciled 2026-09-17: supersedes the 2026-09-16 reconciliation after merge commit `cfdb46a`. `AudioStreamBuffer.swift` is 489 lines, `AudioStreamDecoder.swift` is 267 lines, and `AudioStreamer.swift` is 1,305 lines; `AudioStreamOutput.swift` remains absent. Items 13.2 and 13.3 are now credited as complete.
   - [x] 13.1 Extract AudioStreamState
     - Create `Sources/Swift/Services/Audio/AudioStreamState.swift`
     - Move state management code (~150 lines)
     - _Requirements: 7.2_
   
-  - [ ] 13.2 Extract AudioStreamBuffer
+  - [x] 13.2 Extract AudioStreamBuffer
     - Create `Sources/Swift/Services/Audio/AudioStreamBuffer.swift`
     - Move buffer management code (~200 lines)
     - _Requirements: 7.2_
   
-  - [ ] 13.3 Extract AudioStreamDecoder
+  - [x] 13.3 Extract AudioStreamDecoder
     - Create `Sources/Swift/Services/Audio/AudioStreamDecoder.swift`
     - Move audio decoding code (~200 lines)
     - _Requirements: 7.2_
@@ -457,7 +457,7 @@ The plan follows a phased approach:
 - [ ] 22. Phase 3 Final Checkpoint
   - Run full test suite and verify all tests pass
   - Verify code coverage meets 90% for Swift code
-  - Verify no files exceed 800 lines - NOT MET as of 2026-09-16: `Sources/Swift/Services/Audio/AudioStreamer.swift` is 2,051 lines and `Sources/Swift/Services/PlaybackController.swift` is 895 lines
+  - Verify no files exceed 800 lines - NOT MET as of 2026-09-17: `Sources/Swift/Services/Audio/AudioStreamer.swift` is 1,305 lines and `Sources/Swift/Services/PlaybackController.swift` is 895 lines
   - Verify no compilation warnings
   - Generate DocC documentation
   - Run performance benchmarks
