@@ -217,6 +217,7 @@ extension PandoraClient {
         currentRating: Int
     ) -> String? {
         guard currentRating == 0 else {
+            NSLog("deleteRating declined: rating changed before feedback lookup; no deletion attempted")
             return nil
         }
         let thumb: String
@@ -226,6 +227,7 @@ extension PandoraClient {
         case -1:
             thumb = "thumbsDown"
         default:
+            NSLog("deleteRating declined: unknown local rating; no deletion attempted")
             return nil
         }
         var matchingFeedbackId: String?
@@ -237,10 +239,12 @@ extension PandoraClient {
                    songName == title,
                    artistName == artist {
                     guard matchingFeedbackId == nil else {
+                        NSLog("deleteRating declined: ambiguous feedback candidates; no deletion attempted")
                         return nil
                     }
                     guard let feedbackId = feed["feedbackId"] as? String,
                           !feedbackId.isEmpty else {
+                        NSLog("deleteRating declined: malformed feedback row; no deletion attempted")
                         return nil
                     }
                     matchingFeedbackId = feedbackId
