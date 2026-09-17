@@ -202,26 +202,6 @@ public let kDefaultAQDefaultBufSize: UInt32 = 4096
 
 /// Minimum packets needed for bit rate estimation
 public let kBitRateEstimationMinPackets: UInt64 = 50
-//
-//  AudioStreamerImpl.swift
-//  Hermes
-//
-//  Swift implementation of audio streaming using CoreAudio's AudioQueue framework.
-//  This file contains the AudioStreamer class implementation.
-//
-
-import AudioToolbox
-import CoreAudio
-import Foundation
-
-// MARK: - Queued Packet
-
-/// Internal structure for caching packets when buffers are full
-private struct QueuedPacket {
-    var description: AudioStreamPacketDescription
-    var data: Data
-    var next: UnsafeMutablePointer<QueuedPacket>?
-}
 
 // MARK: - AudioStreamer Implementation
 
@@ -229,10 +209,10 @@ private struct QueuedPacket {
 ///
 /// This class implements a pipeline of three components to stream audio:
 /// ```
-/// CFReadStream => AudioFileStream => AudioQueue
+/// URLSession => AudioFileStream => AudioQueue
 /// ```
 ///
-/// - **CFReadStream**: Reads HTTP data with proxy support
+/// - **URLSession**: Reads HTTP data with proxy support
 /// - **AudioFileStream**: Parses audio data and extracts packets
 /// - **AudioQueue**: Manages playback buffers and audio output
 ///
@@ -288,8 +268,6 @@ public final class AudioStreamer: NSObject, AudioStreaming {
     
     // Timeout management
     private var timeoutSource: DispatchSourceTimer?
-    private var isUnscheduled = false
-    var isRescheduled = false
     private var eventCount = 0
     
     // AudioFileStream for parsing
@@ -320,7 +298,6 @@ public final class AudioStreamer: NSObject, AudioStreaming {
     
     // State tracking
     private var errorCode: AudioStreamerError?
-    private var networkError: Error?
     var lastOSStatus: OSStatus = noErr
     
     // Seeking
@@ -1265,7 +1242,6 @@ extension AudioStreamer: URLSessionDataDelegate {
             let nsError = error as NSError
             if nsError.code == NSURLErrorCancelled { return }
             
-            networkError = error
             print("🌐 [\(ts)] stream error | \(state) | reconnect=\(reconnectAttempts)")
             
             let category = ErrorClassifier.classify(error)

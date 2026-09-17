@@ -444,12 +444,6 @@ extension AudioStreamer {
 
             queuedPackets.removeFirst()
         }
-
-        // Re-schedule stream if all packets processed
-        // (URLSession manages its own scheduling — nothing to do here)
-        if queuedPackets.isEmpty {
-            isRescheduled = true
-        }
     }
 
     func handleQueuePropertyChange(queue: AudioQueueRef, propertyID: AudioQueuePropertyID) {
