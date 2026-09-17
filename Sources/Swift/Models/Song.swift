@@ -299,12 +299,12 @@ final class Song: NSObject, Identifiable {
     
     /// Returns the station this song belongs to
     ///
-    /// Looks up the station from the global station registry using the song's `stationId`.
+    /// Looks up the station from the global station registry using the song's `stationToken`.
     ///
     /// - Returns: The associated `Station` object, or `nil` if no station is found
     @objc func station() -> Station? {
-        guard let stationId = stationId else { return nil }
-        return Station(forToken: stationId)
+        guard let stationToken = stationToken else { return nil }
+        return Station.station(forToken: stationToken)
     }
     
     // MARK: - Equality

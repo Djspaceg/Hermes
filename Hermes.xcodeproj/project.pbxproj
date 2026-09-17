@@ -84,6 +84,7 @@
 		E1C1EC131A1AE7E4001E4D8F /* Pandora-Menu-Dark-Pause.pdf in Resources */ = {isa = PBXBuildFile; fileRef = E1C1EC111A1AE7E4001E4D8F /* Pandora-Menu-Dark-Pause.pdf */; };
 		EFF506A611DA461CB03497E8 /* PlaybackController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 457303C5850141E18298EAB9 /* PlaybackController.swift */; };
 		8A55EEC82F68000100A10001 /* PlaybackStateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A55EEC92F68000100A10001 /* PlaybackStateStore.swift */; };
+		D9A7B102EFB14ED1AD050001 /* SongFeedbackService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9A7B102EFB14ED1AD050002 /* SongFeedbackService.swift */; };
 		F3758E07F47648BF8FD86559 /* PandoraAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C67A2A19BEF4175B91E6442 /* PandoraAuth.swift */; };
 		FA04AE9C14438F1000819310 /* thumbdown.png in Resources */ = {isa = PBXBuildFile; fileRef = FA04AE9A14438F1000819310 /* thumbdown.png */; };
 		FA04AE9D14438F1000819310 /* thumbup.png in Resources */ = {isa = PBXBuildFile; fileRef = FA04AE9B14438F1000819310 /* thumbup.png */; };
@@ -150,6 +151,7 @@
 		44310F8A18EB87AB0095359D /* Credits.rtf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.rtf; path = Credits.rtf; sourceTree = "<group>"; };
 		457303C5850141E18298EAB9 /* PlaybackController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlaybackController.swift; path = Sources/Swift/Services/PlaybackController.swift; sourceTree = SOURCE_ROOT; };
 		8A55EEC92F68000100A10001 /* PlaybackStateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlaybackStateStore.swift; path = Sources/Swift/Services/PlaybackStateStore.swift; sourceTree = SOURCE_ROOT; };
+		D9A7B102EFB14ED1AD050002 /* SongFeedbackService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SongFeedbackService.swift; path = Sources/Swift/Services/SongFeedbackService.swift; sourceTree = SOURCE_ROOT; };
 		4912892BCD9F452D912F7C3E /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Constants.swift; path = Sources/Swift/Utilities/Constants.swift; sourceTree = SOURCE_ROOT; };
 		4AC8B812A0CC4AE0A4D40883 /* ViewModifiers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ViewModifiers.swift; path = Sources/Swift/Utilities/ViewModifiers.swift; sourceTree = SOURCE_ROOT; };
 		4D276383AE2745A59B7165F6 /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NetworkMonitor.swift; path = Sources/Swift/Utilities/NetworkMonitor.swift; sourceTree = SOURCE_ROOT; };
@@ -447,6 +449,7 @@
 				BBB9E84EEFDC4FFEB2DF8F4F /* UpdateChecker.swift */,
 				457303C5850141E18298EAB9 /* PlaybackController.swift */,
 				8A55EEC92F68000100A10001 /* PlaybackStateStore.swift */,
+				D9A7B102EFB14ED1AD050002 /* SongFeedbackService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -708,6 +711,7 @@
 				3BCBD3A909E5492F86A73181 /* ViewModifiers.swift in Sources */,
 				EFF506A611DA461CB03497E8 /* PlaybackController.swift in Sources */,
 				8A55EEC82F68000100A10001 /* PlaybackStateStore.swift in Sources */,
+				D9A7B102EFB14ED1AD050001 /* SongFeedbackService.swift in Sources */,
 				728CC0A620A645A99CD50CA3 /* Station.swift in Sources */,
 				AB390C49F197453CB33ECFCD /* PandoraProtocol.swift in Sources */,
 				7593CF3D967045AB81A643B3 /* UserDefaultsKeys.swift in Sources */,

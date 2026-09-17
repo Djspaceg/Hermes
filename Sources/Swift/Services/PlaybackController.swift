@@ -103,6 +103,8 @@ final class PlaybackController: ObservableObject {
     private let userDefaults: UserDefaults
     private let playbackStateStore: PlaybackStateStoring
     private let systemEventNotificationSource: SystemEventNotificationSource
+    private let pandoraProvider: @MainActor () -> PandoraProtocol?
+    private let songFeedbackService: SongFeedbackService
     private var progressUpdateTimer: Timer?
     private var scrobbleSent: Bool = false
     private var lastImgSrc: String?
@@ -115,11 +117,14 @@ final class PlaybackController: ObservableObject {
         userDefaults: UserDefaults = .standard,
         playbackStateStore: PlaybackStateStoring? = nil,
         systemEventNotificationSource: SystemEventNotificationSource =
-            DistributedSystemEventNotificationSource()
+            DistributedSystemEventNotificationSource(),
+        pandoraProvider: @escaping @MainActor () -> PandoraProtocol? = { AppState.shared.pandora }
     ) {
         self.userDefaults = userDefaults
         self.playbackStateStore = playbackStateStore ?? PlaybackStateStore(userDefaults: userDefaults)
         self.systemEventNotificationSource = systemEventNotificationSource
+        self.pandoraProvider = pandoraProvider
+        self.songFeedbackService = SongFeedbackService(pandoraProvider: pandoraProvider)
         
         // Initialize volume from UserDefaults
         let saved = userDefaults.integer(forKey: UserDefaultsKeys.volume)
@@ -527,34 +532,22 @@ extension PlaybackController {
     /// playbackController.rate(song, as: false)
     /// ```
     func rate(_ song: Song, as liked: Bool) {
-        // Check if the song's station is shared (can't rate shared station songs)
-        // Note: station() may return nil for history items - that's OK, we can still rate them
-        if let station = song.station(), station.shared {
+        // Refuse feedback for registered shared stations. Songs without a resolvable station,
+        // such as older history items without a station token, retain their existing behavior.
+        switch songFeedbackService.rate(
+            song,
+            as: liked,
+            songIsPlaying: playing?.playingSong === song
+        ) {
+        case .rejectedSharedStation:
             logger.debug("Cannot rate song on shared station")
             return
-        }
-        
-        var rating = liked ? 1 : -1
-        
-        // Toggle rating if already set
-        if song.nrating?.intValue == rating {
-            rating = 0
-        }
-        
-        let songIsPlaying = playing?.playingSong === song
-        
-        if rating == -1 {
-            _ = pandora?.rateSong(song, as: false)
-            if songIsPlaying {
+        case .rated(let shouldSkipSong):
+            if shouldSkipSong {
                 next()
             }
-        } else if rating == 0 {
-            _ = pandora?.deleteRating(song)
-        } else if rating == 1 {
-            _ = pandora?.rateSong(song, as: true)
+            postStateChange()
         }
-        
-        postStateChange()
     }
     
     /// Likes the currently playing song
@@ -592,8 +585,7 @@ extension PlaybackController {
     
     /// Get the Pandora client
     private var pandora: PandoraProtocol? {
-        // Access AppState on main actor
-        return AppState.shared.pandora
+        pandoraProvider()
     }
 }
 

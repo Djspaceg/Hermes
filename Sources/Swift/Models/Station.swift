@@ -368,12 +368,21 @@ final class Station: Playlist, NSSecureCoding, Identifiable {
     
     /// Convenience initializer for looking up by token
     convenience init?(forToken token: String) {
-        guard Station.stationRegistry[token] != nil else {
+        guard let station = Station.station(forToken: token) else {
             return nil
         }
-        // Return nil - caller should use the static method instead
-        // This is just for compatibility with existing code
-        return nil
+        self.init()
+        name = station.name
+        self.token = station.token
+        stationId = station.stationId
+        created = station.created
+        lastPlayedTimestamp = station.lastPlayedTimestamp
+        shared = station.shared
+        allowRename = station.allowRename
+        allowAddMusic = station.allowAddMusic
+        isQuickMix = station.isQuickMix
+        artUrl = station.artUrl
+        genres = station.genres
     }
     
     /// Add a station to the registry
