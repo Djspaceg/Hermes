@@ -102,6 +102,7 @@ final class PlaybackController: ObservableObject {
     
     private let userDefaults: UserDefaults
     private let playbackStateStore: PlaybackStateStoring
+    private let systemEventNotificationSource: SystemEventNotificationSource
     private var progressUpdateTimer: Timer?
     private var scrobbleSent: Bool = false
     private var lastImgSrc: String?
@@ -112,10 +113,13 @@ final class PlaybackController: ObservableObject {
     
     init(
         userDefaults: UserDefaults = .standard,
-        playbackStateStore: PlaybackStateStoring? = nil
+        playbackStateStore: PlaybackStateStoring? = nil,
+        systemEventNotificationSource: SystemEventNotificationSource =
+            DistributedSystemEventNotificationSource()
     ) {
         self.userDefaults = userDefaults
         self.playbackStateStore = playbackStateStore ?? PlaybackStateStore(userDefaults: userDefaults)
+        self.systemEventNotificationSource = systemEventNotificationSource
         
         // Initialize volume from UserDefaults
         let saved = userDefaults.integer(forKey: UserDefaultsKeys.volume)
@@ -128,7 +132,7 @@ final class PlaybackController: ObservableObject {
     
     deinit {
         NotificationCenter.default.removeObserver(self)
-        DistributedNotificationCenter.default().removeObserver(self)
+        systemEventNotificationSource.removeObserver(self)
         progressUpdateTimer?.invalidate()
         networkRecoveryCancellable?.cancel()
     }
@@ -210,41 +214,38 @@ extension PlaybackController {
             object: NSApp
         )
         
-        // Screensaver and screen lock notifications
-        let distCenter = DistributedNotificationCenter.default()
-        
-        distCenter.addObserver(
-            self,
-            selector: #selector(pauseOnScreensaverStart(_:)),
-            name: .screensaverDidStart,
-            object: nil
-        )
-        
-        distCenter.addObserver(
-            self,
-            selector: #selector(playOnScreensaverStop(_:)),
-            name: .screensaverDidStop,
-            object: nil
-        )
-        
-        distCenter.addObserver(
-            self,
-            selector: #selector(pauseOnScreenLock(_:)),
-            name: .screenIsLocked,
-            object: nil
-        )
-        
-        distCenter.addObserver(
-            self,
-            selector: #selector(playOnScreenUnlock(_:)),
-            name: .screenIsUnlocked,
-            object: nil
-        )
-        
+        setupSystemEventObservers()
+
         // Set up media key handling
         setupMediaKeys()
         
         logger.info("PlaybackController setup complete")
+    }
+
+    func setupSystemEventObservers() {
+        systemEventNotificationSource.addObserver(
+            self,
+            selector: #selector(pauseOnScreensaverStart(_:)),
+            name: .screensaverDidStart
+        )
+        
+        systemEventNotificationSource.addObserver(
+            self,
+            selector: #selector(playOnScreensaverStop(_:)),
+            name: .screensaverDidStop
+        )
+        
+        systemEventNotificationSource.addObserver(
+            self,
+            selector: #selector(pauseOnScreenLock(_:)),
+            name: .screenIsLocked
+        )
+        
+        systemEventNotificationSource.addObserver(
+            self,
+            selector: #selector(playOnScreenUnlock(_:)),
+            name: .screenIsUnlocked
+        )
     }
     
     /// Prepare for first use (already handled in init)
@@ -794,6 +795,12 @@ extension PlaybackController {
             play()
         }
         pausedByScreenLock = false
+    }
+}
+
+extension PlaybackController {
+    func selectStationForSystemEventTesting(_ station: Station) {
+        playing = station
     }
 }
 

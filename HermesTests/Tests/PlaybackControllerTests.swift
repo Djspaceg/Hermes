@@ -41,6 +41,23 @@ final class PlaybackStateStoreStub: PlaybackStateStoring {
     }
 }
 
+private final class ThreadSafeNotificationCount: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+
+    func increment() {
+        lock.lock()
+        count += 1
+        lock.unlock()
+    }
+
+    func value() -> Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return count
+    }
+}
+
 @Suite("PlaybackController Station Management")
 struct PlaybackControllerStationManagementTests {
     
@@ -284,5 +301,53 @@ struct PlaybackControllerStationManagementTests {
         
         // Should be the same instance
         #expect(controller.playing === firstPlaying)
+    }
+}
+
+@Suite("System Event Resume Ownership", .serialized)
+struct SystemEventResumeOwnershipTests {
+    @Test("unlock does not play when lock did not pause")
+    @MainActor
+    func testUnlockDoesNotPlayWhenLockDidNotPause() async throws {
+        let suiteName = "com.hermes.tests.system-events.\(UUID().uuidString)"
+        let testDefaults = try #require(UserDefaults(suiteName: suiteName))
+        let notificationCenter = NotificationCenter()
+        let notificationSource = LocalSystemEventNotificationSource(center: notificationCenter)
+
+        testDefaults.set(true, forKey: UserDefaultsKeys.pauseOnScreenLock)
+        testDefaults.set(true, forKey: UserDefaultsKeys.playOnScreenUnlock)
+
+        defer {
+            testDefaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let controller = PlaybackController(
+            userDefaults: testDefaults,
+            systemEventNotificationSource: notificationSource
+        )
+        let station = Station()
+        station.name = "Selected but not playing"
+        station.stationId = "system-event-test-station"
+        controller.selectStationForSystemEventTesting(station)
+        controller.setupSystemEventObservers()
+
+        let playAttempts = ThreadSafeNotificationCount()
+        let playAttemptObserver = NotificationCenter.default.addObserver(
+            forName: ASNoSongsLeft,
+            object: station,
+            queue: nil
+        ) { _ in
+            playAttempts.increment()
+        }
+
+        defer {
+            NotificationCenter.default.removeObserver(playAttemptObserver)
+        }
+
+        notificationCenter.post(name: .screenIsLocked, object: nil)
+        notificationCenter.post(name: .screenIsUnlocked, object: nil)
+        try await Task.sleep(nanoseconds: 100_000_000)
+
+        #expect(playAttempts.value() == 0)
     }
 }

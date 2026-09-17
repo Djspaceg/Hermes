@@ -8,6 +8,65 @@
 
 import Foundation
 
+protocol SystemEventNotificationSource: AnyObject {
+    func addObserver(
+        _ observer: Any,
+        selector: Selector,
+        name: Notification.Name
+    )
+    func removeObserver(_ observer: Any)
+}
+
+final class DistributedSystemEventNotificationSource: SystemEventNotificationSource {
+    private let center: DistributedNotificationCenter
+
+    init(center: DistributedNotificationCenter = .default()) {
+        self.center = center
+    }
+
+    func addObserver(
+        _ observer: Any,
+        selector: Selector,
+        name: Notification.Name
+    ) {
+        center.addObserver(
+            observer,
+            selector: selector,
+            name: name,
+            object: nil
+        )
+    }
+
+    func removeObserver(_ observer: Any) {
+        center.removeObserver(observer)
+    }
+}
+
+final class LocalSystemEventNotificationSource: SystemEventNotificationSource {
+    private let center: NotificationCenter
+
+    init(center: NotificationCenter) {
+        self.center = center
+    }
+
+    func addObserver(
+        _ observer: Any,
+        selector: Selector,
+        name: Notification.Name
+    ) {
+        center.addObserver(
+            observer,
+            selector: selector,
+            name: name,
+            object: nil
+        )
+    }
+
+    func removeObserver(_ observer: Any) {
+        center.removeObserver(observer)
+    }
+}
+
 /// Notification names used throughout Hermes
 /// Provides type-safe access to notification names with proper namespacing
 extension Notification.Name {

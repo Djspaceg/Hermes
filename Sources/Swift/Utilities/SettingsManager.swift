@@ -58,8 +58,6 @@ final class SettingsManager: NSObject, ObservableObject {
     
     private override init() {
         super.init()
-        setupScreensaverObservers()
-        setupScreenLockObservers()
         setupPlaybackStateObserver()
     }
     
@@ -131,8 +129,6 @@ final class SettingsManager: NSObject, ObservableObject {
         WindowTracker.shared.forceUpdate()
     }
     
-    // MARK: - Screensaver Observers
-    
     private func setupPlaybackStateObserver() {
         // Update dock icon when artwork loads
         NotificationCenter.default.publisher(for: .playbackArtDidLoad)
@@ -151,59 +147,5 @@ final class SettingsManager: NSObject, ObservableObject {
                 self?.applyDockIcon()
             }
             .store(in: &cancellables)
-    }
-    
-    private func setupScreensaverObservers() {
-        DistributedNotificationCenter.default().publisher(for: .screensaverDidStart)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.handleScreensaverStart()
-            }
-            .store(in: &cancellables)
-        
-        DistributedNotificationCenter.default().publisher(for: .screensaverDidStop)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.handleScreensaverStop()
-            }
-            .store(in: &cancellables)
-    }
-    
-    private func handleScreensaverStart() {
-        guard pauseOnScreensaver else { return }
-        MinimalAppDelegate.shared?.playbackController?.pause()
-    }
-    
-    private func handleScreensaverStop() {
-        guard playOnScreensaverStop else { return }
-        MinimalAppDelegate.shared?.playbackController?.play()
-    }
-    
-    // MARK: - Screen Lock Observers
-    
-    private func setupScreenLockObservers() {
-        DistributedNotificationCenter.default().publisher(for: .screenIsLocked)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.handleScreenLock()
-            }
-            .store(in: &cancellables)
-        
-        DistributedNotificationCenter.default().publisher(for: .screenIsUnlocked)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.handleScreenUnlock()
-            }
-            .store(in: &cancellables)
-    }
-    
-    private func handleScreenLock() {
-        guard pauseOnLock else { return }
-        MinimalAppDelegate.shared?.playbackController?.pause()
-    }
-    
-    private func handleScreenUnlock() {
-        guard playOnUnlock else { return }
-        MinimalAppDelegate.shared?.playbackController?.play()
     }
 }

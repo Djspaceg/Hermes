@@ -211,6 +211,10 @@ import Combine
             UserDefaultsKeys.enabledProxy: 0,
             UserDefaultsKeys.proxyAudio: false,
             UserDefaultsKeys.audioQuality: 1, // Medium quality
+            UserDefaultsKeys.pauseOnScreensaverStart: true,
+            UserDefaultsKeys.playOnScreensaverStop: false,
+            UserDefaultsKeys.pauseOnScreenLock: true,
+            UserDefaultsKeys.playOnScreenUnlock: false,
             UserDefaultsKeys.openDrawer: 0, // Stations
             UserDefaultsKeys.historySidebarWidth: 150,
             UserDefaultsKeys.sidebarWidth: 130
