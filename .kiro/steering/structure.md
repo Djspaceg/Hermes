@@ -4,35 +4,43 @@
 
 ```
 Hermes/
-├── Sources/              # All source code
-├── Resources/            # Assets, XIBs, plists, icons
-├── ImportedSources/      # Third-party code (vendored)
-├── Frameworks/           # Third-party frameworks (empty - Growl removed)
+├── Sources/              # Application source (Swift)
+├── HermesTests/          # XCTest target, mocks, and test utilities
+├── Resources/            # Assets, plists, icons, and AppleScript definition
+├── ImportedSources/      # Historical third-party licensing material
 ├── Scripts/              # Build and release automation
 ├── Documentation/        # Project documentation
+├── screenshots/          # README screenshots
+├── .kiro/                # Steering, historical plans, and task specifications
 ├── Hermes.xcodeproj/     # Xcode project
 └── Makefile              # Build wrapper
 ```
+
+**Top-level correction (verified 2026-09-17):** The repository has no `Frameworks/` directory, and `ImportedSources/` no longer contains compilable third-party code.
 
 ## Source Code Structure
 
 ### Swift Code (`Sources/Swift/`)
 
-Modern SwiftUI-based UI layer:
+Representative current application source:
 
 ```
 Sources/Swift/
 ├── HermesApp.swift                    # @main entry point (SwiftUI App)
-├── MinimalAppDelegate.swift           # Minimal AppDelegate for Obj-C bridge
+├── MinimalAppDelegate.swift           # AppKit lifecycle and application integration
 ├── Models/                            # Data models
-│   ├── SongModel.swift
-│   └── StationModel.swift
+│   ├── Song.swift
+│   ├── Station.swift
+│   ├── PandoraProtocol.swift
+│   └── PandoraDevice.swift
 ├── ViewModels/                        # State management
 │   ├── AppState.swift                 # Central state manager
 │   ├── LoginViewModel.swift
 │   ├── PlayerViewModel.swift
 │   ├── StationsViewModel.swift
-│   └── HistoryViewModel.swift
+│   ├── HistoryViewModel.swift
+│   ├── StationAddViewModel.swift
+│   └── StationEditViewModel.swift
 ├── Views/                             # SwiftUI views
 │   ├── ContentView.swift              # Root view (state router)
 │   ├── LoginView.swift
@@ -41,62 +49,36 @@ Sources/Swift/
 │   ├── StationsListView.swift
 │   ├── HistoryListView.swift
 │   ├── PreferencesView.swift
-│   └── ErrorView.swift
-└── Utilities/
-    └── NotificationBridge.swift       # Obj-C notification helpers
+│   ├── MenuBarView.swift
+│   └── Components/                    # Reusable playback components
+├── Services/                          # Application and integration services
+│   ├── Pandora/                       # Pandora API, auth, networking, and crypto
+│   ├── Audio/                         # Audio streaming, decoding, buffering, and retry logic
+│   ├── PlaybackController.swift
+│   ├── LastFMService.swift
+│   ├── AppleScriptSupport.swift
+│   └── UpdateChecker.swift
+└── Utilities/                         # Shared infrastructure
+    ├── KeychainManager.swift
+    ├── NotificationNames.swift
+    ├── NotificationBridge.swift       # Combine notification publisher helpers
+    ├── HTTPClient.swift
+    └── NetworkMonitor.swift
 ```
 
-### Objective-C Code (`Sources/`)
+### Historical Objective-C Layout (Removed)
 
-Legacy business logic layer (being preserved):
+The former Objective-C application source was replaced by Swift:
 
-```
-Sources/
-├── main.m                             # Entry point (being phased out)
-├── HermesAppDelegate.{h,m}            # Legacy app delegate (being phased out)
-├── HermesApp.{h,m}                    # App singleton
-├── Hermes-Bridging-Header.h           # Swift bridge
-├── Hermes_Prefix.pch                  # Precompiled header
-├── Notifications.{h,m}                # Notification name constants
-├── NetworkConnection.{h,m}            # Network reachability
-├── URLConnection.{h,m}                # HTTP client
-├── FileReader.{h,m}                   # File utilities
-├── Pandora/                           # Pandora API client
-│   ├── Pandora.{h,m}                  # Main API interface
-│   ├── PandoraDevice.{h,m}            # Device configuration
-│   ├── Crypt.{h,m}                    # Encryption wrapper
-│   ├── Station.{h,m}                  # Station model
-│   └── Song.{h,m}                     # Song model
-├── AudioStreamer/                     # Audio playback
-│   ├── AudioStreamer.{h,m}            # Core streaming engine
-│   └── ASPlaylist.{h,m}               # Playlist management
-├── Controllers/                       # Business logic controllers
-│   ├── AuthController.{h,m}           # Authentication flow
-│   ├── PlaybackController.{h,m}       # Playback control
-│   ├── StationController.{h,m}        # Single station management
-│   ├── StationsController.{h,m}       # Station list management
-│   ├── HistoryController.{h,m}        # Listening history
-│   ├── PreferencesController.{h,m}    # User preferences
-│   └── MainSplitViewController.{h,m}  # Split view coordinator
-├── Integration/                       # External integrations
-│   ├── AppleScript.{h,m}              # AppleScript support
-│   ├── Keychain.{h,m}                 # Keychain wrapper
-│   └── Scrobbler.{h,m}                # Last.fm scrobbling
-├── Models/                            # Data models
-│   ├── HistoryItem.{h,m}              # History entry
-│   └── ImageLoader.{h,m}              # Async image loading
-└── Views/                             # Legacy AppKit views (being phased out)
-    ├── HermesMainWindow.{h,m}
-    ├── HermesBackgroundView.{h,m}
-    ├── HermesVolumeSliderCell.{h,m}
-    ├── MusicProgressSliderCell.{h,m}
-    ├── StationsSidebarView.{h,m}
-    ├── StationsTableView.{h,m}
-    ├── HistoryView.{h,m}
-    ├── HistoryCollectionView.{h,m}
-    ├── LabelHoverShowField.{h,m}
-    └── LabelHoverShowFieldCell.{h,m}
-```
+- `Sources/Pandora/` → `Sources/Swift/Services/Pandora/`
+- `Sources/AudioStreamer/` → `Sources/Swift/Services/Audio/`
+- Objective-C controllers → Swift view models and `PlaybackController.swift`
+- `Notifications.{h,m}` → `Sources/Swift/Utilities/NotificationNames.swift`
+- Objective-C keychain and networking helpers → `KeychainManager.swift`, `HTTPClient.swift`, and `NetworkMonitor.swift`
+- Vendored Blowfish C → CryptoSwift used by `PandoraCrypto.swift`
+- FMEngine Objective-C → `LastFMService.swift`
+
+**Migration correction (verified 2026-09-17):** No `.m`, `.mm`, `.h`, or `.c` files exist in the repository, and the Hermes Sources build phase contains Swift files only. The current project has no `SWIFT_OBJC_BRIDGING_HEADER` setting. `Hermes.xcodeproj/project.pbxproj.bak` preserves historical Objective-C references but is not the active project file and is not compiled.
 
 ## Resources (`Resources/`)
 
@@ -104,22 +86,24 @@ Sources/
 Resources/
 ├── Hermes-Info.plist                  # App metadata
 ├── Hermes.sdef                        # AppleScript dictionary
-├── dsa_pub.pem                        # Sparkle public key
+├── dsa_pub.pem                        # Legacy release-signing public key
 ├── pandora.icns                       # App icon
 ├── Credits.rtf                        # About box credits
 ├── English.lproj/                     # Localized resources
-│   ├── InfoPlist.strings
-│   └── MainMenu.xib                   # Legacy XIB (being removed)
+│   └── InfoPlist.strings
 └── Icons/                             # UI icons (PNG/PDF)
 ```
 
+The active project retains a stale file reference to `MainMenu.xib`, but the file is absent and it is not in the Resources build phase.
+
 ## Imported Sources (`ImportedSources/`)
 
-Third-party code vendored into the project:
+Historical third-party material:
 
-- `FMEngine/` - Last.fm API client (MIT license)
-- `SPMediaKeyTap/` - Media key handling (BSD license)
-- `blowfish/` - Blowfish encryption (public domain)
+- `FMEngine/LICENSE` - retained license text only
+- No ImportedSources files are in the Hermes Sources build phase
+- The `ImportedSources` header search path remains configured, but there are no headers or source files there
+- Current third-party code is supplied by Swift Package Manager (`CryptoSwift`)
 
 ## Key Files
 
@@ -127,7 +111,7 @@ Third-party code vendored into the project:
 - **CHANGELOG.md** - Release history
 - **RELEASING.md** - Release process documentation
 - **.travis.yml** - CI configuration
-- **add_swift_files.py** - Script to add Swift files to Xcode project
+- **Scripts/xcode_add_file.py** - Script to add files to the Xcode project
 
 ## Architecture Patterns
 
@@ -135,40 +119,40 @@ Third-party code vendored into the project:
 
 ```
 SwiftUI Views
-    ↕ (Bindings)
+    ↕ (@State / @Bindable)
 View Models
-    ↕ (NotificationCenter)
-Objective-C Controllers
-    ↕ (Direct calls)
-Pandora API / Audio Streamer
+    ↕ (Direct dependencies + NotificationCenter/Combine)
+Swift Services
+    ↕
+Pandora API / Playback / Audio Streamer
 ```
 
 ### State Management
 
 - **AppState**: Single source of truth for app-wide state
-- **View Models**: Per-feature state and business logic coordination
-- **Objective-C Controllers**: Stateful business logic (being wrapped by VMs)
+- **View Models**: `@Observable` per-feature state and business logic coordination
+- **Services**: Swift implementations for Pandora, playback, audio, integrations, and persistence
 
 ### Notification Events
 
-Key notifications (defined in `Notifications.h`):
+Key notifications (defined in `Sources/Swift/Utilities/NotificationNames.swift`):
 
-- `hermes.authenticated` - User logged in
-- `hermes.stations` - Stations loaded
-- `hermes.song` - New song playing
-- `hermes.song-rated` - Song rated
-- `hermes.station-created` - Station created
-- `hermes.station-removed` - Station deleted
-- `hermes.error` - Error occurred
+- `.pandoraDidAuthenticate` - User logged in
+- `.pandoraDidLoadStations` - Stations loaded
+- `.stationDidPlaySong` - New song playing
+- `.pandoraDidRateSong` - Song rated
+- `.pandoraDidCreateStation` - Station created
+- `.pandoraDidDeleteStation` - Station deleted
+- `.pandoraDidError` - Pandora error occurred
 
 ## Migration Status
 
-The project is actively migrating from Objective-C/XIB to Swift/SwiftUI:
+The Objective-C/XIB-to-Swift migration is complete for application source:
 
-- ✅ **Complete**: SwiftUI views, view models, models
-- 🚧 **In Progress**: Removing XIB dependencies, phasing out legacy controllers
-- ⏳ **Planned**: Full SwiftUI lifecycle, remove `main.m` and legacy AppDelegate
-- 🔒 **Preserved**: Objective-C business logic (Pandora API, audio streaming, crypto)
+- ✅ **Complete**: SwiftUI lifecycle, views, view models, models, and services
+- ✅ **Complete**: Swift Pandora client, audio streamer, networking, crypto, keychain, and Last.fm service
+- ✅ **Complete**: Removal of project Objective-C/C source and the bridging header
+- 🧹 **Remaining historical artifacts**: Legacy comments/docs, `project.pbxproj.bak`, an absent `MainMenu.xib` project reference, release-signing assets, search paths for the absent `Frameworks/` directory, and `GCC_PRECOMPILE_PREFIX_HEADER = YES` without a prefix-header path
 
 ## Modernization Guidelines
 
@@ -186,18 +170,19 @@ When encountering legacy code:
 - **NSViewController** → SwiftUI View structs
 - **Delegates and callbacks** → Combine publishers and async/await
 - **Manual layout** → SwiftUI's declarative layout
-- **KVO** → `@Published` properties and Combine
+- **KVO** → Observation for view state, or Combine where a publisher stream is required
 - **Target-action** → SwiftUI button actions and closures
 - **NSNotificationCenter (for UI)** → SwiftUI state management
 - **Storyboard segues** → SwiftUI navigation
 
-### What to Keep (For Now)
+### Current Core Services
 
-The Objective-C business logic layer provides stable, working functionality:
+The former Objective-C responsibilities now live in these Swift implementations:
 
-- Pandora API client (complex, working, low UI coupling)
-- Audio streaming (CoreAudio wrapper, stable)
-- Cryptography (Blowfish, working)
-- Keychain integration (Security framework wrapper)
+- Pandora API: `Sources/Swift/Services/Pandora/`
+- Audio streaming: `Sources/Swift/Services/Audio/`
+- Cryptography: `PandoraCrypto.swift` with CryptoSwift
+- Keychain: `Sources/Swift/Utilities/KeychainManager.swift`
+- Last.fm: `Sources/Swift/Services/LastFMService.swift`
 
-These can be modernized later or wrapped cleanly by Swift view models.
+**Current-service correction (verified 2026-09-17):** Preserve behavior through these Swift services; do not look for a retained Objective-C foundation layer.

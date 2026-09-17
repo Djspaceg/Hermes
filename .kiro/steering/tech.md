@@ -3,7 +3,7 @@
 ## Development Workflow
 
 - **Building**: Use `make` or `make CONFIGURATION=Release` to build
-- **Testing**: Let the user launch and test the app manually — do not auto-launch
+- **Testing**: Use `make test`; do not auto-launch the app
 - **Debugging**: User will report issues; use debug logging when needed
 
 ## Build System
@@ -15,47 +15,50 @@
 
 ## Languages & Frameworks
 
-### Swift/SwiftUI (UI Layer)
+### Swift Application Source
 
-- SwiftUI for all views and UI components
-- Combine for reactive state management
-- `@main` app entry point with `WindowGroup`
-- View models using `@ObservableObject` and `@Published`
+- SwiftUI for views, scenes, settings, and menu bar UI
+- Swift Observation (`@Observable`) for app state, models, and primary view models
+- Combine and `NotificationCenter` publishers where event streams are still useful
+- `@main` app entry point with SwiftUI scenes
+- Swift services for Pandora, playback, audio streaming, networking, Last.fm, crypto, and keychain access
 
-### Objective-C (Business Logic Layer)
+**Current-state correction (verified 2026-09-17):** The former Objective-C business logic layer was replaced by Swift. `Sources/Pandora/`, `Sources/AudioStreamer/`, `Sources/Notifications.h`, and `Sources/Hermes-Bridging-Header.h` no longer exist; their current implementations are under `Sources/Swift/`.
 
-- Pandora API client (`Sources/Pandora/`)
-- Audio streaming (`Sources/AudioStreamer/`)
-- Networking and URL connections
-- Cryptography (Blowfish encryption)
-- Keychain integration
-- Controllers for business logic
+### Objective-C Runtime Interoperability
 
-### Bridging
+- The repository contains no `.m`, `.mm`, `.h`, or `.c` source files
+- The Hermes Sources build phase contains Swift files only
+- The current Xcode build settings do not define `SWIFT_OBJC_BRIDGING_HEADER` or another project-local umbrella header
+- Some Swift declarations use `@objc`, `NSObject`, and selectors for Cocoa/AppKit, AppleScript, and Objective-C runtime APIs; this is framework interoperability, not a compiled Objective-C application layer
 
-- `Sources/Hermes-Bridging-Header.h` exposes Objective-C to Swift
-- `NotificationCenter` for cross-layer communication
-- Notification names defined in `Sources/Notifications.h`
+### Internal Communication
+
+- Swift components communicate through direct references, dependency injection, and `NotificationCenter`
+- Type-safe notification names are defined in `Sources/Swift/Utilities/NotificationNames.swift`
+- `Sources/Swift/Utilities/NotificationBridge.swift` contains Combine publisher helpers; its name is historical and it does not bridge to project-local Objective-C source
+
+**Bridge correction (verified 2026-09-17):** There is no application-source Swift↔Objective-C bridge or bridging header in the current target.
 
 ## Key Dependencies
 
 ### System Frameworks
 
-- `Cocoa.framework` - macOS UI foundation
-- `AudioToolbox.framework` - Audio playback
+- SwiftUI / AppKit / Cocoa - macOS UI, lifecycle, menus, and scripting integration
+- Combine / Observation - state observation and event streams
+- `AudioToolbox.framework` and CoreAudio - audio parsing and playback
 - `Security.framework` - Keychain access
-- `SystemConfiguration.framework` - Network reachability
+- Network framework - connectivity monitoring
 - `MediaPlayer.framework` - Media controls via MPRemoteCommandCenter
-- `Quartz.framework` - Graphics
+- UserNotifications framework - song notifications
 
-### Third-Party Libraries (Imported)
+### Third-Party Libraries
 
-- **FMEngine** (`ImportedSources/FMEngine/`) - Last.fm API client
-- **Blowfish** (`ImportedSources/blowfish/`) - Encryption for Pandora API
+- **CryptoSwift** (Swift Package Manager) - Blowfish for Pandora crypto and MD5 for Last.fm request signing
+- `ImportedSources/FMEngine/` contains only the historical FMEngine license and contributes no compiled source
+- `ImportedSources/blowfish/` is absent; `Sources/Swift/Services/Pandora/PandoraCrypto.swift` uses CryptoSwift instead
 
-### Package Dependencies
-
-- Sparkle (via Swift Package Manager) - Auto-update framework
+**Dependency correction (verified 2026-09-17):** CryptoSwift is the only Swift package product linked by the Hermes target. Sparkle is not linked; `UpdateChecker.swift` checks GitHub Releases directly. Legacy Sparkle DSA assets and signing scripts remain as release tooling.
 
 ## Common Commands
 
@@ -73,6 +76,7 @@ make dbg                # Build and run in LLDB debugger
 
 ```bash
 make travis             # CI build (no code signing)
+make test               # Run the Hermes test scheme
 ```
 
 ### Release Management
@@ -102,4 +106,5 @@ make clean              # Remove build artifacts
 - **Media keys**: Handled via MPRemoteCommandCenter (modern macOS API)
 - **Release builds**: Require code signing for distribution
 - **Code signing**: Uses `CODE_SIGN_IDENTITY` from Xcode settings
-- **Sparkle updates**: Require DSA signature (private key: `hermes.key`)
+- **Update checks**: `UpdateChecker.swift` queries GitHub Releases
+- **Legacy release signing**: DSA assets/scripts remain for the existing release workflow, but no Sparkle framework is linked

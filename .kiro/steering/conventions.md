@@ -29,7 +29,7 @@ Custom code is only a fallback in case the built-in approach CANNOT do what we n
 ### SwiftUI Best Practices
 
 - Use native SwiftUI components and modifiers
-- Leverage `@State`, `@Binding`, `@ObservedObject`, `@StateObject` appropriately
+- Use `@State`, `@Binding`, and `@Bindable` with Observation-based state; use `@ObservedObject` for existing `ObservableObject` services
 - Use `@Environment` for system values and custom environment keys
 - Prefer declarative view composition over imperative logic
 - Use `GeometryReader` sparingly and only when truly needed
@@ -37,18 +37,18 @@ Custom code is only a fallback in case the built-in approach CANNOT do what we n
 
 ### State Management
 
-- Use `@Published` properties in `ObservableObject` view models
+- Use `@Observable` for app state, models, and primary view models
+- Use `ObservableObject` and `@Published` where an existing service still uses Combine observation
 - Centralize app-wide state in `AppState` singleton
 - Use Combine publishers for reactive data flow
-- Leverage `NotificationCenter` publishers for Objective-C bridge
+- Leverage `NotificationCenter` publishers for event coordination between Swift components
 
 ### Naming Conventions
 
 - **Swift**: camelCase for properties/methods, PascalCase for types
-- **Objective-C**: camelCase with descriptive prefixes where appropriate
 - **Files**: Match the primary type name (e.g., `LoginView.swift` for `LoginView`)
 - **View Models**: Suffix with `ViewModel` (e.g., `LoginViewModel`)
-- **Models**: Suffix with `Model` for Swift models (e.g., `SongModel`)
+- **Models**: Use the domain type name and match the file (e.g., `Song` in `Song.swift`)
 
 ### Code Organization
 
@@ -62,7 +62,7 @@ Custom code is only a fallback in case the built-in approach CANNOT do what we n
 ```swift
 struct MyView: View {
     // MARK: - Properties
-    @ObservedObject var viewModel: MyViewModel
+    @Bindable var viewModel: MyViewModel
     @State private var localState: String = ""
     
     // MARK: - Body
@@ -77,12 +77,14 @@ struct MyView: View {
 }
 ```
 
-### Objective-C Bridge
+### Objective-C Runtime Interoperability
 
-- Expose only what's necessary via bridging header
-- Use `@objc` annotations sparingly in Swift
-- Communicate via `NotificationCenter` for loose coupling
-- Keep Objective-C focused on business logic, not UI
+- There is no project-local Objective-C source layer and no bridging header
+- Use `@objc`, `NSObject`, and selectors only where Cocoa/AppKit, AppleScript, or another runtime API requires them
+- Treat `NotificationCenter` as Swift application eventing, not as a Swift↔Objective-C bridge
+- Do not infer a project Objective-C dependency from legacy compatibility names or comments without checking current call sites
+
+**Current-state correction (verified 2026-09-17):** The former bridging-header guidance became obsolete when the Pandora, audio, crypto, keychain, networking, and controller implementations moved to Swift. Existing runtime annotations do not cross into project-local Objective-C source.
 
 ### Error Handling
 
@@ -156,7 +158,7 @@ Signs you're looking at code that needs modernization:
 - Replace with SwiftUI views and view models
 - Use declarative layout and state management
 - Convert to async/await or Combine
-- Use `@Published` properties and publishers
+- Use Observation for new view state; retain `@Published` only in existing Combine-based services
 - Replace with closures or async patterns
 - Break into smaller, focused components
 - Use proper Swift optionals and error handling

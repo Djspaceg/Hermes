@@ -23,13 +23,16 @@ Hermes is a native macOS Pandora client that provides a streamlined music stream
 
 ## Architecture
 
-Hermes is currently undergoing a migration from Objective-C/XIB to Swift/SwiftUI:
+Hermes uses Swift across its current application source:
 
-- **Business Logic Layer**: Objective-C (Pandora API, audio streaming, networking, crypto, keychain)
-- **UI Layer**: SwiftUI (views, view models, state management)
-- **Bridge**: Notification-based communication between layers
+- **Business Logic**: Swift services for Pandora, playback, audio streaming, networking, crypto, keychain, and Last.fm
+- **UI Layer**: SwiftUI views with Swift Observation-based models and view models
+- **Internal Communication**: Direct Swift dependencies plus typed `NotificationCenter`/Combine event streams
+- **System Integration**: Swift types interoperate with Cocoa/AppKit and AppleScript runtime APIs where required
 
 The app targets macOS Tahoe (26.0) and later exclusively.
+
+**Architecture correction (verified 2026-09-17):** The historical Objective-C/XIB migration is complete for application source. The current target has no Objective-C/C source files and no Swift bridging-header setting.
 
 ## User Workflow
 

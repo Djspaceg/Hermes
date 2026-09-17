@@ -2,6 +2,8 @@
 
 Guidelines for organizing and structuring SwiftUI views in this project.
 
+**Observation correction (verified 2026-09-17):** Primary app state, models, and view models now use Swift Observation (`@Observable`). Views use `@Bindable` when they need bindings to an injected observable model; older `@ObservedObject` examples no longer describe the dominant project pattern.
+
 ## View File Organization
 
 Structure view files in this order:
@@ -35,8 +37,8 @@ Group properties by type, in this order:
 
 ```swift
 struct MyView: View {
-    // Observed objects first
-    @ObservedObject var viewModel: MyViewModel
+    // Observable models first
+    @Bindable var viewModel: MyViewModel
     
     // State properties grouped together
     @State private var isExpanded = false
