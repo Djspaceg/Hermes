@@ -177,7 +177,7 @@ final class StatePersistenceTests {
         controller.playStation(originalStation)
         
         // Save state using the controller's method
-        // Note: This will try to save to ~/Library/Application Support/Hermes/station.savestate
+        // The test scheme resolves this tilde path under /tmp/HermesTests.
         // For testing, we'll use our own save/restore logic
         let savePath = saveStatePath()
         

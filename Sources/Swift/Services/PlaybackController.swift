@@ -101,6 +101,7 @@ final class PlaybackController: ObservableObject {
     // MARK: - Private Properties
     
     private let userDefaults: UserDefaults
+    private let playbackStateStore: PlaybackStateStoring
     private var progressUpdateTimer: Timer?
     private var scrobbleSent: Bool = false
     private var lastImgSrc: String?
@@ -109,8 +110,12 @@ final class PlaybackController: ObservableObject {
     
     // MARK: - Initialization
     
-    init(userDefaults: UserDefaults = .standard) {
+    init(
+        userDefaults: UserDefaults = .standard,
+        playbackStateStore: PlaybackStateStoring? = nil
+    ) {
         self.userDefaults = userDefaults
+        self.playbackStateStore = playbackStateStore ?? PlaybackStateStore(userDefaults: userDefaults)
         
         // Initialize volume from UserDefaults
         let saved = userDefaults.integer(forKey: UserDefaultsKeys.volume)
@@ -389,22 +394,13 @@ extension PlaybackController {
         playing = station
         
         guard let station = station else {
-            userDefaults.removeObject(forKey: UserDefaultsKeys.lastStation)
+            playbackStateStore.clearSelection()
             lastImgSrc = nil
             postStateChange()
             return
         }
         
-        userDefaults.set(station.stationId, forKey: UserDefaultsKeys.lastStation)
-        
-        // Track when this station was last played
-        let timestamp = Date().timeIntervalSince1970
-        station.lastPlayedTimestamp = timestamp
-        
-        // Persist timestamp to UserDefaults for all stations
-        var timestamps = userDefaults.dictionary(forKey: UserDefaultsKeys.stationPlayTimestamps) as? [String: TimeInterval] ?? [:]
-        timestamps[station.stationId] = timestamp
-        userDefaults.set(timestamps, forKey: UserDefaultsKeys.stationPlayTimestamps)
+        playbackStateStore.recordSelection(station)
         
         if Self.playOnStart {
             station.play()
@@ -422,10 +418,7 @@ extension PlaybackController {
     /// Use this when logging out or resetting the application.
     func reset() {
         playStation(nil)
-        
-        if let path = stateDirectory("station.savestate") {
-            try? FileManager.default.removeItem(atPath: path)
-        }
+        playbackStateStore.deleteSavedState()
     }
     
     /// Saves the current playback state to disk
@@ -436,32 +429,7 @@ extension PlaybackController {
     /// - Returns: `true` if the state was saved successfully, `false` otherwise
     @discardableResult
     func saveState() -> Bool {
-        guard let path = stateDirectory("station.savestate"),
-              let station = playing else {
-            return false
-        }
-        
-        do {
-            let data = try NSKeyedArchiver.archivedData(withRootObject: station, requiringSecureCoding: true)
-            try data.write(to: URL(fileURLWithPath: path))
-            return true
-        } catch {
-            NSLog("Failed to save state: \(error)")
-            return false
-        }
-    }
-    
-    /// Get the state directory path for a file
-    private func stateDirectory(_ file: String) -> String? {
-        let fileManager = FileManager.default
-        let folder = NSString(string: "~/Library/Application Support/Hermes/").expandingTildeInPath
-        
-        var isDirectory: ObjCBool = false
-        if !fileManager.fileExists(atPath: folder, isDirectory: &isDirectory) {
-            try? fileManager.createDirectory(atPath: folder, withIntermediateDirectories: true, attributes: nil)
-        }
-        
-        return (folder as NSString).appendingPathComponent(file)
+        playbackStateStore.save(station: playing)
     }
 }
 

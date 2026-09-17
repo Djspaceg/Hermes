@@ -7,7 +7,39 @@
 
 import Testing
 import Foundation
+import Darwin
 @testable import Hermes
+
+final class PlaybackStateStoreStub: PlaybackStateStoring {
+    var recordedStation: Station?
+    var clearSelectionCallCount = 0
+    var deleteSavedStateCallCount = 0
+    var saveCallCount = 0
+    var savedStation: Station?
+    var saveResult: Bool
+
+    init(saveResult: Bool = false) {
+        self.saveResult = saveResult
+    }
+
+    func recordSelection(_ station: Station) {
+        recordedStation = station
+    }
+
+    func clearSelection() {
+        clearSelectionCallCount += 1
+    }
+
+    func deleteSavedState() {
+        deleteSavedStateCallCount += 1
+    }
+
+    func save(station: Station?) -> Bool {
+        saveCallCount += 1
+        savedStation = station
+        return saveResult
+    }
+}
 
 @Suite("PlaybackController Station Management")
 struct PlaybackControllerStationManagementTests {
@@ -75,7 +107,11 @@ struct PlaybackControllerStationManagementTests {
             testDefaults.removePersistentDomain(forName: "com.hermes.tests.playback")
         }
         
-        let controller = PlaybackController(userDefaults: testDefaults)
+        let stateStore = PlaybackStateStoreStub()
+        let controller = PlaybackController(
+            userDefaults: testDefaults,
+            playbackStateStore: stateStore
+        )
         
         // Create and set a station
         let station = Station()
@@ -92,6 +128,8 @@ struct PlaybackControllerStationManagementTests {
         
         // Verify station is cleared
         #expect(controller.playing == nil)
+        #expect(stateStore.clearSelectionCallCount == 1)
+        #expect(stateStore.deleteSavedStateCallCount == 1)
     }
     
     @Test("saveState returns false when no station is playing")
@@ -102,13 +140,68 @@ struct PlaybackControllerStationManagementTests {
             testDefaults.removePersistentDomain(forName: "com.hermes.tests.playback")
         }
         
-        let controller = PlaybackController(userDefaults: testDefaults)
+        let stateStore = PlaybackStateStoreStub()
+        let controller = PlaybackController(
+            userDefaults: testDefaults,
+            playbackStateStore: stateStore
+        )
         
         // Try to save state with no station
         let result = controller.saveState()
         
         // Should return false
         #expect(result == false)
+        #expect(stateStore.saveCallCount == 1)
+        #expect(stateStore.savedStation == nil)
+    }
+
+    @Test("state store resolves the archive path before rejecting a missing station")
+    func testStateStoreResolvesPathBeforeMissingStationCheck() throws {
+        let testDefaults = UserDefaults(suiteName: "com.hermes.tests.playback-state-order")!
+        let testDirectory = URL(
+            fileURLWithPath: "/tmp/HermesStateOrder-\(UUID().uuidString)"
+        )
+        let fileManager = FileManager.default
+        try #require(!fileManager.fileExists(atPath: testDirectory.path))
+        var createdDirectoryIdentity: (systemNumber: UInt64, fileNumber: UInt64)?
+
+        defer {
+            testDefaults.removePersistentDomain(forName: "com.hermes.tests.playback-state-order")
+            if let createdDirectoryIdentity,
+               let attributes = try? fileManager.attributesOfItem(atPath: testDirectory.path),
+               let systemNumber = attributes[.systemNumber] as? NSNumber,
+               let fileNumber = attributes[.systemFileNumber] as? NSNumber,
+               systemNumber.uint64Value == createdDirectoryIdentity.systemNumber,
+               fileNumber.uint64Value == createdDirectoryIdentity.fileNumber,
+               (try? fileManager.contentsOfDirectory(atPath: testDirectory.path).isEmpty) == true {
+                _ = rmdir(testDirectory.path)
+            }
+        }
+
+        let stateStore = PlaybackStateStore(
+            userDefaults: testDefaults,
+            resolveStatePath: { file in
+                try? fileManager.createDirectory(
+                    at: testDirectory,
+                    withIntermediateDirectories: false
+                )
+                return testDirectory.appendingPathComponent(file).path
+            }
+        )
+
+        #expect(!stateStore.save(station: nil))
+        #expect(fileManager.fileExists(atPath: testDirectory.path))
+        let createdDirectoryAttributes = try fileManager.attributesOfItem(
+            atPath: testDirectory.path
+        )
+        createdDirectoryIdentity = (
+            systemNumber: try #require(
+                createdDirectoryAttributes[.systemNumber] as? NSNumber
+            ).uint64Value,
+            fileNumber: try #require(
+                createdDirectoryAttributes[.systemFileNumber] as? NSNumber
+            ).uint64Value
+        )
     }
     
     @Test("saveState returns true when station is playing")
@@ -119,7 +212,11 @@ struct PlaybackControllerStationManagementTests {
             testDefaults.removePersistentDomain(forName: "com.hermes.tests.playback")
         }
         
-        let controller = PlaybackController(userDefaults: testDefaults)
+        let stateStore = PlaybackStateStoreStub(saveResult: true)
+        let controller = PlaybackController(
+            userDefaults: testDefaults,
+            playbackStateStore: stateStore
+        )
         
         // Create and set a station
         let station = Station()
@@ -131,9 +228,9 @@ struct PlaybackControllerStationManagementTests {
         // Save state
         let result = controller.saveState()
         
-        // Should return true (even if actual file write might fail in test environment)
-        // The method should at least attempt to save
-        #expect(result == true || result == false) // Either outcome is acceptable in test
+        #expect(result)
+        #expect(stateStore.saveCallCount == 1)
+        #expect(stateStore.savedStation === station)
     }
     
     @Test("volume is applied to station when playing")

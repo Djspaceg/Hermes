@@ -7,11 +7,89 @@
 
 import SwiftUI
 
+private enum TestStateIsolationPrecondition {
+    private static let expectedHome = "/tmp/HermesTests"
+
+    static func enforceIfNeeded() {
+        guard isRunningTests else { return }
+
+        let environment = ProcessInfo.processInfo.environment
+        precondition(environment["TMPDIR"] == "/tmp", "Hermes tests require TMPDIR=/tmp")
+        precondition(environment["HOME"] == expectedHome, "Hermes tests require HOME=\(expectedHome)")
+        precondition(
+            environment["CFFIXED_USER_HOME"] == expectedHome,
+            "Hermes tests require CFFIXED_USER_HOME=\(expectedHome)"
+        )
+        precondition(
+            environment["HERMES_EXPECTED_STATE_TEST_HOME"] == expectedHome,
+            "Hermes tests require HERMES_EXPECTED_STATE_TEST_HOME=\(expectedHome)"
+        )
+        precondition(NSHomeDirectory() == expectedHome, "Hermes tests resolved an unsafe home directory")
+
+        let temporaryDirectory = URL(fileURLWithPath: "/tmp")
+            .standardizedFileURL
+            .resolvingSymlinksInPath()
+        let resolvedHome = URL(fileURLWithPath: expectedHome)
+            .standardizedFileURL
+            .resolvingSymlinksInPath()
+        precondition(
+            isDescendant(resolvedHome, of: temporaryDirectory),
+            "Hermes tests resolved a home directory outside /tmp"
+        )
+
+        let resolvedStateDirectory = URL(
+            fileURLWithPath: NSString(
+                string: "~/Library/Application Support/Hermes/"
+            ).expandingTildeInPath
+        )
+        .standardizedFileURL
+        .resolvingSymlinksInPath()
+        let expectedStateDirectory = resolvedHome
+            .appendingPathComponent("Library/Application Support/Hermes")
+            .standardizedFileURL
+            .resolvingSymlinksInPath()
+
+        precondition(
+            resolvedStateDirectory == expectedStateDirectory,
+            "Hermes tests resolved an unsafe state directory"
+        )
+        precondition(
+            isDescendant(resolvedStateDirectory, of: resolvedHome)
+                && isDescendant(resolvedStateDirectory, of: temporaryDirectory),
+            "Hermes tests resolved state outside the isolated home"
+        )
+    }
+
+    private static var isRunningTests: Bool {
+        let environment = ProcessInfo.processInfo.environment
+        let arguments = ProcessInfo.processInfo.arguments
+
+        return environment["XCTestConfigurationFilePath"] != nil
+            || environment["XCTestSessionIdentifier"] != nil
+            || NSClassFromString("XCTest") != nil
+            || NSClassFromString("XCTestCase") != nil
+            || arguments.contains(where: {
+                $0.contains("XCTest") || $0.contains(".xctest")
+            })
+    }
+
+    private static func isDescendant(_ child: URL, of parent: URL) -> Bool {
+        let childComponents = child.pathComponents
+        let parentComponents = parent.pathComponents
+
+        return childComponents.count > parentComponents.count
+            && childComponents.prefix(parentComponents.count).elementsEqual(parentComponents)
+    }
+}
+
 @main
 struct HermesApp: App {
     // MARK: - Properties
     
-    @State private var appState = AppState.shared
+    @State private var appState: AppState = {
+        TestStateIsolationPrecondition.enforceIfNeeded()
+        return AppState.shared
+    }()
     @NSApplicationDelegateAdaptor(MinimalAppDelegate.self) var appDelegate
     @State private var showingNewStation = false
     

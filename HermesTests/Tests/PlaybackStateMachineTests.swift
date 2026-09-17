@@ -34,7 +34,10 @@ struct PlaybackStateMachineTests {
     @MainActor
     private func createTestController() -> PlaybackController {
         let testDefaults = UserDefaults(suiteName: "com.hermes.tests.playback.\(UUID().uuidString)")!
-        return PlaybackController(userDefaults: testDefaults)
+        return PlaybackController(
+            userDefaults: testDefaults,
+            playbackStateStore: PlaybackStateStoreStub()
+        )
     }
     
     @MainActor
