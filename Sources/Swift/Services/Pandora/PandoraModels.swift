@@ -190,6 +190,7 @@ final class PandoraRequest: NSObject, NSCopying {
     var callback: (([String: Any]) -> Void)?
     var tls: Bool = true
     var encrypted: Bool = true
+    @nonobjc var authenticationGeneration: UInt64?
     
     // MARK: Initialization
     
@@ -210,6 +211,7 @@ final class PandoraRequest: NSObject, NSCopying {
         copy.callback = callback
         copy.tls = tls
         copy.encrypted = encrypted
+        copy.authenticationGeneration = authenticationGeneration
         return copy
     }
     

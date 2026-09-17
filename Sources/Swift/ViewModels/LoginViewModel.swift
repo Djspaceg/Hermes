@@ -48,14 +48,24 @@ final class LoginViewModel {
     var password: String = ""
     var isLoading: Bool = false
     var errorMessage: String?
+    var credentialAvailabilityMessage: String?
+    var credentialPersistenceErrorMessage: String?
     
     @ObservationIgnored
     private let pandora: PandoraProtocol
+    @ObservationIgnored
+    private let credentialStore: any CredentialStore
+    @ObservationIgnored
+    private let userDefaults: UserDefaults
     
     /// Whether to persist credentials to UserDefaults/Keychain.
     /// Set to false during testing to prevent test data from polluting real storage.
     @ObservationIgnored
     private let persistCredentials: Bool
+    @ObservationIgnored
+    var onManualAuthenticationStarted: (@MainActor () -> Void)?
+    @ObservationIgnored
+    private var pendingManualCredentials: PendingManualCredentials?
     
     // MARK: - Computed Properties
     
@@ -67,6 +77,10 @@ final class LoginViewModel {
     
     var canSubmit: Bool {
         !username.isEmpty && !password.isEmpty && isValidEmail && !isLoading
+    }
+
+    var showsCredentialRetry: Bool {
+        credentialAvailabilityMessage != nil
     }
     
     // MARK: - Initialization
@@ -80,8 +94,15 @@ final class LoginViewModel {
     ///     Defaults to true for production. Pass false during testing to prevent
     ///     test data from polluting real storage.
     @MainActor
-    init(pandora: PandoraProtocol? = nil, persistCredentials: Bool = true) {
+    init(
+        pandora: PandoraProtocol? = nil,
+        credentialStore: (any CredentialStore)? = nil,
+        userDefaults: UserDefaults? = nil,
+        persistCredentials: Bool = true
+    ) {
         self.pandora = pandora ?? AppState.shared.pandora
+        self.credentialStore = credentialStore ?? KeychainManager.shared
+        self.userDefaults = userDefaults ?? Self.defaultUserDefaults
         self.persistCredentials = persistCredentials
     }
     
@@ -89,17 +110,23 @@ final class LoginViewModel {
     
     func authenticate() async throws {
         guard canSubmit else { return }
-        
+        onManualAuthenticationStarted?()
+        let pendingCredentials = persistCredentials
+            ? PendingManualCredentials(username: username, password: password)
+            : nil
+        try await authenticate(pendingCredentials: pendingCredentials)
+    }
+
+    func authenticateRestoredCredentials() async throws {
+        guard canSubmit else { return }
+        try await authenticate(pendingCredentials: nil)
+    }
+
+    private func authenticate(pendingCredentials: PendingManualCredentials?) async throws {
         isLoading = true
         errorMessage = nil
-        
-        // Save credentials only in production mode.
-        // When persistCredentials is false (test mode), skip real storage
-        // to prevent test data from polluting UserDefaults and Keychain.
-        if persistCredentials {
-            UserDefaults.standard.set(username, forKey: UserDefaultsKeys.username)
-            try? KeychainManager.shared.saveCredentials(username: username, password: password)
-        }
+        credentialPersistenceErrorMessage = nil
+        pendingManualCredentials = nil
         
         // Use the synchronous protocol method
         let success = pandora.authenticate(username, password: password, request: nil)
@@ -109,14 +136,49 @@ final class LoginViewModel {
             errorMessage = "Authentication failed"
             throw LoginError.authenticationFailed
         }
-        
-        // Wait for authentication notification or error
-        // The isLoading flag will be cleared by notification handlers in AppState
+
+        pendingManualCredentials = pendingCredentials
+    }
+
+    func persistPendingManualCredentials() async {
+        guard let credentials = pendingManualCredentials else {
+            return
+        }
+        pendingManualCredentials = nil
+        do {
+            try await credentialStore.saveCredentials(
+                username: credentials.username,
+                password: credentials.password
+            )
+            userDefaults.set(credentials.username, forKey: UserDefaultsKeys.username)
+        } catch {
+            credentialPersistenceErrorMessage = "Signed in, but Hermes could not save these credentials: \(error.localizedDescription)"
+        }
+    }
+
+    func discardPendingManualCredentials() {
+        pendingManualCredentials = nil
+    }
+
+    private static var defaultUserDefaults: UserDefaults {
+        if isRunningTests {
+            return UserDefaults(suiteName: "com.hermes.tests.login.\(UUID().uuidString)")!
+        }
+        return .standard
+    }
+
+    private static var isRunningTests: Bool {
+        TestProcessDetection.isRunningTests
     }
     
     // MARK: - Error Types
     
     enum LoginError: Error {
         case authenticationFailed
+    }
+
+    private struct PendingManualCredentials {
+        let username: String
+        let password: String
     }
 }

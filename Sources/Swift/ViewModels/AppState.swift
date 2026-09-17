@@ -13,6 +13,9 @@ import Observation
 
 /// Represents the current view state of the application
 enum ViewState: Equatable {
+    /// Credential restoration is in progress.
+    case checking
+
     /// Login screen - user needs to authenticate
     case login
     
@@ -24,6 +27,14 @@ enum ViewState: Equatable {
     
     /// Error state with message
     case error(String)
+}
+
+enum CredentialRestorationState: Equatable {
+    case checking
+    case restored
+    case absent
+    case temporarilyUnavailable
+    case failed(String)
 }
 
 /// Central state manager providing a single source of truth for application state.
@@ -85,7 +96,9 @@ final class AppState {
     // MARK: - Observable Properties
     
     /// The current view state of the application
-    var currentView: ViewState = .login
+    var currentView: ViewState = .checking
+
+    var credentialRestorationState: CredentialRestorationState = .checking
     
     /// Whether the sidebar is currently visible
     var isSidebarVisible: Bool = true
@@ -109,11 +122,26 @@ final class AppState {
     
     /// View model for listening history
     let historyViewModel: HistoryViewModel
+
+    @ObservationIgnored
+    private let credentialStore: any CredentialStore
+
+    @ObservationIgnored
+    private let userDefaults: UserDefaults
+
+    @ObservationIgnored
+    private let credentialRestorationDeadline: Duration
     
     // MARK: - Private Properties
     
     @ObservationIgnored
     private var cancellables = Set<AnyCancellable>()
+
+    @ObservationIgnored
+    private var credentialRestorationGeneration: UInt64 = 0
+
+    @ObservationIgnored
+    private var activeCredentialRestorationGeneration: UInt64?
     
     // MARK: - Factory Methods
     
@@ -124,8 +152,17 @@ final class AppState {
     ///
     /// - Returns: A new AppState configured for production
     static func production() -> AppState {
-        let pandora = PandoraClient()
-        return AppState(pandora: pandora)
+        let credentialStore = KeychainManager.shared
+        let userDefaults = productionUserDefaults
+        let pandora = PandoraClient(
+            credentialStore: credentialStore,
+            userDefaults: userDefaults
+        )
+        return AppState(
+            pandora: pandora,
+            credentialStore: credentialStore,
+            userDefaults: userDefaults
+        )
     }
     
     /// Creates an AppState instance for testing with mock Pandora implementation
@@ -137,33 +174,73 @@ final class AppState {
     /// - Parameter pandora: The PandoraProtocol implementation to use (e.g., MockPandora)
     /// - Returns: A new AppState configured for testing
     static func test(pandora: PandoraProtocol) -> AppState {
-        return AppState(pandora: pandora, skipCredentialCheck: true)
+        let userDefaults = UserDefaults(suiteName: "com.hermes.tests.app-state.\(UUID().uuidString)")!
+        return AppState(
+            pandora: pandora,
+            credentialStore: MockKeychainManager(),
+            userDefaults: userDefaults,
+            skipCredentialCheck: true
+        )
+    }
+
+    static func testRestoringCredentials(
+        pandora: PandoraProtocol,
+        credentialStore: any CredentialStore,
+        userDefaults: UserDefaults,
+        deadline: Duration
+    ) -> AppState {
+        AppState(
+            pandora: pandora,
+            credentialStore: credentialStore,
+            userDefaults: userDefaults,
+            credentialRestorationDeadline: deadline
+        )
     }
     
     // MARK: - Initialization
     
-    private init(pandora: PandoraProtocol, skipCredentialCheck: Bool = false) {
+    private init(
+        pandora: PandoraProtocol,
+        credentialStore: any CredentialStore,
+        userDefaults: UserDefaults,
+        credentialRestorationDeadline: Duration = .seconds(2),
+        skipCredentialCheck: Bool = false
+    ) {
         print("AppState: Initializing...")
         print("AppState: Process name: \(ProcessInfo.processInfo.processName)")
         print("AppState: Arguments: \(ProcessInfo.processInfo.arguments)")
         
         // Store injected Pandora dependency
         self.pandora = pandora
+        self.credentialStore = credentialStore
+        self.userDefaults = userDefaults
+        self.credentialRestorationDeadline = credentialRestorationDeadline
         
         // Initialize view models with injected dependency
-        self.loginViewModel = LoginViewModel(pandora: pandora, persistCredentials: !skipCredentialCheck)
+        self.loginViewModel = LoginViewModel(
+            pandora: pandora,
+            credentialStore: credentialStore,
+            userDefaults: userDefaults,
+            persistCredentials: !skipCredentialCheck
+        )
         self.playerViewModel = PlayerViewModel()
         self.stationsViewModel = StationsViewModel(pandora: pandora)
         self.historyViewModel = HistoryViewModel()
+
+        self.loginViewModel.onManualAuthenticationStarted = { [weak self] in
+            self?.invalidateCredentialRestorationForManualSignIn()
+        }
         
         // Subscribe to notifications
         setupNotificationSubscriptions()
         
         // Check for saved credentials - but NOT in preview, test mode, or when explicitly skipped
-        if !skipCredentialCheck && !Self.isPreview && !Self.isRunningTests {
-            checkSavedCredentials()
+        if !skipCredentialCheck && !Self.isPreview {
+            beginCredentialRestoration()
         } else {
             print("AppState: Skipping credential check (test/preview mode or explicitly skipped)")
+            currentView = .login
+            credentialRestorationState = .absent
         }
         
         print("AppState: Initialized - currentView: \(currentView)")
@@ -176,23 +253,14 @@ final class AppState {
     }
     
     private static var isRunningTests: Bool {
-        // Check environment variables (set by test harness)
-        let hasTestEnvVars = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil ||
-                            ProcessInfo.processInfo.environment["XCTestSessionIdentifier"] != nil
-        
-        // Check if XCTest framework is loaded (works for hosted tests)
-        let hasXCTestClass = NSClassFromString("XCTest") != nil ||
-                            NSClassFromString("XCTestCase") != nil
-        
-        // Check command line arguments for test indicators
-        let args = ProcessInfo.processInfo.arguments
-        let hasTestArgs = args.contains { arg in
-            arg.contains("xctest") || 
-            arg.contains("XCTest") ||
-            arg.hasSuffix(".xctest")
+        TestProcessDetection.isRunningTests
+    }
+
+    private static var productionUserDefaults: UserDefaults {
+        if isRunningTests {
+            return UserDefaults(suiteName: "com.hermes.tests.production.\(UUID().uuidString)")!
         }
-        
-        return hasTestEnvVars || hasXCTestClass || hasTestArgs
+        return .standard
     }
     
     // MARK: - Notification Subscriptions
@@ -224,8 +292,12 @@ final class AppState {
     
     private func handleAuthentication() {
         print("AppState: Authentication successful")
+        invalidateCredentialRestoration()
         isAuthenticated = true
         currentView = .loading
+        Task {
+            await loginViewModel.persistPendingManualCredentials()
+        }
         print("AppState: Set currentView to .loading, fetching stations...")
         
         // Fetch stations after authentication
@@ -244,27 +316,133 @@ final class AppState {
     
     private func handleError(_ message: String) {
         print("AppState: Error - \(message)")
+        loginViewModel.discardPendingManualCredentials()
         currentView = .error(message)
     }
     
     // MARK: - Saved Credentials
     
-    private func checkSavedCredentials() {
-        if let username = UserDefaults.standard.string(forKey: UserDefaultsKeys.username),
-           let password = try? KeychainManager.shared.retrievePassword(username: username),
-           !username.isEmpty && !password.isEmpty {
-            print("AppState: Found saved credentials, auto-authenticating")
+    private func beginCredentialRestoration() {
+        invalidateCredentialRestoration()
+        credentialRestorationState = .checking
+        currentView = .checking
+        loginViewModel.credentialAvailabilityMessage = nil
+        loginViewModel.credentialPersistenceErrorMessage = nil
+
+        guard let username = userDefaults.string(forKey: UserDefaultsKeys.username),
+              !username.isEmpty else {
+            finishCredentialRestoration(.absent, username: nil, generation: nil)
+            return
+        }
+
+        loginViewModel.username = username
+        loginViewModel.password = ""
+        credentialRestorationGeneration &+= 1
+        let generation = credentialRestorationGeneration
+        activeCredentialRestorationGeneration = generation
+        let credentialStore = credentialStore
+
+        Task { [weak self] in
+            do {
+                let result = try await credentialStore.retrievePassword(username: username)
+                self?.finishCredentialRestoration(
+                    result,
+                    username: username,
+                    generation: generation
+                )
+            } catch {
+                self?.failCredentialRestoration(
+                    error,
+                    generation: generation
+                )
+            }
+        }
+
+        let deadline = credentialRestorationDeadline
+        Task { [weak self] in
+            try? await Task.sleep(for: deadline)
+            self?.finishCredentialRestoration(
+                .temporarilyUnavailable,
+                username: username,
+                generation: generation
+            )
+        }
+    }
+
+    private func finishCredentialRestoration(
+        _ result: CredentialLookupResult,
+        username: String?,
+        generation: UInt64?
+    ) {
+        if let generation {
+            guard activeCredentialRestorationGeneration == generation,
+                  !isAuthenticated else {
+                return
+            }
+            activeCredentialRestorationGeneration = nil
+        }
+
+        switch result {
+        case .found(let password):
+            guard let username, !username.isEmpty, !password.isEmpty else {
+                failCredentialRestoration(
+                    CredentialStoreError.decodingError,
+                    generation: nil
+                )
+                return
+            }
+            credentialRestorationState = .restored
             currentView = .loading
             loginViewModel.username = username
             loginViewModel.password = password
-            
+            loginViewModel.credentialAvailabilityMessage = nil
             Task {
-                try? await loginViewModel.authenticate()
+                try? await loginViewModel.authenticateRestoredCredentials()
             }
-        } else {
-            print("AppState: No saved credentials, showing login")
+        case .absent:
+            credentialRestorationState = .absent
             currentView = .login
+            loginViewModel.username = ""
+            loginViewModel.password = ""
+            loginViewModel.credentialAvailabilityMessage = nil
+        case .temporarilyUnavailable:
+            credentialRestorationState = .temporarilyUnavailable
+            currentView = .login
+            loginViewModel.password = ""
+            loginViewModel.credentialAvailabilityMessage = "Saved credentials are temporarily unavailable."
         }
+    }
+
+    private func failCredentialRestoration(_ error: Error, generation: UInt64?) {
+        if let generation {
+            guard activeCredentialRestorationGeneration == generation,
+                  !isAuthenticated else {
+                return
+            }
+            activeCredentialRestorationGeneration = nil
+        }
+        let message = error.localizedDescription
+        credentialRestorationState = .failed(message)
+        currentView = .error(message)
+    }
+
+    private func invalidateCredentialRestorationForManualSignIn() {
+        invalidateCredentialRestoration()
+        loginViewModel.credentialAvailabilityMessage = nil
+        if credentialRestorationState == .checking ||
+            credentialRestorationState == .temporarilyUnavailable {
+            credentialRestorationState = .absent
+        }
+    }
+
+    private func invalidateCredentialRestoration() {
+        activeCredentialRestorationGeneration = nil
+        credentialRestorationGeneration &+= 1
+    }
+
+    func retrySavedCredentials() {
+        guard !isAuthenticated else { return }
+        beginCredentialRestoration()
     }
     
     // MARK: - Public Methods
@@ -292,6 +470,8 @@ final class AppState {
                     await stationsViewModel.refreshStations()
                 }
             }
+        case .login where credentialRestorationState == .temporarilyUnavailable:
+            retrySavedCredentials()
         default:
             break
         }

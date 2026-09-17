@@ -7,6 +7,12 @@
 
 import Foundation
 
+private enum CredentialRecoveryResult {
+    case authenticationStarted
+    case unavailable
+    case superseded
+}
+
 // MARK: - PandoraNetwork
 
 /// Handles Pandora API network requests and infrastructure
@@ -39,17 +45,36 @@ extension PandoraClient {
         if isAuthenticated() {
             return sendRequest(request)
         }
-        
-        // Get saved credentials and re-authenticate
-        let user = UserDefaults.standard.string(forKey: UserDefaultsKeys.username)
-        let pass = user.flatMap { try? KeychainManager.shared.retrievePassword(username: $0) }
-        
-        return authenticate(user, password: pass, request: request)
+
+        guard let username = savedUsername else {
+            return false
+        }
+        guard let token = beginAutomaticCredentialRecovery() else {
+            return true
+        }
+
+        Task { [weak self] in
+            guard let self else { return }
+            switch await self.recoverCredentialsAndRetry(
+                request,
+                username: username,
+                token: token
+            ) {
+            case .authenticationStarted, .superseded:
+                break
+            case .unavailable:
+                self.postCredentialRecoveryFailure(for: request, token: token)
+            }
+        }
+        return true
     }
     
     /// Send a request to the Pandora API
     @discardableResult
     func sendRequest(_ request: PandoraRequest) -> Bool {
+        if request.authenticationGeneration == nil {
+            request.authenticationGeneration = currentAuthenticationGeneration()
+        }
         guard let deviceDict = device,
               let apiHost = deviceDict["apihost"] as? String else {
             return false
@@ -84,6 +109,10 @@ extension PandoraClient {
         // Perform the request
         httpClient.performRequest(urlRequest) { [weak self] data, error in
             guard let self = self else { return }
+            if let authenticationGeneration = request.authenticationGeneration,
+               !self.isAuthenticationGenerationCurrent(authenticationGeneration) {
+                return
+            }
             
             var dict: [String: Any]?
             var errorMessage: String?
@@ -106,48 +135,195 @@ extension PandoraClient {
             
             // If no error, invoke the callback
             if errorMessage == nil, let dict = dict {
-                self.retries = 0 // Reset retry counter on success
-                request.callback?(dict)
+                guard let authenticationGeneration = request.authenticationGeneration else {
+                    return
+                }
+                DispatchQueue.main.async { [weak self] in
+                    guard let self,
+                          self.isAuthenticationGenerationCurrent(authenticationGeneration) else {
+                        return
+                    }
+                    self.retries = 0
+                    request.callback?(dict)
+                }
                 return
             }
             
             // Check for auth token expiration - automatically re-authenticate and retry
             if let code = pandoraCode {
-                if (code == invalidAuthToken || code == invalidSyncTime) && self.retries < 3 {
-                    self.retries += 1
-                    NSLog("Auth token expired (code \(code)), re-authenticating (attempt \(self.retries))...")
-                    
-                    // Clear auth state to force re-authentication
-                    self.logoutNoNotify()
-                    
-                    // Get saved credentials and re-authenticate with the original request
-                    let user = UserDefaults.standard.string(forKey: UserDefaultsKeys.username)
-                    let pass = user.flatMap { try? KeychainManager.shared.retrievePassword(username: $0) }
-                    
-                    if let user = user, let pass = pass {
-                        _ = self.authenticate(user, password: pass, request: request)
+                let isAuthenticationRequest = request.method == "auth.partnerLogin" ||
+                    request.method == "auth.userLogin"
+                if !isAuthenticationRequest,
+                   (code == invalidAuthToken || code == invalidSyncTime),
+                   self.retries < 3,
+                   let authenticationGeneration = request.authenticationGeneration {
+                    var attempt = 0
+                    guard self.invalidateAuthenticationIfCurrent(
+                        authenticationGeneration,
+                        operation: {
+                            self.retries += 1
+                            attempt = self.retries
+                            self.resetAuthenticationState()
+                        }
+                    ) else {
                         return
                     }
+                    NSLog("Auth token expired (code \(code)), re-authenticating (attempt \(attempt))...")
+
+                    guard let token = self.beginAutomaticCredentialRecovery() else {
+                        return
+                    }
+
+                    Task { [weak self] in
+                        guard let self else { return }
+                        switch await self.recoverCredentialsAndRetry(
+                            request,
+                            token: token
+                        ) {
+                        case .authenticationStarted, .superseded:
+                            break
+                        case .unavailable:
+                            self.postRequestFailure(
+                                request,
+                                errorMessage: errorMessage,
+                                error: error,
+                                pandoraCode: pandoraCode,
+                                credentialRecoveryToken: token
+                            )
+                        }
+                    }
+                    return
                 }
             }
-            
-            // Build the error dictionary and post notification
-            var info: [String: Any] = ["request": request]
-            info["err"] = errorMessage ?? "Unknown error"
-            
-            if let error = error {
-                let nsError = error as NSError
-                if nsError.code != 0 {
-                    info["nsErrorCode"] = nsError.code
-                }
-            } else if let code = pandoraCode {
-                info["code"] = code
+
+            if request.method == "auth.partnerLogin" ||
+                request.method == "auth.userLogin",
+               let authenticationGeneration = request.authenticationGeneration {
+                self.finishCredentialAuthentication(authenticationGeneration)
             }
-            
-            self.postNotification("PandoraDidErrorNotification", object: self, userInfo: info)
+            self.postRequestFailure(
+                request,
+                errorMessage: errorMessage,
+                error: error,
+                pandoraCode: pandoraCode
+            )
         }
         
         return true
+    }
+
+    internal func retryRequestAfterAuthenticationFailure(_ request: PandoraRequest) async -> Bool {
+        guard let username = savedUsername else {
+            return false
+        }
+        guard let token = beginAutomaticCredentialRecovery() else {
+            return false
+        }
+        return await recoverCredentialsAndRetry(
+            request,
+            username: username,
+            token: token
+        ) == .authenticationStarted
+    }
+
+    private var savedUsername: String? {
+        guard let username = userDefaults.string(forKey: UserDefaultsKeys.username),
+              !username.isEmpty else {
+            return nil
+        }
+        return username
+    }
+
+    private func recoverCredentialsAndRetry(
+        _ request: PandoraRequest,
+        token: PandoraCredentialRecoveryToken
+    ) async -> CredentialRecoveryResult {
+        guard let username = savedUsername else {
+            return .unavailable
+        }
+        return await recoverCredentialsAndRetry(
+            request,
+            username: username,
+            token: token
+        )
+    }
+
+    private func recoverCredentialsAndRetry(
+        _ request: PandoraRequest,
+        username: String,
+        token: PandoraCredentialRecoveryToken
+    ) async -> CredentialRecoveryResult {
+        do {
+            let result = try await credentialStore.retrievePassword(username: username)
+            guard isCredentialRecoveryTokenCurrent(token) else {
+                return .superseded
+            }
+            switch result {
+            case .found(let password) where !password.isEmpty:
+                guard let started = authenticateRecoveredCredentials(
+                    username,
+                    password: password,
+                    request: request,
+                    token: token
+                ) else {
+                    return .superseded
+                }
+                return started ? .authenticationStarted : .unavailable
+            case .found, .absent, .temporarilyUnavailable:
+                return .unavailable
+            }
+        } catch {
+            guard isCredentialRecoveryTokenCurrent(token) else {
+                return .superseded
+            }
+            NSLog("Credential recovery failed: \(error.localizedDescription)")
+            return .unavailable
+        }
+    }
+
+    private func postCredentialRecoveryFailure(
+        for request: PandoraRequest,
+        token: PandoraCredentialRecoveryToken
+    ) {
+        postNotification(
+            "PandoraDidErrorNotification",
+            object: self,
+            userInfo: [
+                "request": request,
+                "err": "Saved credentials are unavailable"
+            ],
+            credentialRecoveryToken: token
+        )
+    }
+
+    private func postRequestFailure(
+        _ request: PandoraRequest,
+        errorMessage: String?,
+        error: Error?,
+        pandoraCode: Int?,
+        credentialRecoveryToken: PandoraCredentialRecoveryToken? = nil
+    ) {
+        var info: [String: Any] = ["request": request]
+        info["err"] = errorMessage ?? "Unknown error"
+
+        if let error {
+            let nsError = error as NSError
+            if nsError.code != 0 {
+                info["nsErrorCode"] = nsError.code
+            }
+        } else if let pandoraCode {
+            info["code"] = pandoraCode
+        }
+
+        postNotification(
+            "PandoraDidErrorNotification",
+            object: self,
+            userInfo: info,
+            authenticationGeneration: credentialRecoveryToken == nil
+                ? request.authenticationGeneration
+                : nil,
+            credentialRecoveryToken: credentialRecoveryToken
+        )
     }
     
     // MARK: - Search

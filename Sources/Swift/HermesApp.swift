@@ -7,91 +7,18 @@
 
 import SwiftUI
 
-private enum TestStateIsolationPrecondition {
-    private static let expectedHome = "/tmp/HermesTests"
-
-    static func enforceIfNeeded() {
-        guard isRunningTests else { return }
-
-        let environment = ProcessInfo.processInfo.environment
-        precondition(environment["TMPDIR"] == "/tmp", "Hermes tests require TMPDIR=/tmp")
-        precondition(environment["HOME"] == expectedHome, "Hermes tests require HOME=\(expectedHome)")
-        precondition(
-            environment["CFFIXED_USER_HOME"] == expectedHome,
-            "Hermes tests require CFFIXED_USER_HOME=\(expectedHome)"
-        )
-        precondition(
-            environment["HERMES_EXPECTED_STATE_TEST_HOME"] == expectedHome,
-            "Hermes tests require HERMES_EXPECTED_STATE_TEST_HOME=\(expectedHome)"
-        )
-        precondition(NSHomeDirectory() == expectedHome, "Hermes tests resolved an unsafe home directory")
-
-        let temporaryDirectory = URL(fileURLWithPath: "/tmp")
-            .standardizedFileURL
-            .resolvingSymlinksInPath()
-        let resolvedHome = URL(fileURLWithPath: expectedHome)
-            .standardizedFileURL
-            .resolvingSymlinksInPath()
-        precondition(
-            isDescendant(resolvedHome, of: temporaryDirectory),
-            "Hermes tests resolved a home directory outside /tmp"
-        )
-
-        let resolvedStateDirectory = URL(
-            fileURLWithPath: NSString(
-                string: "~/Library/Application Support/Hermes/"
-            ).expandingTildeInPath
-        )
-        .standardizedFileURL
-        .resolvingSymlinksInPath()
-        let expectedStateDirectory = resolvedHome
-            .appendingPathComponent("Library/Application Support/Hermes")
-            .standardizedFileURL
-            .resolvingSymlinksInPath()
-
-        precondition(
-            resolvedStateDirectory == expectedStateDirectory,
-            "Hermes tests resolved an unsafe state directory"
-        )
-        precondition(
-            isDescendant(resolvedStateDirectory, of: resolvedHome)
-                && isDescendant(resolvedStateDirectory, of: temporaryDirectory),
-            "Hermes tests resolved state outside the isolated home"
-        )
-    }
-
-    private static var isRunningTests: Bool {
-        let environment = ProcessInfo.processInfo.environment
-        let arguments = ProcessInfo.processInfo.arguments
-
-        return environment["XCTestConfigurationFilePath"] != nil
-            || environment["XCTestSessionIdentifier"] != nil
-            || NSClassFromString("XCTest") != nil
-            || NSClassFromString("XCTestCase") != nil
-            || arguments.contains(where: {
-                $0.contains("XCTest") || $0.contains(".xctest")
-            })
-    }
-
-    private static func isDescendant(_ child: URL, of parent: URL) -> Bool {
-        let childComponents = child.pathComponents
-        let parentComponents = parent.pathComponents
-
-        return childComponents.count > parentComponents.count
-            && childComponents.prefix(parentComponents.count).elementsEqual(parentComponents)
-    }
-}
-
 @main
 struct HermesApp: App {
     // MARK: - Properties
     
-    @State private var appState: AppState = {
-        TestStateIsolationPrecondition.enforceIfNeeded()
-        return AppState.shared
-    }()
+    @State private var appState: AppState
     @NSApplicationDelegateAdaptor(MinimalAppDelegate.self) var appDelegate
     @State private var showingNewStation = false
+
+    init() {
+        TestProcessIsolationGuard.enforceBeforeAppStateInitialization()
+        _appState = State(initialValue: AppState.shared)
+    }
     
     // MARK: - Body
     
@@ -230,5 +157,104 @@ struct HermesApp: App {
             StatusBarIcon(playerViewModel: appState.playerViewModel)
         }
         .menuBarExtraStyle(.window)
+    }
+}
+
+enum TestProcessIsolationGuard {
+    struct ValidationSnapshot: Equatable {
+        let rootPath: String
+        let homePath: String
+        let statePath: String
+    }
+
+    private(set) static var validatedAtAppEntry = false
+
+    static var appEntryValidationSnapshot: ValidationSnapshot? {
+        guard validatedAtAppEntry else {
+            return nil
+        }
+        return validation
+    }
+
+    static func enforceBeforeAppStateInitialization() {
+        _ = validation
+        if TestProcessDetection.isRunningTests {
+            validatedAtAppEntry = true
+        }
+    }
+
+    private static let validation: ValidationSnapshot? = {
+        guard TestProcessDetection.isRunningTests else {
+            return nil
+        }
+
+        let environment = ProcessInfo.processInfo.environment
+        guard let rootPath = environment["HERMES_TEST_ROOT"],
+              let canonicalTmpPath = environment["HERMES_TEST_CANONICAL_TMP"],
+              let expectedHomePath = environment["HERMES_TEST_HOME"],
+              let expectedStatePath = environment["HERMES_TEST_STATE_PATH"] else {
+            fatalError("HERMES_TEST_HOST_ISOLATION_ABORT missing guarded test environment")
+        }
+
+        let rootURL = canonicalURL(rootPath)
+        let canonicalTmpURL = canonicalURL(canonicalTmpPath)
+        let expectedHomeURL = canonicalURL(expectedHomePath)
+        let expectedStateURL = canonicalURL(expectedStatePath)
+        let nsHomeURL = canonicalURL(NSHomeDirectory())
+        let fileManagerHomeURL = FileManager.default.homeDirectoryForCurrentUser
+            .resolvingSymlinksInPath()
+            .standardizedFileURL
+        let statePath = ("~/Library/Application Support/Hermes" as NSString).expandingTildeInPath
+        let stateURL = canonicalURL(statePath)
+
+        guard rootURL.path.hasPrefix(canonicalTmpURL.path + "/hermes-tests."),
+              isDescendant(rootURL, of: canonicalTmpURL),
+              nsHomeURL == expectedHomeURL,
+              fileManagerHomeURL == expectedHomeURL,
+              stateURL == expectedStateURL,
+              isDescendant(expectedHomeURL, of: rootURL),
+              isDescendant(stateURL, of: rootURL) else {
+            fatalError(
+                "HERMES_TEST_HOST_ISOLATION_ABORT root=\(rootURL.path) " +
+                "nsHome=\(nsHomeURL.path) fileManagerHome=\(fileManagerHomeURL.path) " +
+                "state=\(stateURL.path)"
+            )
+        }
+
+        print(
+            "HERMES_TEST_HOST_ISOLATION_OK " +
+            "root=\(rootURL.path) home=\(nsHomeURL.path) state=\(stateURL.path)"
+        )
+        let snapshot = ValidationSnapshot(
+            rootPath: rootURL.path,
+            homePath: nsHomeURL.path,
+            statePath: stateURL.path
+        )
+        let proofURL = rootURL.appendingPathComponent("host-entry-isolation.txt")
+        do {
+            try proofText(for: snapshot).write(to: proofURL, atomically: true, encoding: .utf8)
+        } catch {
+            fatalError("HERMES_TEST_HOST_ISOLATION_ABORT unable to write proof: \(error)")
+        }
+        return snapshot
+    }()
+
+    private static func canonicalURL(_ path: String) -> URL {
+        URL(fileURLWithPath: path)
+            .resolvingSymlinksInPath()
+            .standardizedFileURL
+    }
+
+    private static func isDescendant(_ candidate: URL, of root: URL) -> Bool {
+        candidate.path.hasPrefix(root.path + "/")
+    }
+
+    private static func proofText(for snapshot: ValidationSnapshot) -> String {
+        """
+        phase=HermesApp.init before AppState.shared
+        root=\(snapshot.rootPath)
+        home=\(snapshot.homePath)
+        state=\(snapshot.statePath)
+        """
     }
 }

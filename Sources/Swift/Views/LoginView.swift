@@ -11,6 +11,15 @@ struct LoginView: View {
     // MARK: - Properties
     
     @Bindable var viewModel: LoginViewModel
+    let onRetrySavedCredentials: () -> Void
+
+    init(
+        viewModel: LoginViewModel,
+        onRetrySavedCredentials: @escaping () -> Void = {}
+    ) {
+        self.viewModel = viewModel
+        self.onRetrySavedCredentials = onRetrySavedCredentials
+    }
     
     // MARK: - Body
     
@@ -45,6 +54,28 @@ struct LoginView: View {
                     Text(errorMessage)
                         .foregroundColor(.red)
                         .font(.caption)
+                }
+
+                if let message = viewModel.credentialAvailabilityMessage {
+                    VStack(spacing: 8) {
+                        Text(message)
+                            .foregroundColor(.orange)
+                            .font(.caption)
+                            .multilineTextAlignment(.center)
+
+                        Button("Retry Saved Credentials") {
+                            onRetrySavedCredentials()
+                        }
+                    }
+                    .frame(width: 300)
+                }
+
+                if let message = viewModel.credentialPersistenceErrorMessage {
+                    Text(message)
+                        .foregroundColor(.orange)
+                        .font(.caption)
+                        .multilineTextAlignment(.center)
+                        .frame(width: 300)
                 }
                 
                 Button("Sign In") {

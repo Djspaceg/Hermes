@@ -220,6 +220,7 @@ struct ModernGroupBoxStyle: GroupBoxStyle {
 
 struct PlaybackPreferencesView: View {
     @ObservedObject private var settings = SettingsManager.shared
+    @ObservedObject private var lastFMService = LastFMService.shared
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -274,6 +275,27 @@ struct PlaybackPreferencesView: View {
                             .padding(.leading, 20)
                     }
                     .disabled(!settings.enableScrobbling)
+
+                    if lastFMService.credentialAvailability == .temporarilyUnavailable {
+                        HStack {
+                            Text("The saved Last.fm session is temporarily unavailable.")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                            Button("Retry") {
+                                lastFMService.retryCredentialRestoration()
+                            }
+                        }
+                    } else if case .failed(let message) = lastFMService.credentialAvailability {
+                        Text(message)
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
+
+                    if let message = lastFMService.credentialPersistenceError {
+                        Text("Hermes could not save the Last.fm session: \(message)")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
                 }
             }
             .groupBoxStyle(ModernGroupBoxStyle())

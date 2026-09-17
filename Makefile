@@ -259,10 +259,55 @@ upload-release: SCHEME = 'Upload Hermes Release'
 upload-release: hermes
 
 test:
-	$(XCB) $(COMMON_OPTS) -scheme Hermes test
+	@active_pids="$$(pgrep -x xcodebuild 2>/dev/null; pgrep -x Hermes 2>/dev/null)"; \
+	if [ -n "$$active_pids" ]; then \
+		echo "error: refusing to start a full suite while xcodebuild or Hermes is already running" >&2; \
+		for pid in $$active_pids; do \
+			executable=$$(/usr/bin/proc_pidpath "$$pid" 2>/dev/null || /bin/ps -ww -p "$$pid" -o command=); \
+			/bin/ps -ww -p "$$pid" -o pid=,ppid=,etime=,command= >&2; \
+			echo "executable=$$executable" >&2; \
+		done; \
+		exit 1; \
+	fi; \
+	test_root="$${HERMES_TEST_ROOT_OVERRIDE:-}"; \
+	remove_test_root=no; \
+	if [ -z "$$test_root" ]; then \
+		test_root=$$(mktemp -d /tmp/hermes-tests.XXXXXX); \
+		remove_test_root=yes; \
+	else \
+		mkdir -p "$$test_root"; \
+	fi; \
+	test_root=$$(cd "$$test_root" && pwd -P); \
+	canonical_tmp=$$(cd /tmp && pwd -P); \
+	case "$$test_root" in \
+		"$$canonical_tmp"/hermes-tests.*) ;; \
+		*) \
+			echo "error: refusing to run tests outside the task's /tmp root: $$test_root" >&2; \
+			exit 1; \
+			;; \
+	esac; \
+	test_home="$$test_root/home"; \
+	test_state="$$test_home/Library/Application Support/Hermes"; \
+	test_tmp="$$test_root/tmp"; \
+	mkdir -p "$$test_state" "$$test_tmp"; \
+	env \
+		CFFIXED_USER_HOME="$$test_home" \
+		TMPDIR="$$test_tmp" \
+		TEST_RUNNER_CFFIXED_USER_HOME="$$test_home" \
+		TEST_RUNNER_HERMES_TEST_ROOT="$$test_root" \
+		TEST_RUNNER_HERMES_TEST_CANONICAL_TMP="$$canonical_tmp" \
+		TEST_RUNNER_HERMES_TEST_HOME="$$test_home" \
+		TEST_RUNNER_HERMES_TEST_STATE_PATH="$$test_state" \
+		TEST_RUNNER_TMPDIR="$$test_tmp" \
+		TEST_RUNNER_HERMES_UX_EVIDENCE_PATH="$${HERMES_UX_EVIDENCE_PATH:-}" \
+		$(XCB) $(COMMON_OPTS) -scheme Hermes test; \
+	test_status=$$?; \
+	if [ "$$remove_test_root" = yes ] && [ "$${HERMES_TEST_KEEP_ROOT:-0}" != 1 ]; then \
+		rm -rf "$$test_root"; \
+	fi; \
+	exit "$$test_status"
 
-test-verbose:
-	$(XCB) $(COMMON_OPTS) -scheme Hermes test | xcpretty
+test-verbose: test
 
 clean:
 	$(XCB) $(COMMON_OPTS) -scheme $(SCHEME) clean

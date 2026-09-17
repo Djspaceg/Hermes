@@ -8,6 +8,7 @@
 
 import Foundation
 import AppKit
+import Combine
 import CryptoSwift
 
 // MARK: - Scrobble State
@@ -19,6 +20,14 @@ enum ScrobbleState {
     case finalStatus
 }
 
+enum LastFMCredentialAvailability: Equatable {
+    case checking
+    case available
+    case absent
+    case temporarilyUnavailable
+    case failed(String)
+}
+
 // MARK: - Last.fm Service
 
 /// Modern Last.fm API client with async/await
@@ -27,7 +36,7 @@ final class LastFMService: ObservableObject {
     
     // MARK: - Singleton
     
-    static let shared = LastFMService()
+    static let shared = LastFMService(credentialStore: KeychainManager.shared)
     
     // MARK: - Constants
     
@@ -41,29 +50,66 @@ final class LastFMService: ObservableObject {
     private var sessionToken: String?
     private var requestToken: String?
     private var inAuthorization = false
+    private let credentialStore: any CredentialStore
+    @Published private(set) var credentialAvailability: LastFMCredentialAvailability = .checking
+    @Published private(set) var credentialPersistenceError: String?
+    private var credentialRestorationGeneration: UInt64 = 0
+
+    var canAutomaticallyAuthorizeMissingSession: Bool {
+        credentialAvailability == .absent
+    }
     
     // MARK: - Initialization
     
-    private init() {
-        // Skip keychain access during tests
-        guard !Self.isRunningTests else {
-            setupNotificationObservers()
-            return
-        }
-        
-        // Load session token from keychain
-        sessionToken = KeychainManager.objcShared.getPassword(keychainItem)
-        if sessionToken?.isEmpty == true {
-            sessionToken = nil
-        }
-        
-        // Setup notification observers
+    init(credentialStore: any CredentialStore) {
+        self.credentialStore = credentialStore
         setupNotificationObservers()
+        credentialRestorationGeneration &+= 1
+        let generation = credentialRestorationGeneration
+        Task {
+            await restoreSessionToken(generation: generation)
+        }
     }
-    
-    private static var isRunningTests: Bool {
-        ProcessInfo.processInfo.environment["XCTestSessionIdentifier"] != nil ||
-        NSClassFromString("XCTest") != nil
+
+    private func restoreSessionToken(generation: UInt64) async {
+        do {
+            let result = try await credentialStore.retrievePassword(username: keychainItem)
+            guard credentialRestorationGeneration == generation else {
+                return
+            }
+            switch result {
+            case .found(let token) where !token.isEmpty:
+                sessionToken = token
+                credentialAvailability = .available
+            case .found:
+                sessionToken = nil
+                credentialAvailability = .failed(
+                    CredentialStoreError.decodingError.localizedDescription
+                )
+            case .absent:
+                sessionToken = nil
+                credentialAvailability = .absent
+            case .temporarilyUnavailable:
+                sessionToken = nil
+                credentialAvailability = .temporarilyUnavailable
+            }
+        } catch {
+            guard credentialRestorationGeneration == generation else {
+                return
+            }
+            credentialAvailability = .failed(error.localizedDescription)
+            print("LastFMService: Failed to restore session token: \(error)")
+        }
+    }
+
+    func retryCredentialRestoration() {
+        credentialRestorationGeneration &+= 1
+        let generation = credentialRestorationGeneration
+        credentialAvailability = .checking
+        credentialPersistenceError = nil
+        Task {
+            await restoreSessionToken(generation: generation)
+        }
     }
     
     // MARK: - Notification Observers
@@ -130,6 +176,9 @@ final class LastFMService: ObservableObject {
         
         // Ensure we have a session token
         guard let sessionToken = sessionToken else {
+            guard canAutomaticallyAuthorizeMissingSession else {
+                return
+            }
             await fetchSessionToken()
             return
         }
@@ -166,6 +215,9 @@ final class LastFMService: ObservableObject {
         guard settings.enableScrobbling && settings.scrobbleLikes else { return }
         
         guard let sessionToken = sessionToken else {
+            guard canAutomaticallyAuthorizeMissingSession else {
+                return
+            }
             await fetchRequestToken()
             return
         }
@@ -211,18 +263,44 @@ final class LastFMService: ObservableObject {
             
             if let session = response["session"] as? [String: Any],
                let key = session["key"] as? String {
-                sessionToken = key
-                _ = KeychainManager.objcShared.setItem(keychainItem, password: key)
+                let generation = adoptSessionToken(key)
+                await persistSessionToken(key, generation: generation)
             } else if let errorCode = response["error"] as? Int {
+                invalidateCredentialRestoration()
+                sessionToken = nil
+                credentialAvailability = .absent
                 if errorCode == 14 { // Unauthorized token
                     await fetchRequestToken()
                 } else if let message = response["message"] as? String {
                     await showError(message)
                 }
-                sessionToken = nil
             }
         } catch {
             print("LastFMService: Failed to fetch session token: \(error)")
+        }
+    }
+
+    func persistSessionToken(_ token: String) async {
+        let generation = adoptSessionToken(token)
+        await persistSessionToken(token, generation: generation)
+    }
+
+    private func persistSessionToken(_ token: String, generation: UInt64) async {
+        do {
+            try await credentialStore.saveCredentials(username: keychainItem, password: token)
+            guard credentialRestorationGeneration == generation,
+                  sessionToken == token else {
+                return
+            }
+            credentialPersistenceError = nil
+            credentialAvailability = .available
+        } catch {
+            guard credentialRestorationGeneration == generation,
+                  sessionToken == token else {
+                return
+            }
+            credentialPersistenceError = error.localizedDescription
+            print("LastFMService: Failed to save session token: \(error)")
         }
     }
     
@@ -324,13 +402,27 @@ final class LastFMService: ObservableObject {
         // Check for Last.fm errors
         if let errorCode = json["error"] as? Int {
             if errorCode == 9 { // Invalid session key
+                invalidateCredentialRestoration()
                 sessionToken = nil
+                credentialAvailability = .absent
                 await fetchRequestToken()
             }
             throw LastFMError.apiError(code: errorCode, message: json["message"] as? String ?? "Unknown error")
         }
         
         return json
+    }
+
+    private func invalidateCredentialRestoration() {
+        credentialRestorationGeneration &+= 1
+    }
+
+    private func adoptSessionToken(_ token: String) -> UInt64 {
+        invalidateCredentialRestoration()
+        sessionToken = token
+        credentialAvailability = .available
+        credentialPersistenceError = nil
+        return credentialRestorationGeneration
     }
     
     // MARK: - Helper Methods

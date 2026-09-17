@@ -6,254 +6,53 @@
 //
 
 import Foundation
+import LocalAuthentication
 import Security
 
-// MARK: - Keychain Protocol
-
-/// Protocol for keychain operations - allows mocking in tests
-protocol KeychainProtocol {
-    func saveCredentials(username: String, password: String) throws
-    func retrievePassword(username: String) throws -> String?
-    func deleteCredentials(username: String) throws
-    func deleteAllCredentials() throws
-    func hasCredentials(username: String) -> Bool
-}
-
-/// Modern keychain manager for secure credential storage
-@objc(KeychainManager)
-@objcMembers
-final class KeychainManager: NSObject, KeychainProtocol {
-    
-    // MARK: - Singleton
-    
-    /// Detects if we're running in a test environment
-    /// Checks multiple indicators since hosted tests launch the app before test harness is fully configured
-    private static var isRunningTests: Bool {
-        // Check environment variables (set by test harness)
-        let hasTestEnvVars = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil ||
-                            ProcessInfo.processInfo.environment["XCTestSessionIdentifier"] != nil
-        
-        // Check if XCTest framework is loaded (works for hosted tests)
-        let hasXCTestClass = NSClassFromString("XCTest") != nil ||
-                            NSClassFromString("XCTestCase") != nil
-        
-        // Check command line arguments for test indicators
-        let args = ProcessInfo.processInfo.arguments
-        let hasTestArgs = args.contains { arg in
-            arg.contains("xctest") || 
-            arg.contains("XCTest") ||
-            arg.hasSuffix(".xctest")
-        }
-        
-        return hasTestEnvVars || hasXCTestClass || hasTestArgs
-    }
-    
-    static let shared: KeychainProtocol = {
-        if isRunningTests {
-            print("KeychainManager: Using MockKeychainManager for tests")
-            return MockKeychainManager()
-        }
-        print("KeychainManager: Using real KeychainManager for production")
-        return KeychainManager()
-    }()
-    
-    /// Shared instance for Objective-C access - also respects test mode
-    @objc static var objcShared: KeychainManager {
-        if isRunningTests {
-            // Return a no-op instance that won't touch the real keychain
-            return _mockObjcInstance
-        }
-        return _realObjcInstance
-    }
-    
-    private static let _realObjcInstance = KeychainManager()
-    private static let _mockObjcInstance: KeychainManager = {
-        let instance = KeychainManager()
-        instance._isMock = true
-        return instance
-    }()
-    
-    private var _isMock = false
-    
-    private override init() {
-        super.init()
-    }
-    
-    // MARK: - Constants
-    
-    private let service = "org.hermesapp.Hermes"
-    
-    // MARK: - Public API
-    
-    /// Save credentials to keychain
-    func saveCredentials(username: String, password: String) throws {
-        guard !username.isEmpty, !password.isEmpty else {
-            throw KeychainError.invalidInput
-        }
-        
-        guard let passwordData = password.data(using: .utf8) else {
-            throw KeychainError.encodingError
-        }
-        
-        // Delete any existing item first
-        try? deleteCredentials(username: username)
-        
-        // Create query for new item
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: username,
-            kSecValueData as String: passwordData,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
-            kSecAttrSynchronizable as String: false // Don't sync to iCloud
-        ]
-        
-        let status = SecItemAdd(query as CFDictionary, nil)
-        
-        guard status == errSecSuccess else {
-            throw KeychainError.unhandledError(status: status)
-        }
-        
-        print("KeychainManager: Saved credentials for user: \(username)")
-    }
-    
-    /// Retrieve password for username from keychain
-    func retrievePassword(username: String) throws -> String? {
-        guard !username.isEmpty else {
-            throw KeychainError.invalidInput
-        }
-        
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: username,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
-        
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        
-        // Item not found is not an error - just return nil
-        if status == errSecItemNotFound {
-            print("KeychainManager: No password found for user: \(username)")
-            return nil
-        }
-        
-        guard status == errSecSuccess else {
-            throw KeychainError.unhandledError(status: status)
-        }
-        
-        guard let data = result as? Data,
-              let password = String(data: data, encoding: .utf8) else {
-            throw KeychainError.decodingError
-        }
-        
-        print("KeychainManager: Retrieved password for user: \(username)")
-        return password
-    }
-    
-    /// Delete credentials from keychain
-    func deleteCredentials(username: String) throws {
-        guard !username.isEmpty else {
-            throw KeychainError.invalidInput
-        }
-        
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: username
-        ]
-        
-        let status = SecItemDelete(query as CFDictionary)
-        
-        // Item not found is not an error when deleting
-        guard status == errSecSuccess || status == errSecItemNotFound else {
-            throw KeychainError.unhandledError(status: status)
-        }
-        
-        print("KeychainManager: Deleted credentials for user: \(username)")
-    }
-    
-    /// Delete all Hermes credentials from keychain
-    func deleteAllCredentials() throws {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service
-        ]
-        
-        let status = SecItemDelete(query as CFDictionary)
-        
-        // Item not found is not an error when deleting
-        guard status == errSecSuccess || status == errSecItemNotFound else {
-            throw KeychainError.unhandledError(status: status)
-        }
-        
-        print("KeychainManager: Deleted all credentials")
-    }
-    
-    /// Check if credentials exist for username
-    func hasCredentials(username: String) -> Bool {
-        guard !username.isEmpty else { return false }
-        
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: username,
-            kSecReturnData as String: false,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
-        
-        let status = SecItemCopyMatching(query as CFDictionary, nil)
-        return status == errSecSuccess
-    }
-    
-    // MARK: - Objective-C Compatibility
-    
-    /// Save credentials to keychain (Objective-C compatible)
-    /// - Parameters:
-    ///   - username: The account name
-    ///   - password: The password to store
-    /// - Returns: YES if successful, NO otherwise
-    @objc func setItem(_ username: String, password: String) -> Bool {
-        if _isMock {
-            print("MockKeychainManager (objc): Skipping save for user: \(username)")
-            return true
-        }
-        do {
-            try saveCredentials(username: username, password: password)
-            return true
-        } catch {
-            print("KeychainManager: Failed to save credentials: \(error)")
-            return false
-        }
-    }
-    
-    /// Retrieve password from keychain (Objective-C compatible)
-    /// - Parameter username: The account name
-    /// - Returns: The password if found, nil otherwise
-    @objc func getPassword(_ username: String) -> String? {
-        if _isMock {
-            print("MockKeychainManager (objc): Returning nil for user: \(username)")
-            return nil
-        }
-        do {
-            return try retrievePassword(username: username)
-        } catch {
-            print("KeychainManager: Failed to retrieve password: \(error)")
-            return nil
-        }
+enum TestProcessDetection {
+    static var isRunningTests: Bool {
+        let environment = ProcessInfo.processInfo.environment
+        let hasGuardedTestEnvironment = environment["HERMES_TEST_ROOT"] != nil ||
+            environment["HERMES_TEST_CANONICAL_TMP"] != nil ||
+            environment["HERMES_TEST_HOME"] != nil ||
+            environment["HERMES_TEST_STATE_PATH"] != nil
+        let containsTestBundle = Bundle.main.builtInPlugInsURL
+            .map { $0.appendingPathComponent("HermesTests.xctest") }
+            .map { FileManager.default.fileExists(atPath: $0.path) } ?? false
+        return environment["XCTestConfigurationFilePath"] != nil ||
+            environment["XCTestSessionIdentifier"] != nil ||
+            environment["XCTestBundlePath"] != nil ||
+            hasGuardedTestEnvironment ||
+            containsTestBundle ||
+            NSClassFromString("XCTest") != nil ||
+            NSClassFromString("XCTestCase") != nil ||
+            ProcessInfo.processInfo.arguments.contains { argument in
+                argument.contains("xctest") ||
+                    argument.contains("XCTest") ||
+                    argument.hasSuffix(".xctest")
+            }
     }
 }
 
-// MARK: - Keychain Error
+enum CredentialLookupResult: Equatable, Sendable {
+    case found(String)
+    case absent
+    case temporarilyUnavailable
+}
 
-enum KeychainError: LocalizedError {
+enum CredentialExistence: Equatable, Sendable {
+    case present
+    case absent
+    case temporarilyUnavailable
+}
+
+enum CredentialStoreError: Error, LocalizedError, Sendable {
     case invalidInput
     case encodingError
     case decodingError
-    case unhandledError(status: OSStatus)
-    
+    case temporarilyUnavailable
+    case unhandledStatus(OSStatus)
+
     var errorDescription: String? {
         switch self {
         case .invalidInput:
@@ -262,7 +61,9 @@ enum KeychainError: LocalizedError {
             return "Failed to encode password"
         case .decodingError:
             return "Failed to decode password"
-        case .unhandledError(let status):
+        case .temporarilyUnavailable:
+            return "Saved credentials are temporarily unavailable"
+        case .unhandledStatus(let status):
             if let message = SecCopyErrorMessageString(status, nil) as String? {
                 return "Keychain error: \(message)"
             }
@@ -271,46 +72,239 @@ enum KeychainError: LocalizedError {
     }
 }
 
+protocol CredentialStore: Sendable {
+    func saveCredentials(username: String, password: String) async throws
+    func retrievePassword(username: String) async throws -> CredentialLookupResult
+    func deleteCredentials(username: String) async throws
+    func deleteAllCredentials() async throws
+    func credentialStatus(username: String) async throws -> CredentialExistence
+}
 
-// MARK: - Mock Keychain Manager (for testing)
+final class KeychainManager: CredentialStore, @unchecked Sendable {
+    static let shared: any CredentialStore = {
+        if TestProcessDetection.isRunningTests {
+            return MockKeychainManager()
+        }
+        return KeychainManager()
+    }()
 
-/// Mock keychain manager that stores credentials in memory during tests
-final class MockKeychainManager: KeychainProtocol {
-    
+    private let service = "org.hermesapp.Hermes"
+    private let securityQueue = DispatchQueue(label: "org.hermesapp.Hermes.credentials")
+
+    func saveCredentials(username: String, password: String) async throws {
+        try await performSecurityOperation {
+            guard !username.isEmpty, !password.isEmpty else {
+                throw CredentialStoreError.invalidInput
+            }
+            guard let passwordData = password.data(using: .utf8) else {
+                throw CredentialStoreError.encodingError
+            }
+
+            let context = Self.noninteractiveContext()
+            let matchQuery: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: self.service,
+                kSecAttrAccount as String: username,
+                kSecUseAuthenticationContext as String: context
+            ]
+            let updateAttributes: [String: Any] = [
+                kSecValueData as String: passwordData
+            ]
+            let updateStatus = SecItemUpdate(
+                matchQuery as CFDictionary,
+                updateAttributes as CFDictionary
+            )
+            if updateStatus == errSecSuccess {
+                return
+            }
+            if updateStatus != errSecItemNotFound {
+                try Self.throwIfMutationFailed(updateStatus)
+            }
+
+            let addQuery: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: self.service,
+                kSecAttrAccount as String: username,
+                kSecValueData as String: passwordData,
+                kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
+                kSecAttrSynchronizable as String: false
+            ]
+            let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
+            try Self.throwIfMutationFailed(addStatus)
+        }
+    }
+
+    func retrievePassword(username: String) async throws -> CredentialLookupResult {
+        try await performSecurityOperation {
+            guard !username.isEmpty else {
+                throw CredentialStoreError.invalidInput
+            }
+
+            let context = Self.noninteractiveContext()
+            let query: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: self.service,
+                kSecAttrAccount as String: username,
+                kSecReturnData as String: true,
+                kSecMatchLimit as String: kSecMatchLimitOne,
+                kSecUseAuthenticationContext as String: context
+            ]
+            var result: AnyObject?
+            let status = SecItemCopyMatching(query as CFDictionary, &result)
+            return try Self.lookupResult(status: status, result: result)
+        }
+    }
+
+    func deleteCredentials(username: String) async throws {
+        try await performSecurityOperation {
+            guard !username.isEmpty else {
+                throw CredentialStoreError.invalidInput
+            }
+            try self.deleteCredentialsSynchronously(username: username)
+        }
+    }
+
+    func deleteAllCredentials() async throws {
+        try await performSecurityOperation {
+            let context = Self.noninteractiveContext()
+            let query: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: self.service,
+                kSecUseAuthenticationContext as String: context
+            ]
+            let status = SecItemDelete(query as CFDictionary)
+            try Self.throwIfMutationFailed(status)
+        }
+    }
+
+    func credentialStatus(username: String) async throws -> CredentialExistence {
+        try await performSecurityOperation {
+            guard !username.isEmpty else {
+                throw CredentialStoreError.invalidInput
+            }
+
+            let context = Self.noninteractiveContext()
+            let query: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: self.service,
+                kSecAttrAccount as String: username,
+                kSecReturnData as String: false,
+                kSecMatchLimit as String: kSecMatchLimitOne,
+                kSecUseAuthenticationContext as String: context
+            ]
+            let status = SecItemCopyMatching(query as CFDictionary, nil)
+            switch status {
+            case errSecSuccess:
+                return .present
+            case errSecItemNotFound:
+                return .absent
+            case errSecInteractionNotAllowed, errSecInteractionRequired, errSecDataNotAvailable,
+                 errSecNotAvailable:
+                return .temporarilyUnavailable
+            default:
+                throw CredentialStoreError.unhandledStatus(status)
+            }
+        }
+    }
+
+    static func lookupResult(status: OSStatus, result: AnyObject?) throws -> CredentialLookupResult {
+        switch status {
+        case errSecItemNotFound:
+            return .absent
+        case errSecInteractionNotAllowed, errSecInteractionRequired, errSecDataNotAvailable,
+             errSecNotAvailable:
+            return .temporarilyUnavailable
+        case errSecSuccess:
+            guard let data = result as? Data,
+                  let password = String(data: data, encoding: .utf8) else {
+                throw CredentialStoreError.decodingError
+            }
+            return .found(password)
+        default:
+            throw CredentialStoreError.unhandledStatus(status)
+        }
+    }
+
+    private func deleteCredentialsSynchronously(username: String) throws {
+        let context = Self.noninteractiveContext()
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: username,
+            kSecUseAuthenticationContext as String: context
+        ]
+        let status = SecItemDelete(query as CFDictionary)
+        try Self.throwIfMutationFailed(status)
+    }
+
+    private static func noninteractiveContext() -> LAContext {
+        let context = LAContext()
+        context.interactionNotAllowed = true
+        return context
+    }
+
+    private static func throwIfMutationFailed(_ status: OSStatus) throws {
+        switch status {
+        case errSecSuccess, errSecItemNotFound:
+            return
+        case errSecInteractionNotAllowed, errSecInteractionRequired, errSecDataNotAvailable,
+             errSecNotAvailable:
+            throw CredentialStoreError.temporarilyUnavailable
+        default:
+            throw CredentialStoreError.unhandledStatus(status)
+        }
+    }
+
+    private func performSecurityOperation<T>(
+        _ operation: @escaping () throws -> T
+    ) async throws -> T {
+        try await withCheckedThrowingContinuation { continuation in
+            securityQueue.async {
+                do {
+                    continuation.resume(returning: try operation())
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+}
+
+actor MockKeychainManager: CredentialStore {
     private var storage: [String: String] = [:]
-    
-    func saveCredentials(username: String, password: String) throws {
+
+    func saveCredentials(username: String, password: String) async throws {
         guard !username.isEmpty, !password.isEmpty else {
-            throw KeychainError.invalidInput
+            throw CredentialStoreError.invalidInput
         }
         storage[username] = password
-        print("MockKeychainManager: Saved credentials for user: \(username)")
     }
-    
-    func retrievePassword(username: String) throws -> String? {
+
+    func retrievePassword(username: String) async throws -> CredentialLookupResult {
         guard !username.isEmpty else {
-            throw KeychainError.invalidInput
+            throw CredentialStoreError.invalidInput
         }
-        let password = storage[username]
-        print("MockKeychainManager: Retrieved password for user: \(username) - found: \(password != nil)")
-        return password
+        guard let password = storage[username] else {
+            return .absent
+        }
+        return .found(password)
     }
-    
-    func deleteCredentials(username: String) throws {
+
+    func deleteCredentials(username: String) async throws {
         guard !username.isEmpty else {
-            throw KeychainError.invalidInput
+            throw CredentialStoreError.invalidInput
         }
         storage.removeValue(forKey: username)
-        print("MockKeychainManager: Deleted credentials for user: \(username)")
     }
-    
-    func deleteAllCredentials() throws {
+
+    func deleteAllCredentials() async throws {
         storage.removeAll()
-        print("MockKeychainManager: Deleted all credentials")
     }
-    
-    func hasCredentials(username: String) -> Bool {
-        guard !username.isEmpty else { return false }
-        return storage[username] != nil
+
+    func credentialStatus(username: String) async throws -> CredentialExistence {
+        guard !username.isEmpty else {
+            throw CredentialStoreError.invalidInput
+        }
+        return storage[username] == nil ? .absent : .present
     }
 }

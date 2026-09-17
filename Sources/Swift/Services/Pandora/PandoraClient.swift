@@ -13,6 +13,11 @@
 
 import Foundation
 
+struct PandoraCredentialRecoveryToken: Sendable {
+    let recoveryGeneration: UInt64
+    let authenticationGeneration: UInt64
+}
+
 // MARK: - PandoraClient
 
 /// Modern Swift implementation of Pandora API client
@@ -44,25 +49,202 @@ final class PandoraClient: NSObject, PandoraProtocol {
     internal var retries: Int = 0
     
     internal let httpClient: HTTPClient
+    @nonobjc internal let credentialStore: any CredentialStore
+    @nonobjc internal let userDefaults: UserDefaults
+    @nonobjc private let credentialRecoveryLock = NSLock()
+    @nonobjc private var credentialRecoveryGeneration: UInt64 = 0
+    @nonobjc private var authenticationGeneration: UInt64 = 0
+    @nonobjc private var manualAuthenticationGeneration: UInt64?
     
     // MARK: - Initialization
     
     override init() {
         self.httpClient = HTTPClient()
+        self.credentialStore = KeychainManager.shared
+        self.userDefaults = Self.defaultUserDefaults
         super.init()
-        self.device = PandoraDevice.android.toDictionary()
+        device = PandoraDevice.android.toDictionary()
     }
     
-    init(httpClient: HTTPClient) {
+    init(
+        httpClient: HTTPClient,
+        credentialStore: (any CredentialStore)? = nil,
+        userDefaults: UserDefaults? = nil
+    ) {
         self.httpClient = httpClient
+        self.credentialStore = credentialStore ?? KeychainManager.shared
+        self.userDefaults = userDefaults ?? Self.defaultUserDefaults
         super.init()
-        self.device = PandoraDevice.android.toDictionary()
+        device = PandoraDevice.android.toDictionary()
+    }
+
+    init(
+        credentialStore: any CredentialStore,
+        userDefaults: UserDefaults
+    ) {
+        self.httpClient = HTTPClient()
+        self.credentialStore = credentialStore
+        self.userDefaults = userDefaults
+        super.init()
+        device = PandoraDevice.android.toDictionary()
+    }
+
+    private static var defaultUserDefaults: UserDefaults {
+        if TestProcessDetection.isRunningTests {
+            return UserDefaults(suiteName: "com.hermes.tests.pandora.\(UUID().uuidString)")!
+        }
+        return .standard
+    }
+
+    @nonobjc
+    internal func beginAutomaticCredentialRecovery() -> PandoraCredentialRecoveryToken? {
+        credentialRecoveryLock.lock()
+        defer { credentialRecoveryLock.unlock() }
+        guard manualAuthenticationGeneration == nil else {
+            return nil
+        }
+        credentialRecoveryGeneration &+= 1
+        return PandoraCredentialRecoveryToken(
+            recoveryGeneration: credentialRecoveryGeneration,
+            authenticationGeneration: authenticationGeneration
+        )
+    }
+
+    @nonobjc
+    internal func beginManualCredentialAuthentication() -> UInt64 {
+        credentialRecoveryLock.lock()
+        defer { credentialRecoveryLock.unlock() }
+        credentialRecoveryGeneration &+= 1
+        authenticationGeneration &+= 1
+        manualAuthenticationGeneration = authenticationGeneration
+        return authenticationGeneration
+    }
+
+    @nonobjc
+    internal func beginAutomaticCredentialAuthentication(
+        token: PandoraCredentialRecoveryToken
+    ) -> UInt64? {
+        credentialRecoveryLock.lock()
+        defer { credentialRecoveryLock.unlock() }
+        guard manualAuthenticationGeneration == nil,
+              credentialRecoveryGeneration == token.recoveryGeneration,
+              authenticationGeneration == token.authenticationGeneration else {
+            return nil
+        }
+        authenticationGeneration &+= 1
+        return authenticationGeneration
+    }
+
+    @nonobjc
+    internal func isCredentialRecoveryTokenCurrent(
+        _ token: PandoraCredentialRecoveryToken
+    ) -> Bool {
+        credentialRecoveryLock.lock()
+        defer { credentialRecoveryLock.unlock() }
+        return manualAuthenticationGeneration == nil &&
+            credentialRecoveryGeneration == token.recoveryGeneration &&
+            authenticationGeneration == token.authenticationGeneration
+    }
+
+    @nonobjc
+    internal func isAuthenticationGenerationCurrent(_ generation: UInt64) -> Bool {
+        credentialRecoveryLock.lock()
+        defer { credentialRecoveryLock.unlock() }
+        return authenticationGeneration == generation
+    }
+
+    @nonobjc
+    internal func currentAuthenticationGeneration() -> UInt64 {
+        credentialRecoveryLock.lock()
+        defer { credentialRecoveryLock.unlock() }
+        return authenticationGeneration
+    }
+
+    @nonobjc
+    internal func performIfAuthenticationGenerationCurrent(
+        _ generation: UInt64,
+        operation: () -> Void
+    ) -> Bool {
+        credentialRecoveryLock.lock()
+        defer { credentialRecoveryLock.unlock() }
+        guard authenticationGeneration == generation else {
+            return false
+        }
+        operation()
+        return true
+    }
+
+    @nonobjc
+    internal func completeCredentialAuthenticationIfCurrent(_ generation: UInt64) -> Bool {
+        credentialRecoveryLock.lock()
+        defer { credentialRecoveryLock.unlock() }
+        guard authenticationGeneration == generation else {
+            return false
+        }
+        if manualAuthenticationGeneration == generation {
+            manualAuthenticationGeneration = nil
+        }
+        return true
+    }
+
+    @nonobjc
+    internal func finishCredentialAuthentication(_ generation: UInt64) {
+        credentialRecoveryLock.lock()
+        defer { credentialRecoveryLock.unlock() }
+        if manualAuthenticationGeneration == generation {
+            manualAuthenticationGeneration = nil
+        }
+    }
+
+    @nonobjc
+    internal func invalidateAutomaticCredentialRecovery(_ operation: () -> Void = {}) {
+        credentialRecoveryLock.lock()
+        defer { credentialRecoveryLock.unlock() }
+        credentialRecoveryGeneration &+= 1
+        authenticationGeneration &+= 1
+        manualAuthenticationGeneration = nil
+        operation()
+    }
+
+    @nonobjc
+    internal func invalidateAuthenticationIfCurrent(
+        _ generation: UInt64,
+        operation: () -> Void
+    ) -> Bool {
+        credentialRecoveryLock.lock()
+        defer { credentialRecoveryLock.unlock() }
+        guard authenticationGeneration == generation else {
+            return false
+        }
+        credentialRecoveryGeneration &+= 1
+        authenticationGeneration &+= 1
+        manualAuthenticationGeneration = nil
+        operation()
+        return true
     }
     
     // MARK: - Notification Helpers
     
-    internal func postNotification(_ name: String, object: Any? = nil, userInfo: [String: Any]? = nil) {
-        DispatchQueue.main.async {
+    internal func postNotification(
+        _ name: String,
+        object: Any? = nil,
+        userInfo: [String: Any]? = nil,
+        authenticationGeneration: UInt64? = nil,
+        credentialRecoveryToken: PandoraCredentialRecoveryToken? = nil
+    ) {
+        DispatchQueue.main.async { [weak self] in
+            if let authenticationGeneration {
+                guard let self,
+                      self.isAuthenticationGenerationCurrent(authenticationGeneration) else {
+                    return
+                }
+            }
+            if let credentialRecoveryToken {
+                guard let self,
+                      self.isCredentialRecoveryTokenCurrent(credentialRecoveryToken) else {
+                    return
+                }
+            }
             NotificationCenter.default.post(
                 name: Notification.Name(name),
                 object: object,

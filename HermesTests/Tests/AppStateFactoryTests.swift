@@ -6,6 +6,10 @@
 //  **Validates: Requirements 4.2, 4.3, 4.6**
 //
 
+import AppKit
+import Foundation
+import Security
+import SwiftUI
 import Testing
 @testable import Hermes
 
@@ -329,5 +333,671 @@ struct AppStateFactoryTests {
         // Verify each AppState uses its own mock
         #expect(appState1.pandora === mockPandora1, "appState1 should use mockPandora1")
         #expect(appState2.pandora === mockPandora2, "appState2 should use mockPandora2")
+    }
+}
+
+@MainActor
+@Suite("CredentialRestorationTests", .serialized)
+struct CredentialRestorationTests {
+    @Test("Launch construction does not wait for credentials")
+    func launchDoesNotWaitForCredentialRead() async throws {
+        let isolation = try TestIsolation.require()
+        defer { isolation.cleanUp() }
+        isolation.defaults.set("saved@example.com", forKey: UserDefaultsKeys.username)
+        let store = ScriptedCredentialStore(
+            readSteps: [.delayed(.milliseconds(250), .absent)]
+        )
+        let clock = ContinuousClock()
+        var heartbeatRan = false
+        Task { @MainActor in
+            await Task.yield()
+            heartbeatRan = true
+        }
+
+        let start = clock.now
+        let appState = AppState.testRestoringCredentials(
+            pandora: MockPandora(),
+            credentialStore: store,
+            userDefaults: isolation.defaults,
+            deadline: .seconds(2)
+        )
+        let elapsed = start.duration(to: clock.now)
+
+        #expect(elapsed < .milliseconds(100))
+        #expect(appState.currentView == .checking)
+        #expect(appState.credentialRestorationState == .checking)
+        #expect(TestProcessDetection.isRunningTests)
+        #expect(KeychainManager.shared is MockKeychainManager)
+        try await Task.sleep(for: .milliseconds(20))
+        #expect(heartbeatRan)
+    }
+
+    @Test("Credential restoration deadline degrades to login")
+    func deadlineDegradesToTemporarilyUnavailable() async throws {
+        let isolation = try TestIsolation.require()
+        defer { isolation.cleanUp() }
+        isolation.defaults.set("saved@example.com", forKey: UserDefaultsKeys.username)
+        let store = ScriptedCredentialStore(readSteps: [.suspended])
+        let pandora = MockPandora()
+        pandora.authenticateResult = true
+        let appState = AppState.testRestoringCredentials(
+            pandora: pandora,
+            credentialStore: store,
+            userDefaults: isolation.defaults,
+            deadline: .milliseconds(40)
+        )
+
+        try await waitUntil {
+            appState.credentialRestorationState == .temporarilyUnavailable
+        }
+
+        var heartbeatRan = false
+        Task { @MainActor in
+            await Task.yield()
+            heartbeatRan = true
+        }
+        try await Task.sleep(for: .milliseconds(20))
+        #expect(heartbeatRan)
+        #expect(appState.currentView == .login)
+        #expect(appState.loginViewModel.username == "saved@example.com")
+        #expect(appState.loginViewModel.password.isEmpty)
+        #expect(appState.loginViewModel.credentialAvailabilityMessage == "Saved credentials are temporarily unavailable.")
+        #expect(await store.saveCallCount == 0)
+        #expect(await store.deleteCallCount == 0)
+        try writeDegradedLoginScreenshotIfRequested(appState: appState, isolation: isolation)
+        appState.loginViewModel.password = "manual-password"
+        try await appState.loginViewModel.authenticate()
+        await store.resumeSuspendedRead(with: .found("late-password"))
+        try await Task.sleep(for: .milliseconds(40))
+        #expect(appState.loginViewModel.password == "manual-password")
+        #expect(!pandora.didCall(.authenticate(username: "saved@example.com", password: "late-password")))
+    }
+
+    @Test("Absent credentials keep the first-run login form")
+    func absentCredentialsShowFirstRunLogin() async throws {
+        let isolation = try TestIsolation.require()
+        defer { isolation.cleanUp() }
+        let store = ScriptedCredentialStore(readSteps: [])
+        let appState = AppState.testRestoringCredentials(
+            pandora: MockPandora(),
+            credentialStore: store,
+            userDefaults: isolation.defaults,
+            deadline: .milliseconds(40)
+        )
+
+        try await waitUntil {
+            appState.credentialRestorationState == .absent
+        }
+
+        #expect(appState.currentView == .login)
+        #expect(appState.loginViewModel.username.isEmpty)
+        #expect(appState.loginViewModel.password.isEmpty)
+        #expect(appState.loginViewModel.credentialAvailabilityMessage == nil)
+        #expect(await store.readCallCount == 0)
+    }
+
+    @Test("Unavailable credentials preserve restoration data")
+    func unavailableCredentialsPreserveRestorationData() async throws {
+        let isolation = try TestIsolation.require()
+        defer { isolation.cleanUp() }
+        isolation.defaults.set("saved@example.com", forKey: UserDefaultsKeys.username)
+        let store = ScriptedCredentialStore(readSteps: [.result(.temporarilyUnavailable)])
+        let appState = AppState.testRestoringCredentials(
+            pandora: MockPandora(),
+            credentialStore: store,
+            userDefaults: isolation.defaults,
+            deadline: .seconds(1)
+        )
+        try await waitUntil {
+            appState.credentialRestorationState == .temporarilyUnavailable
+        }
+
+        #expect(isolation.defaults.string(forKey: UserDefaultsKeys.username) == "saved@example.com")
+        #expect(appState.loginViewModel.username == "saved@example.com")
+        #expect(appState.loginViewModel.password.isEmpty)
+        #expect(appState.loginViewModel.showsCredentialRetry)
+        #expect(await store.saveCallCount == 0)
+        #expect(await store.deleteCallCount == 0)
+        #expect(try KeychainManager.lookupResult(status: errSecItemNotFound, result: nil) == .absent)
+        #expect(try KeychainManager.lookupResult(status: errSecInteractionNotAllowed, result: nil) == .temporarilyUnavailable)
+        #expect(try KeychainManager.lookupResult(status: errSecInteractionRequired, result: nil) == .temporarilyUnavailable)
+        #expect(try KeychainManager.lookupResult(status: errSecDataNotAvailable, result: nil) == .temporarilyUnavailable)
+        #expect(try KeychainManager.lookupResult(status: errSecNotAvailable, result: nil) == .temporarilyUnavailable)
+    }
+
+    @Test("Retry recovers saved credentials")
+    func retryRestoresCredentialsWithoutWriting() async throws {
+        let isolation = try TestIsolation.require()
+        defer { isolation.cleanUp() }
+        isolation.defaults.set("saved@example.com", forKey: UserDefaultsKeys.username)
+        let store = ScriptedCredentialStore(
+            readSteps: [
+                .result(.temporarilyUnavailable),
+                .result(.found("saved-password"))
+            ]
+        )
+        let pandora = MockPandora()
+        pandora.authenticateResult = true
+        let appState = AppState.testRestoringCredentials(
+            pandora: pandora,
+            credentialStore: store,
+            userDefaults: isolation.defaults,
+            deadline: .seconds(1)
+        )
+        try await waitUntil {
+            appState.credentialRestorationState == .temporarilyUnavailable
+        }
+
+        appState.retrySavedCredentials()
+
+        try await waitUntil {
+            pandora.didCall(.authenticate(username: "saved@example.com", password: "saved-password"))
+        }
+
+        #expect(appState.credentialRestorationState == .restored)
+        #expect(await store.saveCallCount == 0)
+        #expect(await store.deleteCallCount == 0)
+    }
+
+    @Test("Restored credentials are not re-persisted")
+    func restoredCredentialsAreNotRepersisted() async throws {
+        let isolation = try TestIsolation.require()
+        defer { isolation.cleanUp() }
+        isolation.defaults.set("saved@example.com", forKey: UserDefaultsKeys.username)
+        let store = ScriptedCredentialStore(readSteps: [.result(.found("saved-password"))])
+        let pandora = MockPandora()
+        pandora.authenticateResult = true
+        let appState = AppState.testRestoringCredentials(
+            pandora: pandora,
+            credentialStore: store,
+            userDefaults: isolation.defaults,
+            deadline: .seconds(1)
+        )
+
+        try await waitUntil {
+            pandora.didCall(.authenticate(username: "saved@example.com", password: "saved-password"))
+        }
+
+        #expect(appState.credentialRestorationState == .restored)
+        #expect(await store.saveCallCount == 0)
+        #expect(await store.deleteCallCount == 0)
+        #expect(isolation.defaults.string(forKey: UserDefaultsKeys.username) == "saved@example.com")
+    }
+
+    @Test("Manual sign-in persistence is nonblocking")
+    func manualSignInPersistenceIsNonblocking() async throws {
+        let isolation = try TestIsolation.require()
+        defer { isolation.cleanUp() }
+        let store = ScriptedCredentialStore(
+            readSteps: [],
+            saveSteps: [.suspended]
+        )
+        let pandora = MockPandora()
+        pandora.authenticateResult = true
+        let viewModel = LoginViewModel(
+            pandora: pandora,
+            credentialStore: store,
+            userDefaults: isolation.defaults,
+            persistCredentials: true
+        )
+        viewModel.username = "manual@example.com"
+        viewModel.password = "manual-password"
+        var heartbeatRan = false
+
+        try await viewModel.authenticate()
+        #expect(await store.saveCallCount == 0)
+        let persistence = Task { @MainActor in
+            await viewModel.persistPendingManualCredentials()
+        }
+        try await waitUntil {
+            await store.saveCallCount == 1
+        }
+        Task { @MainActor in
+            await Task.yield()
+            heartbeatRan = true
+        }
+        try await Task.sleep(for: .milliseconds(20))
+        #expect(heartbeatRan)
+
+        await store.resumeSuspendedSave(throwing: .temporarilyUnavailable)
+        await persistence.value
+        #expect(viewModel.credentialPersistenceErrorMessage != nil)
+        #expect(isolation.defaults.string(forKey: UserDefaultsKeys.username) == nil)
+
+        isolation.defaults.set("existing@example.com", forKey: UserDefaultsKeys.username)
+        let rejectedStore = ScriptedCredentialStore(readSteps: [])
+        let rejectedPandora = MockPandora()
+        rejectedPandora.authenticateResult = false
+        let rejectedViewModel = LoginViewModel(
+            pandora: rejectedPandora,
+            credentialStore: rejectedStore,
+            userDefaults: isolation.defaults,
+            persistCredentials: true
+        )
+        rejectedViewModel.username = "replacement@example.com"
+        rejectedViewModel.password = "wrong-password"
+        do {
+            try await rejectedViewModel.authenticate()
+            Issue.record("Rejected authentication unexpectedly succeeded")
+        } catch LoginViewModel.LoginError.authenticationFailed {
+        }
+        await rejectedViewModel.persistPendingManualCredentials()
+        #expect(await rejectedStore.saveCallCount == 0)
+        #expect(isolation.defaults.string(forKey: UserDefaultsKeys.username) == "existing@example.com")
+    }
+
+    @Test("Pandora and Last.fm credential call sites stay asynchronous")
+    func serviceCredentialCallSitesStayAsynchronous() async throws {
+        let isolation = try TestIsolation.require()
+        defer { isolation.cleanUp() }
+        isolation.defaults.set("saved@example.com", forKey: UserDefaultsKeys.username)
+        let staleStore = ScriptedCredentialStore(readSteps: [.suspended])
+        let stalePandora = PandoraClient(
+            httpClient: HTTPClient(),
+            credentialStore: staleStore,
+            userDefaults: isolation.defaults
+        )
+        let staleRequest = PandoraRequest()
+        staleRequest.method = "test.stale"
+        var staleRecoveryPostedError = false
+        let observer = NotificationCenter.default.addObserver(
+            forName: Notification.Name("PandoraDidErrorNotification"),
+            object: stalePandora,
+            queue: .main
+        ) { _ in
+            staleRecoveryPostedError = true
+        }
+        defer { NotificationCenter.default.removeObserver(observer) }
+        #expect(stalePandora.sendAuthenticatedRequest(staleRequest))
+        try await waitUntil {
+            await staleStore.readCallCount == 1
+        }
+        let manualGeneration = stalePandora.beginManualCredentialAuthentication()
+        stalePandora.finishCredentialAuthentication(manualGeneration)
+        await staleStore.resumeSuspendedRead(with: .found("stale-password"))
+        let queuedGeneration = stalePandora.beginManualCredentialAuthentication()
+        stalePandora.finishCredentialAuthentication(queuedGeneration)
+        stalePandora.postNotification(
+            "PandoraDidErrorNotification",
+            object: stalePandora,
+            userInfo: ["err": "stale"],
+            authenticationGeneration: queuedGeneration
+        )
+        let newerGeneration = stalePandora.beginManualCredentialAuthentication()
+        stalePandora.finishCredentialAuthentication(newerGeneration)
+        try await Task.sleep(for: .milliseconds(40))
+        #expect(!staleRecoveryPostedError)
+        #expect(stalePandora.userAuthToken == nil)
+
+        let pandoraStore = ScriptedCredentialStore(
+            readSteps: [
+                .delayed(.milliseconds(250), .temporarilyUnavailable),
+                .delayed(.milliseconds(250), .temporarilyUnavailable)
+            ]
+        )
+        let pandora = PandoraClient(
+            httpClient: HTTPClient(),
+            credentialStore: pandoraStore,
+            userDefaults: isolation.defaults
+        )
+        let request = PandoraRequest()
+        request.method = "test.method"
+        let clock = ContinuousClock()
+
+        let requestStart = clock.now
+        #expect(pandora.sendAuthenticatedRequest(request))
+        #expect(requestStart.duration(to: clock.now) < .milliseconds(100))
+        let retry = Task {
+            await pandora.retryRequestAfterAuthenticationFailure(request)
+        }
+
+        let lastFMStore = ScriptedCredentialStore(
+            readSteps: [.delayed(.milliseconds(250), .temporarilyUnavailable)]
+        )
+        let lastFMStart = clock.now
+        let lastFM = LastFMService(credentialStore: lastFMStore)
+        #expect(lastFMStart.duration(to: clock.now) < .milliseconds(100))
+        let lastFMSaveStore = ScriptedCredentialStore(
+            readSteps: [.result(.absent)],
+            saveSteps: [.delayed(.milliseconds(250), .success)]
+        )
+        let lastFMSaver = LastFMService(credentialStore: lastFMSaveStore)
+        let save = Task { @MainActor in
+            await lastFMSaver.persistSessionToken("session-token")
+        }
+
+        var heartbeatRan = false
+        Task { @MainActor in
+            await Task.yield()
+            heartbeatRan = true
+        }
+        try await Task.sleep(for: .milliseconds(20))
+        #expect(heartbeatRan)
+        #expect(await retry.value == false)
+        await save.value
+        #expect(await pandoraStore.readCallCount == 2)
+        #expect(await lastFMStore.readCallCount == 1)
+        #expect(await lastFMSaveStore.saveCallCount == 1)
+        #expect(lastFM.credentialAvailability == .temporarilyUnavailable)
+        #expect(!lastFM.canAutomaticallyAuthorizeMissingSession)
+
+        let lastFMFailureStore = ScriptedCredentialStore(
+            readSteps: [.result(.absent)],
+            saveSteps: [.delayed(.milliseconds(20), .failure(.temporarilyUnavailable))]
+        )
+        let lastFMWithSaveFailure = LastFMService(credentialStore: lastFMFailureStore)
+        await lastFMWithSaveFailure.persistSessionToken("replacement-token")
+        #expect(lastFMWithSaveFailure.credentialPersistenceError != nil)
+
+        let staleLastFMStore = ScriptedCredentialStore(
+            readSteps: [.suspended],
+            saveSteps: [.success]
+        )
+        let staleLastFM = LastFMService(credentialStore: staleLastFMStore)
+        try await waitUntil {
+            await staleLastFMStore.readCallCount == 1
+        }
+        await staleLastFM.persistSessionToken("new-session-token")
+        await staleLastFMStore.resumeSuspendedRead(
+            throwing: .temporarilyUnavailable
+        )
+        try await Task.sleep(for: .milliseconds(20))
+        #expect(staleLastFM.credentialAvailability == .available)
+        #expect(staleLastFM.credentialPersistenceError == nil)
+        #expect(await staleLastFMStore.saveCallCount == 1)
+    }
+
+    private func waitUntil(
+        timeout: Duration = .seconds(1),
+        condition: @escaping @MainActor () -> Bool
+    ) async throws {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: timeout)
+        while !condition() {
+            guard clock.now < deadline else {
+                Issue.record("Timed out waiting for asynchronous state")
+                return
+            }
+            try await Task.sleep(for: .milliseconds(5))
+        }
+    }
+
+    private func waitUntil(
+        timeout: Duration = .seconds(1),
+        condition: @escaping @Sendable () async -> Bool
+    ) async throws {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: timeout)
+        while !(await condition()) {
+            guard clock.now < deadline else {
+                Issue.record("Timed out waiting for asynchronous state")
+                return
+            }
+            try await Task.sleep(for: .milliseconds(5))
+        }
+    }
+
+    private func writeDegradedLoginScreenshotIfRequested(
+        appState: AppState,
+        isolation: TestIsolation
+    ) throws {
+        guard let requestedPath = ProcessInfo.processInfo.environment["HERMES_UX_EVIDENCE_PATH"] else {
+            return
+        }
+        let outputURL = URL(fileURLWithPath: requestedPath).standardizedFileURL
+        guard isolation.contains(outputURL) else {
+            throw TestIsolationError.pathOutsideRoot(outputURL.path)
+        }
+
+        let hostingView = NSHostingView(
+            rootView: LoginView(
+                viewModel: appState.loginViewModel,
+                onRetrySavedCredentials: {}
+            )
+            .frame(width: 520, height: 560)
+        )
+        hostingView.frame = NSRect(x: 0, y: 0, width: 520, height: 560)
+        hostingView.layoutSubtreeIfNeeded()
+        guard let bitmap = hostingView.bitmapImageRepForCachingDisplay(in: hostingView.bounds) else {
+            Issue.record("Unable to allocate screenshot bitmap")
+            return
+        }
+        hostingView.cacheDisplay(in: hostingView.bounds, to: bitmap)
+        guard let png = bitmap.representation(using: .png, properties: [:]) else {
+            Issue.record("Unable to encode screenshot")
+            return
+        }
+        try png.write(to: outputURL)
+    }
+}
+
+private actor ScriptedCredentialStore: CredentialStore {
+    enum ReadStep: Sendable {
+        case result(CredentialLookupResult)
+        case delayed(Duration, CredentialLookupResult)
+        case suspended
+    }
+
+    enum SaveStep: Sendable {
+        case success
+        case delayed(Duration, SaveCompletion)
+        case suspended
+    }
+
+    enum SaveCompletion: Sendable {
+        case success
+        case failure(CredentialStoreError)
+    }
+
+    private var readSteps: [ReadStep]
+    private var saveSteps: [SaveStep]
+    private var suspendedRead: CheckedContinuation<CredentialLookupResult, Error>?
+    private var suspendedSave: CheckedContinuation<Void, Error>?
+    private(set) var readCallCount = 0
+    private(set) var saveCallCount = 0
+    private(set) var deleteCallCount = 0
+
+    init(readSteps: [ReadStep], saveSteps: [SaveStep] = []) {
+        self.readSteps = readSteps
+        self.saveSteps = saveSteps
+    }
+
+    func saveCredentials(username: String, password: String) async throws {
+        saveCallCount += 1
+        guard !saveSteps.isEmpty else {
+            return
+        }
+        switch saveSteps.removeFirst() {
+        case .success:
+            return
+        case .delayed(let duration, let completion):
+            try await Task.sleep(for: duration)
+            try completeSave(completion)
+        case .suspended:
+            try await withCheckedThrowingContinuation { continuation in
+                suspendedSave = continuation
+            }
+        }
+    }
+
+    func retrievePassword(username: String) async throws -> CredentialLookupResult {
+        readCallCount += 1
+        guard !readSteps.isEmpty else {
+            return .absent
+        }
+        switch readSteps.removeFirst() {
+        case .result(let result):
+            return result
+        case .delayed(let duration, let result):
+            try await Task.sleep(for: duration)
+            return result
+        case .suspended:
+            return try await withCheckedThrowingContinuation { continuation in
+                suspendedRead = continuation
+            }
+        }
+    }
+
+    func deleteCredentials(username: String) async throws {
+        deleteCallCount += 1
+    }
+
+    func deleteAllCredentials() async throws {
+        deleteCallCount += 1
+    }
+
+    func credentialStatus(username: String) async throws -> CredentialExistence {
+        .absent
+    }
+
+    func resumeSuspendedRead(with result: CredentialLookupResult) {
+        suspendedRead?.resume(returning: result)
+        suspendedRead = nil
+    }
+
+    func resumeSuspendedRead(throwing error: CredentialStoreError) {
+        suspendedRead?.resume(throwing: error)
+        suspendedRead = nil
+    }
+
+    func resumeSuspendedSave(throwing error: CredentialStoreError? = nil) {
+        if let error {
+            suspendedSave?.resume(throwing: error)
+        } else {
+            suspendedSave?.resume()
+        }
+        suspendedSave = nil
+    }
+
+    private func completeSave(_ completion: SaveCompletion) throws {
+        switch completion {
+        case .success:
+            return
+        case .failure(let error):
+            throw error
+        }
+    }
+}
+
+private struct TestIsolation {
+    let rootURL: URL
+    let homeURL: URL
+    let stateURL: URL
+    let suiteName: String
+    let defaults: UserDefaults
+
+    static func require() throws -> TestIsolation {
+        let environment = ProcessInfo.processInfo.environment
+        guard let rootPath = environment["HERMES_TEST_ROOT"],
+              let canonicalTmpPath = environment["HERMES_TEST_CANONICAL_TMP"],
+              let expectedHomePath = environment["HERMES_TEST_HOME"],
+              let expectedStatePath = environment["HERMES_TEST_STATE_PATH"] else {
+            throw TestIsolationError.missingEnvironment
+        }
+
+        let rootURL = URL(fileURLWithPath: rootPath).resolvingSymlinksInPath().standardizedFileURL
+        let canonicalTmpURL = URL(fileURLWithPath: canonicalTmpPath).resolvingSymlinksInPath().standardizedFileURL
+        let homeURL = URL(fileURLWithPath: NSHomeDirectory()).resolvingSymlinksInPath().standardizedFileURL
+        let expectedHomeURL = URL(fileURLWithPath: expectedHomePath).resolvingSymlinksInPath().standardizedFileURL
+        let statePath = ("~/Library/Application Support/Hermes" as NSString).expandingTildeInPath
+        let stateURL = URL(fileURLWithPath: statePath).resolvingSymlinksInPath().standardizedFileURL
+        let expectedStateURL = URL(fileURLWithPath: expectedStatePath).resolvingSymlinksInPath().standardizedFileURL
+
+        guard rootURL.path.hasPrefix(canonicalTmpURL.path + "/hermes-tests."),
+              Self.isDescendant(rootURL, of: canonicalTmpURL),
+              homeURL == expectedHomeURL,
+              stateURL == expectedStateURL,
+              Self.isDescendant(homeURL, of: rootURL),
+              Self.isDescendant(stateURL, of: rootURL) else {
+            throw TestIsolationError.unsafePaths(
+                root: rootURL.path,
+                home: homeURL.path,
+                state: stateURL.path
+            )
+        }
+        guard let appEntrySnapshot = TestProcessIsolationGuard.appEntryValidationSnapshot else {
+            throw TestIsolationError.hostGuardDidNotRun
+        }
+        guard appEntrySnapshot == TestProcessIsolationGuard.ValidationSnapshot(
+            rootPath: rootURL.path,
+            homePath: homeURL.path,
+            statePath: stateURL.path
+        ) else {
+            throw TestIsolationError.hostGuardMismatch(
+                root: appEntrySnapshot.rootPath,
+                home: appEntrySnapshot.homePath,
+                state: appEntrySnapshot.statePath
+            )
+        }
+        let proofURL = rootURL.appendingPathComponent("host-entry-isolation.txt")
+        let expectedProof = """
+        phase=HermesApp.init before AppState.shared
+        root=\(rootURL.path)
+        home=\(homeURL.path)
+        state=\(stateURL.path)
+        """
+        guard let proof = try? String(contentsOf: proofURL, encoding: .utf8),
+              proof == expectedProof else {
+            throw TestIsolationError.hostProofMissing(proofURL.path)
+        }
+
+        let suiteName = "com.hermes.tests.credentials.\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suiteName) else {
+            throw TestIsolationError.defaultsUnavailable
+        }
+        return TestIsolation(
+            rootURL: rootURL,
+            homeURL: homeURL,
+            stateURL: stateURL,
+            suiteName: suiteName,
+            defaults: defaults
+        )
+    }
+
+    func contains(_ url: URL) -> Bool {
+        if (try? FileManager.default.destinationOfSymbolicLink(atPath: url.path)) != nil {
+            return false
+        }
+        let parentURL = url.deletingLastPathComponent()
+            .resolvingSymlinksInPath()
+            .standardizedFileURL
+        return parentURL == rootURL || Self.isDescendant(parentURL, of: rootURL)
+    }
+
+    func cleanUp() {
+        defaults.removePersistentDomain(forName: suiteName)
+    }
+
+    private static func isDescendant(_ candidate: URL, of root: URL) -> Bool {
+        candidate.path.hasPrefix(root.path + "/")
+    }
+}
+
+private enum TestIsolationError: Error, CustomStringConvertible {
+    case missingEnvironment
+    case unsafePaths(root: String, home: String, state: String)
+    case hostGuardDidNotRun
+    case hostGuardMismatch(root: String, home: String, state: String)
+    case hostProofMissing(String)
+    case defaultsUnavailable
+    case pathOutsideRoot(String)
+
+    var description: String {
+        switch self {
+        case .missingEnvironment:
+            return "Missing guarded Hermes test environment"
+        case .unsafePaths(let root, let home, let state):
+            return "Unsafe Hermes test paths: root=\(root), home=\(home), state=\(state)"
+        case .hostGuardDidNotRun:
+            return "Hosted Hermes app did not validate isolation at app entry"
+        case .hostGuardMismatch(let root, let home, let state):
+            return "Hosted Hermes app validated different paths: root=\(root), home=\(home), state=\(state)"
+        case .hostProofMissing(let path):
+            return "Hosted Hermes app did not write matching entry proof: \(path)"
+        case .defaultsUnavailable:
+            return "Unable to create isolated UserDefaults suite"
+        case .pathOutsideRoot(let path):
+            return "Refusing to write UX evidence outside the guarded test root: \(path)"
+        }
     }
 }

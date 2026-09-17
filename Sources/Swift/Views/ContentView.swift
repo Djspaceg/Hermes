@@ -36,14 +36,31 @@ struct ContentView: View {
     var body: some View {
         Group {
             switch appState.currentView {
+            case .checking:
+                CredentialCheckingView()
             case .login:
-                LoginView(viewModel: appState.loginViewModel)
+                LoginView(
+                    viewModel: appState.loginViewModel,
+                    onRetrySavedCredentials: appState.retrySavedCredentials
+                )
             case .loading:
                 LoadingView()
             case .player:
                 playerView
             case .error(let message):
                 ErrorView(errorMessage: message, onRetry: { appState.retry() })
+            }
+        }
+        .overlay(alignment: .top) {
+            if let message = appState.loginViewModel.credentialPersistenceErrorMessage {
+                Text(message)
+                    .font(.caption)
+                    .multilineTextAlignment(.center)
+                    .padding(10)
+                    .background(.orange.opacity(0.9))
+                    .foregroundColor(.black)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .padding()
             }
         }
         .onAppear {
@@ -159,6 +176,17 @@ private struct LoadingView: View {
             ProgressView()
                 .scaleEffect(1.5)
             Text("Loading...")
+                .foregroundColor(.secondary)
+        }
+    }
+}
+
+private struct CredentialCheckingView: View {
+    var body: some View {
+        VStack(spacing: 20) {
+            ProgressView()
+                .scaleEffect(1.5)
+            Text("Checking saved credentials...")
                 .foregroundColor(.secondary)
         }
     }
