@@ -306,13 +306,45 @@ struct PlaybackControllerStationManagementTests {
 
 @Suite("System Event Resume Ownership", .serialized)
 struct SystemEventResumeOwnershipTests {
+    @MainActor
+    private func makeController(
+        userDefaults: UserDefaults,
+        notificationCenter: NotificationCenter
+    ) -> (PlaybackController, Station) {
+        let controller = PlaybackController(
+            userDefaults: userDefaults,
+            systemEventNotificationSource: LocalSystemEventNotificationSource(
+                center: notificationCenter
+            )
+        )
+        let station = Station()
+        station.name = "System event test station"
+        station.stationId = "system-event-test-station"
+        controller.selectStationForSystemEventTesting(station)
+        controller.setupSystemEventObservers()
+        return (controller, station)
+    }
+
+    private func observePlayAttempts(
+        for station: Station
+    ) -> (ThreadSafeNotificationCount, NSObjectProtocol) {
+        let playAttempts = ThreadSafeNotificationCount()
+        let observer = NotificationCenter.default.addObserver(
+            forName: ASNoSongsLeft,
+            object: station,
+            queue: nil
+        ) { _ in
+            playAttempts.increment()
+        }
+        return (playAttempts, observer)
+    }
+
     @Test("unlock does not play when lock did not pause")
     @MainActor
     func testUnlockDoesNotPlayWhenLockDidNotPause() async throws {
         let suiteName = "com.hermes.tests.system-events.\(UUID().uuidString)"
         let testDefaults = try #require(UserDefaults(suiteName: suiteName))
         let notificationCenter = NotificationCenter()
-        let notificationSource = LocalSystemEventNotificationSource(center: notificationCenter)
 
         testDefaults.set(true, forKey: UserDefaultsKeys.pauseOnScreenLock)
         testDefaults.set(true, forKey: UserDefaultsKeys.playOnScreenUnlock)
@@ -321,24 +353,12 @@ struct SystemEventResumeOwnershipTests {
             testDefaults.removePersistentDomain(forName: suiteName)
         }
 
-        let controller = PlaybackController(
+        let (_, station) = makeController(
             userDefaults: testDefaults,
-            systemEventNotificationSource: notificationSource
+            notificationCenter: notificationCenter
         )
-        let station = Station()
-        station.name = "Selected but not playing"
-        station.stationId = "system-event-test-station"
-        controller.selectStationForSystemEventTesting(station)
-        controller.setupSystemEventObservers()
 
-        let playAttempts = ThreadSafeNotificationCount()
-        let playAttemptObserver = NotificationCenter.default.addObserver(
-            forName: ASNoSongsLeft,
-            object: station,
-            queue: nil
-        ) { _ in
-            playAttempts.increment()
-        }
+        let (playAttempts, playAttemptObserver) = observePlayAttempts(for: station)
 
         defer {
             NotificationCenter.default.removeObserver(playAttemptObserver)
@@ -349,5 +369,173 @@ struct SystemEventResumeOwnershipTests {
         try await Task.sleep(nanoseconds: 100_000_000)
 
         #expect(playAttempts.value() == 0)
+    }
+
+    @Test("screensaver stop clears its ownership flag when resume is disabled")
+    @MainActor
+    func testScreensaverStopClearsOwnershipWhenResumeIsDisabled() throws {
+        let suiteName = "com.hermes.tests.system-events.\(UUID().uuidString)"
+        let testDefaults = try #require(UserDefaults(suiteName: suiteName))
+        let notificationCenter = NotificationCenter()
+
+        testDefaults.set(false, forKey: UserDefaultsKeys.playOnScreensaverStop)
+
+        defer {
+            testDefaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let (controller, station) = makeController(
+            userDefaults: testDefaults,
+            notificationCenter: notificationCenter
+        )
+        let (playAttempts, playAttemptObserver) = observePlayAttempts(for: station)
+
+        defer {
+            NotificationCenter.default.removeObserver(playAttemptObserver)
+        }
+
+        controller.pausedByScreensaver = true
+        notificationCenter.post(name: .screensaverDidStop, object: nil)
+
+        #expect(!controller.pausedByScreensaver)
+
+        testDefaults.set(true, forKey: UserDefaultsKeys.playOnScreensaverStop)
+        notificationCenter.post(name: .screensaverDidStop, object: nil)
+
+        #expect(playAttempts.value() == 0)
+    }
+
+    @Test("enabling screensaver resume after a system pause does not resume")
+    @MainActor
+    func testEnablingScreensaverResumeAfterSystemPauseDoesNotResume() throws {
+        let suiteName = "com.hermes.tests.system-events.\(UUID().uuidString)"
+        let testDefaults = try #require(UserDefaults(suiteName: suiteName))
+        let notificationCenter = NotificationCenter()
+
+        testDefaults.set(false, forKey: UserDefaultsKeys.playOnScreensaverStop)
+
+        defer {
+            testDefaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let (controller, station) = makeController(
+            userDefaults: testDefaults,
+            notificationCenter: notificationCenter
+        )
+        let (playAttempts, playAttemptObserver) = observePlayAttempts(for: station)
+
+        defer {
+            NotificationCenter.default.removeObserver(playAttemptObserver)
+        }
+
+        controller.pausedByScreensaver = true
+        testDefaults.set(true, forKey: UserDefaultsKeys.playOnScreensaverStop)
+        notificationCenter.post(name: .screensaverDidStop, object: nil)
+
+        #expect(!controller.pausedByScreensaver)
+        #expect(playAttempts.value() == 0)
+    }
+
+    @Test("manual play invalidates a screensaver ownership flag")
+    @MainActor
+    func testManualPlayInvalidatesScreensaverOwnership() throws {
+        let suiteName = "com.hermes.tests.system-events.\(UUID().uuidString)"
+        let testDefaults = try #require(UserDefaults(suiteName: suiteName))
+        let notificationCenter = NotificationCenter()
+
+        testDefaults.set(true, forKey: UserDefaultsKeys.playOnScreensaverStop)
+
+        defer {
+            testDefaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let (controller, station) = makeController(
+            userDefaults: testDefaults,
+            notificationCenter: notificationCenter
+        )
+        let (playAttempts, playAttemptObserver) = observePlayAttempts(for: station)
+
+        defer {
+            NotificationCenter.default.removeObserver(playAttemptObserver)
+        }
+
+        controller.pausedByScreensaver = true
+
+        #expect(controller.play())
+        #expect(!controller.pausedByScreensaver)
+        #expect(playAttempts.value() == 1)
+
+        notificationCenter.post(name: .screensaverDidStop, object: nil)
+
+        #expect(playAttempts.value() == 1)
+    }
+
+    @Test("manual stop invalidates a lock ownership flag")
+    @MainActor
+    func testManualStopInvalidatesScreenLockOwnership() throws {
+        let suiteName = "com.hermes.tests.system-events.\(UUID().uuidString)"
+        let testDefaults = try #require(UserDefaults(suiteName: suiteName))
+        let notificationCenter = NotificationCenter()
+
+        testDefaults.set(true, forKey: UserDefaultsKeys.playOnScreenUnlock)
+
+        defer {
+            testDefaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let (controller, station) = makeController(
+            userDefaults: testDefaults,
+            notificationCenter: notificationCenter
+        )
+        let (playAttempts, playAttemptObserver) = observePlayAttempts(for: station)
+
+        defer {
+            NotificationCenter.default.removeObserver(playAttemptObserver)
+        }
+
+        controller.pausedByScreenLock = true
+        controller.stop()
+
+        #expect(!controller.pausedByScreenLock)
+
+        notificationCenter.post(name: .screenIsUnlocked, object: nil)
+
+        #expect(playAttempts.value() == 0)
+    }
+
+    @Test("overlapping screen events resume after both conditions end")
+    @MainActor
+    func testOverlappingScreenEventsResumeAfterBothConditionsEnd() throws {
+        let suiteName = "com.hermes.tests.system-events.\(UUID().uuidString)"
+        let testDefaults = try #require(UserDefaults(suiteName: suiteName))
+        let notificationCenter = NotificationCenter()
+
+        testDefaults.set(true, forKey: UserDefaultsKeys.playOnScreensaverStop)
+        testDefaults.set(true, forKey: UserDefaultsKeys.playOnScreenUnlock)
+
+        defer {
+            testDefaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let (controller, station) = makeController(
+            userDefaults: testDefaults,
+            notificationCenter: notificationCenter
+        )
+        let (playAttempts, playAttemptObserver) = observePlayAttempts(for: station)
+
+        defer {
+            NotificationCenter.default.removeObserver(playAttemptObserver)
+        }
+
+        controller.pausedByScreensaver = true
+        controller.canResumeAfterScreensaverPause = true
+        notificationCenter.post(name: .screenIsLocked, object: nil)
+        notificationCenter.post(name: .screensaverDidStop, object: nil)
+
+        #expect(playAttempts.value() == 0)
+
+        notificationCenter.post(name: .screenIsUnlocked, object: nil)
+
+        #expect(playAttempts.value() == 1)
     }
 }

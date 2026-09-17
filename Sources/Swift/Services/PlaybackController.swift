@@ -32,6 +32,11 @@ import OSLog
 /// ```
 @MainActor
 final class PlaybackController: ObservableObject {
+
+    private enum PlaybackChangeInitiator: Equatable {
+        case manual
+        case systemEvent
+    }
     
     // MARK: - Logger
     
@@ -81,10 +86,10 @@ final class PlaybackController: ObservableObject {
     /// The current song's album art image data
     private(set) var lastImg: NSData?
     
-    /// Whether playback was paused by screensaver
+    /// Whether Hermes paused playback for the current screensaver session
     var pausedByScreensaver: Bool = false
     
-    /// Whether playback was paused by screen lock
+    /// Whether Hermes paused playback for the current screen lock session
     var pausedByScreenLock: Bool = false
     
     /// Media remote command center for system media controls
@@ -110,6 +115,11 @@ final class PlaybackController: ObservableObject {
     private var lastImgSrc: String?
     private var networkRecoveryCancellable: AnyCancellable?
     private var wasPlayingBeforeNetworkLoss: Bool = false
+    private var screensaverIsActive: Bool = false
+    private var screenLockIsActive: Bool = false
+    private var pendingSystemEventResume: Bool = false
+    var canResumeAfterScreensaverPause: Bool = false
+    var canResumeAfterScreenLockPause: Bool = false
     
     // MARK: - Initialization
     
@@ -386,6 +396,8 @@ extension PlaybackController {
     /// playbackController.playStation(nil)
     /// ```
     func playStation(_ station: Station?) {
+        invalidateSystemEventPauseOwnership()
+
         if playing?.stationId == station?.stationId {
             return
         }
@@ -450,6 +462,15 @@ extension PlaybackController {
     /// - Returns: `true` if playback was started, `false` otherwise
     @discardableResult
     func play() -> Bool {
+        play(initiatedBy: .manual)
+    }
+
+    @discardableResult
+    private func play(initiatedBy initiator: PlaybackChangeInitiator) -> Bool {
+        if initiator == .manual {
+            invalidateSystemEventPauseOwnership()
+        }
+
         guard let station = playing, !station.isPlaying() else {
             return false
         }
@@ -466,6 +487,15 @@ extension PlaybackController {
     /// - Returns: `true` if playback was paused, `false` otherwise
     @discardableResult
     func pause() -> Bool {
+        pause(initiatedBy: .manual)
+    }
+
+    @discardableResult
+    private func pause(initiatedBy initiator: PlaybackChangeInitiator) -> Bool {
+        if initiator == .manual {
+            invalidateSystemEventPauseOwnership()
+        }
+
         guard let station = playing, station.isPlaying() else {
             return false
         }
@@ -479,6 +509,14 @@ extension PlaybackController {
     ///
     /// Unlike pause, stop clears the playback state entirely.
     func stop() {
+        stop(initiatedBy: .manual)
+    }
+
+    private func stop(initiatedBy initiator: PlaybackChangeInitiator) {
+        if initiator == .manual {
+            invalidateSystemEventPauseOwnership()
+        }
+
         playing?.stop()
         postStateChange()
     }
@@ -488,12 +526,14 @@ extension PlaybackController {
     /// If the station is paused, it will resume playing.
     /// If the station is playing, it will pause.
     func playpause() {
+        invalidateSystemEventPauseOwnership()
+
         guard let station = playing else { return }
         
         if station.isPaused() {
-            play()
+            play(initiatedBy: .manual)
         } else {
-            pause()
+            pause(initiatedBy: .manual)
         }
     }
     
@@ -501,6 +541,8 @@ extension PlaybackController {
     ///
     /// Cancels any pending artwork downloads for the current song and advances to the next track.
     func next() {
+        invalidateSystemEventPauseOwnership()
+
         if let song = playing?.playingSong, let art = song.art {
             ImageCache.shared.cancel(art)
         }
@@ -756,37 +798,73 @@ extension PlaybackController {
 extension PlaybackController {
     
     @objc private func pauseOnScreensaverStart(_ notification: Notification) {
+        screensaverIsActive = true
+
         guard userDefaults.bool(forKey: UserDefaultsKeys.pauseOnScreensaverStart) else { return }
         
-        if pause() {
+        if pause(initiatedBy: .systemEvent) {
             pausedByScreensaver = true
+            canResumeAfterScreensaverPause = userDefaults.bool(
+                forKey: UserDefaultsKeys.playOnScreensaverStop
+            )
         }
     }
     
     @objc private func playOnScreensaverStop(_ notification: Notification) {
-        guard userDefaults.bool(forKey: UserDefaultsKeys.playOnScreensaverStop) else { return }
-        
-        if pausedByScreensaver {
-            play()
+        screensaverIsActive = false
+
+        if pausedByScreensaver &&
+            canResumeAfterScreensaverPause &&
+            userDefaults.bool(forKey: UserDefaultsKeys.playOnScreensaverStop) {
+            pendingSystemEventResume = true
         }
         pausedByScreensaver = false
+        canResumeAfterScreensaverPause = false
+
+        resumeAfterSystemEventsEnd()
     }
     
     @objc private func pauseOnScreenLock(_ notification: Notification) {
+        screenLockIsActive = true
+
         guard userDefaults.bool(forKey: UserDefaultsKeys.pauseOnScreenLock) else { return }
         
-        if pause() {
+        if pause(initiatedBy: .systemEvent) {
             pausedByScreenLock = true
+            canResumeAfterScreenLockPause = userDefaults.bool(
+                forKey: UserDefaultsKeys.playOnScreenUnlock
+            )
         }
     }
     
     @objc private func playOnScreenUnlock(_ notification: Notification) {
-        guard userDefaults.bool(forKey: UserDefaultsKeys.playOnScreenUnlock) else { return }
-        
-        if pausedByScreenLock {
-            play()
+        screenLockIsActive = false
+
+        if pausedByScreenLock &&
+            canResumeAfterScreenLockPause &&
+            userDefaults.bool(forKey: UserDefaultsKeys.playOnScreenUnlock) {
+            pendingSystemEventResume = true
         }
         pausedByScreenLock = false
+        canResumeAfterScreenLockPause = false
+
+        resumeAfterSystemEventsEnd()
+    }
+
+    private func invalidateSystemEventPauseOwnership() {
+        pausedByScreensaver = false
+        pausedByScreenLock = false
+        pendingSystemEventResume = false
+        canResumeAfterScreensaverPause = false
+        canResumeAfterScreenLockPause = false
+    }
+
+    private func resumeAfterSystemEventsEnd() {
+        guard !screensaverIsActive, !screenLockIsActive else { return }
+        guard pendingSystemEventResume else { return }
+
+        pendingSystemEventResume = false
+        play(initiatedBy: .systemEvent)
     }
 }
 
