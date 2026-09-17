@@ -27,12 +27,12 @@ struct AppStateFactoryTests {
 
         // Verify pandora is a PandoraClient instance
         #expect(appState.pandora is PandoraClient, "production() should create AppState with PandoraClient")
-
-        // Verify view models are initialized
-        #expect((appState.loginViewModel) != nil, "loginViewModel should be initialized")
-        #expect((appState.playerViewModel) != nil, "playerViewModel should be initialized")
-        #expect((appState.stationsViewModel) != nil, "stationsViewModel should be initialized")
-        #expect((appState.historyViewModel) != nil, "historyViewModel should be initialized")
+        #expect(!appState.loginViewModel.isLoading, "loginViewModel should start idle")
+        #expect(appState.loginViewModel.errorMessage == nil, "loginViewModel should start without an error")
+        #expect(appState.playerViewModel.currentSong == nil, "playerViewModel should start without a song")
+        #expect(!appState.playerViewModel.isPlaying, "playerViewModel should start stopped")
+        #expect(appState.stationsViewModel.stations.isEmpty, "stationsViewModel should start without stations")
+        #expect(appState.historyViewModel.historyItems.isEmpty, "historyViewModel should start without history")
     }
 
     /// Test that production() creates AppState with correct initial state
@@ -77,12 +77,12 @@ struct AppStateFactoryTests {
 
         // Verify pandora is the mock instance
         #expect(appState.pandora === mockPandora, "test() should use the provided mock Pandora")
-
-        // Verify view models are initialized
-        #expect((appState.loginViewModel) != nil, "loginViewModel should be initialized")
-        #expect((appState.playerViewModel) != nil, "playerViewModel should be initialized")
-        #expect((appState.stationsViewModel) != nil, "stationsViewModel should be initialized")
-        #expect((appState.historyViewModel) != nil, "historyViewModel should be initialized")
+        #expect(!appState.loginViewModel.isLoading, "loginViewModel should start idle")
+        #expect(appState.loginViewModel.errorMessage == nil, "loginViewModel should start without an error")
+        #expect(appState.playerViewModel.currentSong == nil, "playerViewModel should start without a song")
+        #expect(!appState.playerViewModel.isPlaying, "playerViewModel should start stopped")
+        #expect(appState.stationsViewModel.stations.isEmpty, "stationsViewModel should start without stations")
+        #expect(appState.historyViewModel.historyItems.isEmpty, "historyViewModel should start without history")
     }
 
     /// Test that test() skips credential check
@@ -201,13 +201,8 @@ struct AppStateFactoryTests {
         // Create production AppState
         let appState = AppState.production()
 
-        // Verify LoginViewModel uses the same pandora instance
-        // Note: We can't directly access the private pandora property in LoginViewModel,
-        // but we can verify it's initialized and functional
-        #expect((appState.loginViewModel) != nil, "loginViewModel should be initialized")
-
-        // Verify StationsViewModel uses the same pandora instance
-        #expect((appState.stationsViewModel) != nil, "stationsViewModel should be initialized")
+        #expect(appState.stationsViewModel.pandora === appState.pandora, "stationsViewModel should receive AppState's Pandora client")
+        #expect(appState.loginViewModel.username.isEmpty, "loginViewModel should start with no username")
     }
 
     /// Test that test() injects mock Pandora into view models
@@ -225,12 +220,9 @@ struct AppStateFactoryTests {
         // We don't call authenticate() because that would save to UserDefaults
         // and pollute production data
         #expect(appState.pandora === mockPandora, "AppState should use the injected mock Pandora")
+        #expect(appState.stationsViewModel.pandora === mockPandora, "stationsViewModel should receive the injected mock")
+        #expect(appState.loginViewModel.username.isEmpty, "loginViewModel should start with no username")
 
-        // Verify LoginViewModel was initialized (it receives pandora in init)
-        #expect((appState.loginViewModel) != nil, "LoginViewModel should be initialized")
-
-        // Verify StationsViewModel was initialized
-        #expect((appState.stationsViewModel) != nil, "StationsViewModel should be initialized")
     }
 
     // MARK: - Notification Subscription Tests
@@ -282,9 +274,9 @@ struct AppStateFactoryTests {
         // Create test AppState
         let appState = AppState.test(pandora: mockPandora)
 
-        // Verify AppState was created successfully
-        #expect((appState) != nil, "test() should work with mock configured for failure")
         #expect(appState.pandora === mockPandora, "test() should use the provided mock even when configured for failure")
+        #expect(appState.currentView == .login, "test() should remain at login before authentication")
+        #expect(appState.credentialRestorationState == .absent, "test() should skip credential restoration")
     }
 
     /// Test that test() works with mock that has pre-configured stations
@@ -303,16 +295,16 @@ struct AppStateFactoryTests {
         station2.name = "Test Station 2"
 
         mockPandora.mockStations = [station1, station2]
+        mockPandora.isAuthenticatedValue = true
 
         // Create test AppState
         let appState = AppState.test(pandora: mockPandora)
 
-        // Verify AppState was created successfully
-        #expect((appState) != nil, "test() should work with pre-configured mock stations")
-
         // Verify stations are accessible through pandora
         let stations = mockPandora.stations as? [Station] ?? []
         #expect((stations.count) == (2), "Mock should have 2 pre-configured stations")
+        #expect(appState.stationsViewModel.pandora === mockPandora, "stationsViewModel should receive the pre-configured mock")
+        #expect(appState.stationsViewModel.stations.count == 2, "stationsViewModel should load the pre-configured stations")
     }
 
     /// Test that multiple test instances don't interfere with each other
@@ -334,6 +326,7 @@ struct AppStateFactoryTests {
         #expect(appState1.pandora === mockPandora1, "appState1 should use mockPandora1")
         #expect(appState2.pandora === mockPandora2, "appState2 should use mockPandora2")
     }
+
 }
 
 @MainActor

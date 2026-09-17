@@ -597,6 +597,10 @@ final class NotificationBridgePropertyTests: XCTestCase {
                 receivedError,
                 "Iteration \(iteration): Should not receive error notification on success"
             )
+            XCTAssertNil(
+                errorMessage,
+                "Iteration \(iteration): Should not receive an error message on success"
+            )
             
             authCancellable.cancel()
             errorCancellable.cancel()

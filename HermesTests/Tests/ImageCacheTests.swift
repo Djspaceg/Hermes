@@ -160,6 +160,10 @@ final class ImageCacheTests: XCTestCase {
         // Data URLs may or may not be supported by URLSession
         // This test verifies the cache handles them gracefully
         let result = await imageCache.loadImage(from: dataURL)
+        if let result {
+            XCTAssertGreaterThan(result.size.width, 0, "A loaded image should have a positive width")
+            XCTAssertGreaterThan(result.size.height, 0, "A loaded image should have a positive height")
+        }
         // Result may be nil or valid image depending on URLSession support
         // The important thing is it doesn't crash
     }

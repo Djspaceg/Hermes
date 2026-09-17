@@ -6,6 +6,7 @@
 //
 
 import XCTest
+import Synchronization
 @testable import Hermes
 
 // MARK: - Mock URL Protocol
@@ -124,11 +125,13 @@ final class UpdateCheckerTests: XCTestCase {
         }
 
         let expectation = XCTestExpectation(description: "updateCheckDidComplete posted")
-        var receivedUserInfo: [AnyHashable: Any]?
+        let receivedUpdateAvailable = Mutex<Bool?>(nil)
         let token = NotificationCenter.default.addObserver(
             forName: .updateCheckDidComplete, object: nil, queue: nil
         ) { notification in
-            receivedUserInfo = notification.userInfo
+            receivedUpdateAvailable.withLock {
+                $0 = notification.userInfo?["updateAvailable"] as? Bool
+            }
             expectation.fulfill()
         }
         defer { NotificationCenter.default.removeObserver(token) }
@@ -136,7 +139,7 @@ final class UpdateCheckerTests: XCTestCase {
         await MainActor.run { UpdateChecker.shared.checkForUpdatesNow() }
         await fulfillment(of: [expectation], timeout: 5.0)
 
-        XCTAssertEqual(receivedUserInfo?["updateAvailable"] as? Bool, true)
+        XCTAssertEqual(receivedUpdateAvailable.withLock { $0 }, true)
     }
 
     func testUpdateCheckDidComplete_NoUpdate_Notification() async throws {
@@ -165,11 +168,13 @@ final class UpdateCheckerTests: XCTestCase {
         }
 
         let expectation = XCTestExpectation(description: "updateCheckDidComplete posted")
-        var receivedUserInfo: [AnyHashable: Any]?
+        let receivedUpdateAvailable = Mutex<Bool?>(nil)
         let token = NotificationCenter.default.addObserver(
             forName: .updateCheckDidComplete, object: nil, queue: nil
         ) { notification in
-            receivedUserInfo = notification.userInfo
+            receivedUpdateAvailable.withLock {
+                $0 = notification.userInfo?["updateAvailable"] as? Bool
+            }
             expectation.fulfill()
         }
         defer { NotificationCenter.default.removeObserver(token) }
@@ -177,7 +182,7 @@ final class UpdateCheckerTests: XCTestCase {
         await MainActor.run { UpdateChecker.shared.checkForUpdatesNow() }
         await fulfillment(of: [expectation], timeout: 5.0)
 
-        XCTAssertEqual(receivedUserInfo?["updateAvailable"] as? Bool, false)
+        XCTAssertEqual(receivedUpdateAvailable.withLock { $0 }, false)
     }
 
     func testUpdateCheckDidFail_Notification() async throws {
@@ -188,11 +193,13 @@ final class UpdateCheckerTests: XCTestCase {
         }
 
         let expectation = XCTestExpectation(description: "updateCheckDidFail posted")
-        var receivedUserInfo: [AnyHashable: Any]?
+        let receivedError = Mutex(false)
         let token = NotificationCenter.default.addObserver(
             forName: .updateCheckDidFail, object: nil, queue: nil
         ) { notification in
-            receivedUserInfo = notification.userInfo
+            receivedError.withLock {
+                $0 = notification.userInfo?["error"] != nil
+            }
             expectation.fulfill()
         }
         defer { NotificationCenter.default.removeObserver(token) }
@@ -200,7 +207,7 @@ final class UpdateCheckerTests: XCTestCase {
         await MainActor.run { UpdateChecker.shared.checkForUpdatesNow() }
         await fulfillment(of: [expectation], timeout: 5.0)
 
-        XCTAssertNotNil(receivedUserInfo?["error"])
+        XCTAssertTrue(receivedError.withLock { $0 })
     }
 
     // MARK: - GitHubRelease Decoding

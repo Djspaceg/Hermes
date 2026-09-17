@@ -27,7 +27,7 @@ struct StationsViewModelTests {
     @Test("Initialization Loads Stations")
 
     func testInitialization_LoadsStations() {
-        #expect((sut.stations) != nil, "Stations should be initialized")
+        #expect(sut.stations.isEmpty, "Stations should initialize as an empty list")
         #expect((sut.stations.count) == (0), "Should start with empty stations")
     }
 

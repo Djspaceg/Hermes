@@ -4,13 +4,14 @@ XCB           = xcodebuild
 XCPIPE        =
 CONFIGURATION = Debug
 SCHEME        = Hermes
+DESTINATION   = platform=macOS,arch=$(shell uname -m)
 BUILD_SETTINGS = $(XCB) $(COMMON_OPTS) -configuration $(CONFIGURATION) -scheme $(SCHEME) -showBuildSettings
 HERMES_APP     = $(shell $(BUILD_SETTINGS) 2>/dev/null | sed -n 's/^[[:space:]]*CODESIGNING_FOLDER_PATH = //p' | head -1)
 HERMES         = $(HERMES_APP)/Contents/MacOS/Hermes
 DEBUGGER      = lldb
 
 # Build without custom SYMROOT to avoid SPM issues
-COMMON_OPTS   = -project Hermes.xcodeproj
+COMMON_OPTS   = -project Hermes.xcodeproj -destination "$(DESTINATION)"
 
 all: hermes
 
