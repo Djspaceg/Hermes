@@ -4,7 +4,6 @@ XCB           = xcodebuild
 XCPIPE        =
 CONFIGURATION = Debug
 SCHEME        = Hermes
-DERIVED_DATA  = $(shell xcodebuild -project Hermes.xcodeproj -showBuildSettings 2>/dev/null | grep "BUILD_DIR" | head -1 | sed 's/.*= //' | xargs dirname | xargs dirname)
 BUILD_SETTINGS = $(XCB) $(COMMON_OPTS) -configuration $(CONFIGURATION) -scheme $(SCHEME) -showBuildSettings
 HERMES_APP     = $(shell $(BUILD_SETTINGS) 2>/dev/null | sed -n 's/^[[:space:]]*CODESIGNING_FOLDER_PATH = //p' | head -1)
 HERMES         = $(HERMES_APP)/Contents/MacOS/Hermes
@@ -33,10 +32,16 @@ run: hermes
 dbg: hermes
 	$(DEBUGGER) "$(HERMES)"
 
+install: override CONFIGURATION = Release
 install:
-	$(XCB) $(COMMON_OPTS) -configuration Release -scheme Hermes
-	rm -rf /Applications/Hermes.app
-	cp -a $(DERIVED_DATA)/Build/Products/Release/Hermes.app /Applications/
+	$(XCB) $(COMMON_OPTS) -configuration $(CONFIGURATION) -scheme $(SCHEME)
+	@hermes_app="$(HERMES_APP)"; \
+	if [ ! -d "$$hermes_app" ]; then \
+		echo "error: Hermes app not found at $$hermes_app; refusing to remove /Applications/Hermes.app" >&2; \
+		exit 1; \
+	fi; \
+	rm -rf /Applications/Hermes.app; \
+	cp -a "$$hermes_app" /Applications/
 
 # Create an archive to share (for beta testing purposes).
 archive: CONFIGURATION = Release
