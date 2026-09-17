@@ -247,7 +247,7 @@ The plan follows a phased approach:
 
 ### Phase 3: Complete Modernization (2-3 months)
 
-- [ ] 13. Split AudioStreamer.swift (currently 1,305 lines)
+- [ ] 13. Split AudioStreamer.swift (currently 1,281 lines)
   - Reconciled 2026-09-17 after merge commit `cfdb46a`: the chosen decomposition is state + buffer/output + decoder + error. `AudioStreamBuffer.swift` contains the planned AudioQueue output layer as well as buffer management, so no separate `AudioStreamOutput.swift` is required. Items 13.2 through 13.5 are complete; items 13.6 and 13.7 and this parent remain open.
   - [x] 13.1 Extract AudioStreamState
     - Create `Sources/Swift/Services/Audio/AudioStreamState.swift`
@@ -274,10 +274,12 @@ The plan follows a phased approach:
     - _Requirements: 7.2_
   
   - [ ] 13.6 Refactor core AudioStreamer
-    - Not complete: `AudioStreamer.swift` remains 1,305 lines; the prior split deliberately stopped after the safe buffer/output and decoder extractions
-    - Keep core streaming engine (~300 lines)
-    - Update to use extracted components
-    - Add MARK comments for organization
+    - Superseded 2026-09-17: the earlier "keep core streaming engine (~300 lines)" target assumed separate state, buffer, decoder, output, and error files. The adopted split is state (103 lines), combined buffer/output (483 lines), decoder (267 lines), and error (235 lines), while `AudioStreamer.swift` remains 1,281 lines; item 13.6 and its parent remain open against the responsibility-based criteria below.
+    - Preserve the extracted ownership boundaries: `AudioStreamBuffer.swift` continues to own the combined AudioQueue buffer/output lifecycle, and `AudioStreamDecoder.swift` continues to own AudioFileStream setup, callbacks, property handling, and packet delivery.
+    - Keep callback context and queue ownership explicit: each C callback recovers its intended context, and crossings onto `streamQueue` or `bufferQueue` remain visible and attributable at the call site.
+    - Document `AudioStreamer` as the coordinator that still owns the public contract, shared mutable state, lifecycle and controls, seeking and progress, state/error teardown, timeout/reconnect policy, and URLSession delegates.
+    - Accept a new component only when it owns the state and behavior it moves behind an explicit boundary and a before/after dependency inventory demonstrates reduced coupling; same-type extension files or other line-only relocation do not satisfy this criterion.
+    - Require live playback evidence tracked by item 13.7 for any ownership change that touches C callbacks, queue boundaries, AudioQueue lifecycle, URLSession delivery, or seeking; compilation and unit tests alone do not complete this item.
     - _Requirements: 7.2, 7.5_
   
   - [ ] 13.7 Verify AudioStreamer tests still pass
@@ -456,7 +458,8 @@ The plan follows a phased approach:
 - [ ] 22. Phase 3 Final Checkpoint
   - Run full test suite and verify all tests pass
   - Verify code coverage meets 90% for Swift code
-  - Verify no files exceed 800 lines - NOT MET as of 2026-09-17: `Sources/Swift/Services/Audio/AudioStreamer.swift` is 1,305 lines and `Sources/Swift/Services/PlaybackController.swift` is 895 lines
+  - Reconciled 2026-09-17: the earlier physical "no files exceed 800 lines" check is a trigger for Requirement 7.1's logical-split evaluation, not sufficient evidence by itself. This checkpoint remains open until every large file is divided into manageable, responsibility-based components as required by Requirement 27.2; same-type extension files or line-only relocation do not satisfy it.
+  - Large-file work remains OPEN: `Sources/Swift/Services/Audio/AudioStreamer.swift` is 1,281 lines and is governed by item 13.6's responsibility-based criteria; `Sources/Swift/Services/PlaybackController.swift` is 895 lines and still requires its own evaluation and any resulting responsibility-reducing split.
   - Verify no compilation warnings
   - Generate DocC documentation
   - Run performance benchmarks
