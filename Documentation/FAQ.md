@@ -7,8 +7,7 @@ Try resetting Hermes to its default state:
 ### Quick Reset
 
 ```bash
-# Quit Hermes
-killall Hermes 2>/dev/null
+# Quit Hermes from its menu or Dock before continuing.
 
 # Remove application data
 rm -rf ~/Library/Application\ Support/Hermes

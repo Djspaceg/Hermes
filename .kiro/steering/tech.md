@@ -64,7 +64,8 @@
 ```bash
 make                    # Build with Debug configuration
 make CONFIGURATION=Release  # Build with Release configuration
-make run                # Build and run (logs to stdout)
+make run                # Build and run (logs to stdout; prints PID and run token)
+make stop PID=<pid> TOKEN=<token>  # Stop only that make run launch
 make dbg                # Build and run in LLDB debugger
 ```
 

@@ -27,7 +27,212 @@ run: hermes
 		echo "error: Hermes executable not found at $$hermes" >&2; \
 		exit 1; \
 	fi; \
-	exec "$$hermes"
+	run_token="$${RUN_TOKEN:-}"; \
+	if [ -z "$$run_token" ]; then \
+		run_token=$$(/usr/bin/uuidgen); \
+	fi; \
+	case "$$run_token" in \
+		????????-????-????-????-????????????) ;; \
+		*) \
+			echo "error: RUN_TOKEN must be a UUID" >&2; \
+			exit 1; \
+			;; \
+	esac; \
+	case "$$run_token" in \
+		*[!0-9A-Fa-f-]*) \
+			echo "error: RUN_TOKEN must be a UUID" >&2; \
+			exit 1; \
+			;; \
+	esac; \
+	pid_file="$${PID_FILE:-}"; \
+	if [ -n "$$pid_file" ]; then \
+		if ! : > "$$pid_file"; then \
+			echo "error: cannot write PID_FILE $$pid_file" >&2; \
+			exit 1; \
+		fi; \
+	fi; \
+	HERMES_RUN_TOKEN="$$run_token" \
+	HERMES_RUN_WORKTREE="$(CURDIR)" \
+	HERMES_RUN_EXECUTABLE="$$hermes" \
+	"$$hermes" & \
+	hermes_pid=$$!; \
+	runner_pid=$$$$; \
+	validated_asn=; \
+	while :; do \
+		child_ppid=$$(/bin/ps -p "$$hermes_pid" -o ppid= 2>/dev/null | /usr/bin/tr -d '[:space:]'); \
+		child_state=$$(/bin/ps -p "$$hermes_pid" -o state= 2>/dev/null | /usr/bin/tr -d '[:space:]'); \
+		case "$$child_state" in \
+			Z*) child_is_running=no ;; \
+			*) child_is_running=yes ;; \
+		esac; \
+		if [ "$$child_ppid" != "$$runner_pid" ] || [ "$$child_is_running" = no ]; then \
+			wait "$$hermes_pid"; \
+			exit $$?; \
+		fi; \
+		candidate_asn=$$(/usr/bin/lsappinfo find pid="$$hermes_pid" 2>/dev/null); \
+		candidate_pid=; \
+		candidate_executable=; \
+		if [ -n "$$candidate_asn" ]; then \
+			candidate_pid=$$(/usr/bin/lsappinfo info -only pid "$$candidate_asn" 2>/dev/null | \
+				sed -n 's/^"pid"=\([0-9][0-9]*\)$$/\1/p'); \
+			candidate_executable=$$(/usr/bin/lsappinfo info -only executablepath "$$candidate_asn" 2>/dev/null | \
+				sed -n 's/^"CFBundleExecutablePath"="\(.*\)"$$/\1/p'); \
+		fi; \
+		actual=$$(/bin/ps -ww -p "$$hermes_pid" -o command= 2>/dev/null); \
+		process_environment=$$(/bin/ps eww -p "$$hermes_pid" -o command= 2>/dev/null); \
+		child_ppid=$$(/bin/ps -p "$$hermes_pid" -o ppid= 2>/dev/null | /usr/bin/tr -d '[:space:]'); \
+		child_state=$$(/bin/ps -p "$$hermes_pid" -o state= 2>/dev/null | /usr/bin/tr -d '[:space:]'); \
+		case "$$process_environment" in \
+			*"HERMES_RUN_TOKEN=$$run_token"*) token_matches=yes ;; \
+			*) token_matches=no ;; \
+		esac; \
+		case "$$process_environment" in \
+			*"HERMES_RUN_WORKTREE=$(CURDIR)"*) worktree_matches=yes ;; \
+			*) worktree_matches=no ;; \
+		esac; \
+		case "$$process_environment" in \
+			*"HERMES_RUN_EXECUTABLE=$$hermes"*) executable_matches=yes ;; \
+			*) executable_matches=no ;; \
+		esac; \
+		case "$$child_state" in \
+			Z*) child_is_running=no ;; \
+			*) child_is_running=yes ;; \
+		esac; \
+		if [ "$$actual" = "$$hermes" ] && \
+			[ "$$token_matches" = yes ] && \
+			[ "$$worktree_matches" = yes ] && \
+			[ "$$executable_matches" = yes ] && \
+			[ "$$child_ppid" = "$$runner_pid" ] && \
+			[ "$$child_is_running" = yes ] && \
+			[ "$$candidate_pid" = "$$hermes_pid" ] && \
+			[ "$$candidate_executable" = "$$hermes" ]; then \
+			validated_asn="$$candidate_asn"; \
+			break; \
+		fi; \
+		sleep 0.1; \
+	done; \
+	if [ -n "$$pid_file" ] && ! printf '%s\n' "$$hermes_pid" > "$$pid_file"; then \
+		/usr/bin/lsappinfo kill "$$validated_asn" 2>/dev/null || true; \
+		wait "$$hermes_pid" 2>/dev/null || true; \
+		echo "error: cannot publish Hermes PID to $$pid_file" >&2; \
+		exit 1; \
+	fi; \
+	echo "Hermes run identity: PID=$$hermes_pid TOKEN=$$run_token" >&2; \
+	wait "$$hermes_pid"
+
+stop:
+	@pid="$${PID:-}"; \
+	token="$${TOKEN:-}"; \
+	case "$$pid" in \
+		''|*[!0-9]*) \
+			echo "error: make stop requires a numeric PID=<Hermes run PID>" >&2; \
+			exit 1; \
+			;; \
+	esac; \
+	if [ -z "$$token" ]; then \
+		echo "error: make stop requires TOKEN=<Hermes run token>" >&2; \
+		exit 1; \
+	fi; \
+	case "$$token" in \
+		????????-????-????-????-????????????) ;; \
+		*) \
+			echo "error: TOKEN must be the UUID printed by make run" >&2; \
+			exit 1; \
+			;; \
+	esac; \
+	case "$$token" in \
+		*[!0-9A-Fa-f-]*) \
+			echo "error: TOKEN must be the UUID printed by make run" >&2; \
+			exit 1; \
+			;; \
+	esac; \
+	actual=$$(/bin/ps -ww -p "$$pid" -o command= 2>/dev/null); \
+	case "$$actual" in \
+		*/Hermes.app/Contents/MacOS/Hermes) ;; \
+		*) \
+			echo "error: refusing to stop PID $$pid; found $${actual:-no running process}" >&2; \
+			exit 1; \
+			;; \
+	esac; \
+	process_environment=$$(/bin/ps eww -p "$$pid" -o command= 2>/dev/null); \
+	case "$$process_environment" in \
+		*"HERMES_RUN_TOKEN=$$token"*) ;; \
+		*) \
+			echo "error: refusing to stop PID $$pid; run token does not match" >&2; \
+			exit 1; \
+			;; \
+	esac; \
+	case "$$process_environment" in \
+		*"HERMES_RUN_WORKTREE=$(CURDIR)"*) ;; \
+		*) \
+			echo "error: refusing to stop PID $$pid; launch belongs to another worktree" >&2; \
+			exit 1; \
+			;; \
+	esac; \
+	case "$$process_environment" in \
+		*"HERMES_RUN_EXECUTABLE=$$actual"*) ;; \
+		*) \
+			echo "error: refusing to stop PID $$pid; executable does not match launch metadata" >&2; \
+			exit 1; \
+			;; \
+	esac; \
+	asn=$$(/usr/bin/lsappinfo find pid="$$pid" 2>/dev/null); \
+	if [ -z "$$asn" ]; then \
+		echo "error: refusing to stop PID $$pid; no LaunchServices identity found" >&2; \
+		exit 1; \
+	fi; \
+	asn_pid=$$(/usr/bin/lsappinfo info -only pid "$$asn" 2>/dev/null | \
+		sed -n 's/^"pid"=\([0-9][0-9]*\)$$/\1/p'); \
+	asn_executable=$$(/usr/bin/lsappinfo info -only executablepath "$$asn" 2>/dev/null | \
+		sed -n 's/^"CFBundleExecutablePath"="\(.*\)"$$/\1/p'); \
+	if [ "$$asn_pid" != "$$pid" ] || [ "$$asn_executable" != "$$actual" ]; then \
+		echo "error: refusing to stop PID $$pid; LaunchServices identity does not match" >&2; \
+		exit 1; \
+	fi; \
+	actual=$$(/bin/ps -ww -p "$$pid" -o command= 2>/dev/null); \
+	process_environment=$$(/bin/ps eww -p "$$pid" -o command= 2>/dev/null); \
+	case "$$process_environment" in \
+		*"HERMES_RUN_TOKEN=$$token"*) ;; \
+		*) \
+			echo "error: refusing to stop PID $$pid; process changed before shutdown" >&2; \
+			exit 1; \
+			;; \
+	esac; \
+	case "$$process_environment" in \
+		*"HERMES_RUN_WORKTREE=$(CURDIR)"*"HERMES_RUN_EXECUTABLE=$$actual"*|\
+		*"HERMES_RUN_EXECUTABLE=$$actual"*"HERMES_RUN_WORKTREE=$(CURDIR)"*) ;; \
+		*) \
+			echo "error: refusing to stop PID $$pid; process changed before shutdown" >&2; \
+			exit 1; \
+			;; \
+	esac; \
+	if [ "$$actual" != "$$asn_executable" ]; then \
+		echo "error: refusing to stop PID $$pid; process changed before shutdown" >&2; \
+		exit 1; \
+	fi; \
+	if ! /usr/bin/lsappinfo kill "$$asn"; then \
+		echo "error: failed to stop Hermes PID $$pid" >&2; \
+		exit 1; \
+	fi; \
+	attempt=0; \
+	while [ "$$attempt" -lt 100 ]; do \
+		if ! asn_info=$$(/usr/bin/lsappinfo info -only pid "$$asn" 2>/dev/null); then \
+			echo "error: failed to query Hermes launch identity after SIGTERM" >&2; \
+			exit 1; \
+		fi; \
+		case "$$asn_info" in \
+			"\"pid\"=$$pid") ;; \
+			*'"pid"=[ NULL ]'*) exit 0 ;; \
+			*) \
+				echo "error: unexpected LaunchServices state after SIGTERM: $$asn_info" >&2; \
+				exit 1; \
+				;; \
+		esac; \
+		attempt=$$((attempt + 1)); \
+		sleep 0.1; \
+	done; \
+	echo "error: Hermes PID $$pid did not exit after SIGTERM" >&2; \
+	exit 1
 
 dbg: hermes
 	$(DEBUGGER) "$(HERMES)"
@@ -63,4 +268,4 @@ clean:
 	$(XCB) $(COMMON_OPTS) -scheme $(SCHEME) clean
 	rm -rf ~/Library/Developer/Xcode/DerivedData/Hermes-*
 
-.PHONY: all hermes travis run dbg archive clean install archive upload-release test test-verbose
+.PHONY: all hermes travis run stop dbg archive clean install archive upload-release test test-verbose
