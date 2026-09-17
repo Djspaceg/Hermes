@@ -291,8 +291,10 @@ test:
 	test_tmp="$$test_root/tmp"; \
 	mkdir -p "$$test_state" "$$test_tmp"; \
 	env \
+		HOME="$$test_home" \
 		CFFIXED_USER_HOME="$$test_home" \
 		TMPDIR="$$test_tmp" \
+		TEST_RUNNER_HOME="$$test_home" \
 		TEST_RUNNER_CFFIXED_USER_HOME="$$test_home" \
 		TEST_RUNNER_HERMES_TEST_ROOT="$$test_root" \
 		TEST_RUNNER_HERMES_TEST_CANONICAL_TMP="$$canonical_tmp" \

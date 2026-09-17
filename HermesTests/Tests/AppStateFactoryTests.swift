@@ -741,7 +741,8 @@ struct CredentialRestorationTests {
         appState: AppState,
         isolation: TestIsolation
     ) throws {
-        guard let requestedPath = ProcessInfo.processInfo.environment["HERMES_UX_EVIDENCE_PATH"] else {
+        guard let requestedPath = ProcessInfo.processInfo.environment["HERMES_UX_EVIDENCE_PATH"],
+              !requestedPath.isEmpty else {
             return
         }
         let outputURL = URL(fileURLWithPath: requestedPath).standardizedFileURL

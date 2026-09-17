@@ -14,8 +14,10 @@ import Darwin
 struct PlaybackStatePersistenceCharacterizationTests {
 
     private struct IsolatedPaths {
+        let rootDirectory: URL
         let stateDirectory: URL
         let archive: URL
+        let lockFile: URL
     }
 
     private struct ArchiveOwnership {
@@ -31,42 +33,51 @@ struct PlaybackStatePersistenceCharacterizationTests {
 
     private func requireIsolatedPaths() throws -> IsolatedPaths {
         let environment = ProcessInfo.processInfo.environment
-        let expectedHomePath = try #require(environment["HERMES_EXPECTED_STATE_TEST_HOME"])
+        let rootPath = try #require(environment["HERMES_TEST_ROOT"])
+        let canonicalTemporaryDirectoryPath = try #require(
+            environment["HERMES_TEST_CANONICAL_TMP"]
+        )
+        let expectedHomePath = try #require(environment["HERMES_TEST_HOME"])
+        let expectedStatePath = try #require(environment["HERMES_TEST_STATE_PATH"])
         let configuredHomePath = try #require(environment["HOME"])
         let fixedHomePath = try #require(environment["CFFIXED_USER_HOME"])
         let configuredTemporaryDirectoryPath = try #require(environment["TMPDIR"])
 
-        try #require(expectedHomePath == "/tmp/HermesTests")
         try #require(configuredHomePath == expectedHomePath)
         try #require(fixedHomePath == expectedHomePath)
-        try #require(configuredTemporaryDirectoryPath == "/tmp")
-        try #require(NSHomeDirectory() == expectedHomePath)
 
+        let rootDirectory = standardizedURL(rootPath)
+        let canonicalTemporaryDirectory = standardizedURL(canonicalTemporaryDirectoryPath)
         let expectedHome = standardizedURL(expectedHomePath)
+        let expectedStateDirectory = standardizedURL(expectedStatePath)
         let configuredHome = standardizedURL(configuredHomePath)
         let fixedHome = standardizedURL(fixedHomePath)
         let effectiveHome = standardizedURL(NSHomeDirectory())
         let configuredTemporaryDirectory = standardizedURL(configuredTemporaryDirectoryPath)
 
+        try #require(
+            rootDirectory.path.hasPrefix(canonicalTemporaryDirectory.path + "/hermes-tests.")
+        )
+        try #require(isDescendant(rootDirectory, of: canonicalTemporaryDirectory))
         try #require(configuredHome == expectedHome)
         try #require(fixedHome == expectedHome)
         try #require(effectiveHome == expectedHome)
-        try #require(isDescendant(expectedHome, of: configuredTemporaryDirectory))
+        try #require(isDescendant(expectedHome, of: rootDirectory))
+        try #require(isDescendant(configuredTemporaryDirectory, of: rootDirectory))
 
         let resolvedStateDirectory = standardizedURL(
             NSString(string: "~/Library/Application Support/Hermes/").expandingTildeInPath
         )
-        let expectedStateDirectory = expectedHome
-            .appendingPathComponent("Library/Application Support/Hermes")
-            .standardizedFileURL
-            .resolvingSymlinksInPath()
 
         try #require(resolvedStateDirectory == expectedStateDirectory)
         try #require(isDescendant(resolvedStateDirectory, of: expectedHome))
+        try #require(isDescendant(resolvedStateDirectory, of: rootDirectory))
 
         return IsolatedPaths(
+            rootDirectory: rootDirectory,
             stateDirectory: resolvedStateDirectory,
-            archive: resolvedStateDirectory.appendingPathComponent("station.savestate")
+            archive: resolvedStateDirectory.appendingPathComponent("station.savestate"),
+            lockFile: rootDirectory.appendingPathComponent("playback-state.lock")
         )
     }
 
@@ -89,7 +100,7 @@ struct PlaybackStatePersistenceCharacterizationTests {
     func currentPersistenceContract() throws {
         let paths = try requireIsolatedPaths()
         let lockFileDescriptor = open(
-            "/tmp/HermesTests.playback-state.lock",
+            paths.lockFile.path,
             O_CREAT | O_RDWR,
             S_IRUSR | S_IWUSR
         )
