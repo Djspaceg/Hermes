@@ -178,6 +178,9 @@ extension PandoraClient {
         guard let song = song else { return false }
         
         NSLog("Removing rating on '\(song.title)'")
+        let title = song.title
+        let artist = song.artist
+        let rating = song.nrating?.intValue ?? 0
         song.nrating = NSNumber(value: 0)
         
         var dict = defaultRequestDictionary()
@@ -191,23 +194,61 @@ extension PandoraClient {
         request.callback = { [weak self] d in
             guard let self = self,
                   let result = d["result"] as? [String: Any],
-                  let feedback = result["feedback"] as? [String: Any] else { return }
-            
-            for thumb in ["thumbsUp", "thumbsDown"] {
-                if let feedbackList = feedback[thumb] as? [[String: Any]] {
-                    for feed in feedbackList {
-                        if let songName = feed["songName"] as? String,
-                           songName == song.title,
-                           let feedbackId = feed["feedbackId"] as? String {
-                            _ = self.deleteFeedback(feedbackId)
-                            break
-                        }
+                  let feedback = result["feedback"] as? [String: Any],
+                  let feedbackId = Self.feedbackIdForRatingDeletion(
+                    in: feedback,
+                    title: title,
+                    artist: artist,
+                    rating: rating,
+                    currentRating: song.nrating?.intValue ?? 0
+                  ) else { return }
+
+            _ = self.deleteFeedback(feedbackId)
+        }
+
+        return sendAuthenticatedRequest(request)
+    }
+
+    internal static func feedbackIdForRatingDeletion(
+        in feedback: [String: Any],
+        title: String,
+        artist: String,
+        rating: Int,
+        currentRating: Int
+    ) -> String? {
+        guard currentRating == 0 else {
+            return nil
+        }
+        let thumb: String
+        switch rating {
+        case 1:
+            thumb = "thumbsUp"
+        case -1:
+            thumb = "thumbsDown"
+        default:
+            return nil
+        }
+        var matchingFeedbackId: String?
+
+        if let feedbackList = feedback[thumb] as? [[String: Any]] {
+            for feed in feedbackList {
+                if let songName = feed["songName"] as? String,
+                   let artistName = feed["artistName"] as? String,
+                   songName == title,
+                   artistName == artist {
+                    guard matchingFeedbackId == nil else {
+                        return nil
                     }
+                    guard let feedbackId = feed["feedbackId"] as? String,
+                          !feedbackId.isEmpty else {
+                        return nil
+                    }
+                    matchingFeedbackId = feedbackId
                 }
             }
         }
-        
-        return sendAuthenticatedRequest(request)
+
+        return matchingFeedbackId
     }
     
     // MARK: - Seed Management

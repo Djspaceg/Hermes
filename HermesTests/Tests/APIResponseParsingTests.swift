@@ -482,6 +482,179 @@ struct APIResponseParsingTests {
             ]
         ]
     }
+
+    @Test("Rating deletion selects only the matching title and artist feedback")
+    func testDeleteRatingFeedbackSelectionRejectsSameTitleDifferentArtist() {
+        let song = Song(artist: "Target Artist", title: "Shared Title", album: "Target Album")
+        song.nrating = NSNumber(value: -1)
+        let feedback: [String: Any] = [
+            "thumbsUp": [
+                [
+                    "feedbackId": "wrong-like",
+                    "songName": "Shared Title",
+                    "artistName": "Different Artist"
+                ]
+            ],
+            "thumbsDown": [
+                [
+                    "feedbackId": "intended-dislike",
+                    "songName": "Shared Title",
+                    "artistName": "Target Artist"
+                ]
+            ]
+        ]
+
+        let feedbackId = PandoraClient.feedbackIdForRatingDeletion(
+            in: feedback,
+            title: song.title,
+            artist: song.artist,
+            rating: song.rating,
+            currentRating: 0
+        )
+
+        #expect(feedbackId == "intended-dislike")
+    }
+
+    @Test("Rating deletion rejects ambiguous title and artist feedback")
+    func testDeleteRatingFeedbackSelectionRejectsAmbiguousTitleAndArtist() {
+        let song = Song(artist: "Target Artist", title: "Shared Title", album: "Target Album")
+        song.nrating = NSNumber(value: 1)
+        let feedback: [String: Any] = [
+            "thumbsUp": [
+                [
+                    "feedbackId": "first-like",
+                    "songName": "Shared Title",
+                    "artistName": "Target Artist"
+                ],
+                [
+                    "feedbackId": "second-like",
+                    "songName": "Shared Title",
+                    "artistName": "Target Artist"
+                ]
+            ]
+        ]
+
+        let feedbackId = PandoraClient.feedbackIdForRatingDeletion(
+            in: feedback,
+            title: song.title,
+            artist: song.artist,
+            rating: song.rating,
+            currentRating: 0
+        )
+
+        #expect(feedbackId == nil)
+    }
+
+    @Test("Rating deletion rejects an unknown local rating")
+    func testDeleteRatingFeedbackSelectionRejectsUnknownRating() {
+        let song = Song(artist: "Target Artist", title: "Shared Title", album: "Target Album")
+        let feedback: [String: Any] = [
+            "thumbsUp": [
+                [
+                    "feedbackId": "matching-like",
+                    "songName": "Shared Title",
+                    "artistName": "Target Artist"
+                ]
+            ]
+        ]
+
+        let feedbackId = PandoraClient.feedbackIdForRatingDeletion(
+            in: feedback,
+            title: song.title,
+            artist: song.artist,
+            rating: song.rating,
+            currentRating: 0
+        )
+
+        #expect(feedbackId == nil)
+    }
+
+    @Test("Rating deletion uses the identifiers captured for the action")
+    func testDeleteRatingFeedbackSelectionUsesCapturedIdentifiers() {
+        let song = Song(artist: "Acted Artist", title: "Acted Title", album: "Target Album")
+        song.nrating = NSNumber(value: 1)
+        let title = song.title
+        let artist = song.artist
+        song.title = "Later Title"
+        song.artist = "Later Artist"
+        let feedback: [String: Any] = [
+            "thumbsUp": [
+                [
+                    "feedbackId": "acted-like",
+                    "songName": "Acted Title",
+                    "artistName": "Acted Artist"
+                ],
+                [
+                    "feedbackId": "later-like",
+                    "songName": "Later Title",
+                    "artistName": "Later Artist"
+                ]
+            ]
+        ]
+
+        let feedbackId = PandoraClient.feedbackIdForRatingDeletion(
+            in: feedback,
+            title: title,
+            artist: artist,
+            rating: song.rating,
+            currentRating: 0
+        )
+
+        #expect(feedbackId == "acted-like")
+    }
+
+    @Test("Rating deletion rejects an empty feedback identifier")
+    func testDeleteRatingFeedbackSelectionRejectsEmptyFeedbackId() {
+        let song = Song(artist: "Target Artist", title: "Shared Title", album: "Target Album")
+        song.nrating = NSNumber(value: 1)
+        let feedback: [String: Any] = [
+            "thumbsUp": [
+                [
+                    "feedbackId": "valid-like",
+                    "songName": "Shared Title",
+                    "artistName": "Target Artist"
+                ],
+                [
+                    "feedbackId": "",
+                    "songName": "Shared Title",
+                    "artistName": "Target Artist"
+                ]
+            ]
+        ]
+
+        let feedbackId = PandoraClient.feedbackIdForRatingDeletion(
+            in: feedback,
+            title: song.title,
+            artist: song.artist,
+            rating: song.rating,
+            currentRating: 0
+        )
+
+        #expect(feedbackId == nil)
+    }
+
+    @Test("Rating deletion cancels when the song is rated again")
+    func testDeleteRatingFeedbackSelectionRejectsReratedSong() {
+        let feedback: [String: Any] = [
+            "thumbsUp": [
+                [
+                    "feedbackId": "matching-like",
+                    "songName": "Target Title",
+                    "artistName": "Target Artist"
+                ]
+            ]
+        ]
+
+        let feedbackId = PandoraClient.feedbackIdForRatingDeletion(
+            in: feedback,
+            title: "Target Title",
+            artist: "Target Artist",
+            rating: 1,
+            currentRating: 1
+        )
+
+        #expect(feedbackId == nil)
+    }
     
     // MARK: - Parsing Helpers
     
