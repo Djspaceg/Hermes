@@ -84,6 +84,13 @@ make test                   # Run unit tests
 make clean                  # Remove build artifacts
 ```
 
+## Build Diagnostics
+
+Until Hermes intentionally adopts App Intents, do not suppress the
+`appintentsmetadataprocessor` metadata warning with
+`-disable-autolink-framework`. That flag changes framework-linkage behavior
+rather than declaring an intended framework dependency.
+
 ## Sparkle Updates
 
 - Public key: `Resources/dsa_pub.pem`
