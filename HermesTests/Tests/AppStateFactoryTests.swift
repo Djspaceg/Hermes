@@ -35,6 +35,30 @@ struct AppStateFactoryTests {
         #expect(appState.historyViewModel.historyItems.isEmpty, "historyViewModel should start without history")
     }
 
+    @Test("Debug host uses an identity-based designated requirement")
+    func debugHostUsesIdentityBasedDesignatedRequirement() throws {
+        let hostBundle = Bundle(for: AppState.self)
+        let hostExecutable = try #require(hostBundle.executableURL)
+        let process = Process()
+        let output = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/codesign")
+        process.arguments = ["-d", "-r-", hostExecutable.path]
+        process.standardOutput = output
+        process.standardError = output
+
+        try process.run()
+        process.waitUntilExit()
+
+        let requirement = String(
+            data: output.fileHandleForReading.readDataToEndOfFile(),
+            encoding: .utf8
+        ) ?? ""
+        #expect(process.terminationStatus == 0)
+        #expect(requirement.contains("designated =>"))
+        #expect(requirement.contains("anchor apple generic"))
+        #expect(!requirement.localizedCaseInsensitiveContains("cdhash"))
+    }
+
     /// Test that production() creates AppState with correct initial state
     /// **Validates: Requirement 4.2**
     @Test("Production Has Correct Initial State")

@@ -18,7 +18,7 @@ all: hermes
 hermes:
 	$(XCB) $(COMMON_OPTS) -configuration $(CONFIGURATION) -scheme $(SCHEME) $(XCPIPE)
 
-travis: COMMON_OPTS += CODE_SIGN_IDENTITY= CODE_SIGNING_REQUIRED=NO
+travis: COMMON_OPTS += CODE_SIGN_IDENTITY= CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
 travis: XCPIPE = | xcpretty -f `xcpretty-travis-formatter`
 travis: hermes
 
@@ -259,6 +259,8 @@ upload-release: CONFIGURATION = Release
 upload-release: SCHEME = 'Upload Hermes Release'
 upload-release: hermes
 
+# Build test products with the login keychain available, then execute them
+# with an isolated temporary home.
 test:
 	@active_pids="$$(pgrep -x xcodebuild 2>/dev/null; pgrep -x Hermes 2>/dev/null)"; \
 	if [ -n "$$active_pids" ]; then \
@@ -290,7 +292,11 @@ test:
 	test_home="$$test_root/home"; \
 	test_state="$$test_home/Library/Application Support/Hermes"; \
 	test_tmp="$$test_root/tmp"; \
+	build_derived_data="$$test_root/DerivedData"; \
 	mkdir -p "$$test_state" "$$test_tmp"; \
+	$(XCB) $(COMMON_OPTS) -scheme Hermes -derivedDataPath "$$build_derived_data" build-for-testing; \
+	build_status=$$?; \
+	if [ "$$build_status" -eq 0 ]; then \
 	env \
 		HOME="$$test_home" \
 		CFFIXED_USER_HOME="$$test_home" \
@@ -303,8 +309,11 @@ test:
 		TEST_RUNNER_HERMES_TEST_STATE_PATH="$$test_state" \
 		TEST_RUNNER_TMPDIR="$$test_tmp" \
 		TEST_RUNNER_HERMES_UX_EVIDENCE_PATH="$${HERMES_UX_EVIDENCE_PATH:-}" \
-		$(XCB) $(COMMON_OPTS) -scheme Hermes test; \
-	test_status=$$?; \
+		$(XCB) $(COMMON_OPTS) -scheme Hermes -derivedDataPath "$$build_derived_data" test-without-building; \
+		test_status=$$?; \
+	else \
+		test_status=$$build_status; \
+	fi; \
 	if [ "$$remove_test_root" = yes ] && [ "$${HERMES_TEST_KEEP_ROOT:-0}" != 1 ]; then \
 		rm -rf "$$test_root"; \
 	fi; \
