@@ -10,6 +10,15 @@ import AppKit
 import Observation
 import Combine
 
+enum SongArchiveDecoding {
+    enum AllowFeedbackRepresentation {
+        case primitiveBool
+        case boxedNumber
+    }
+
+    @TaskLocal static var allowFeedbackRepresentation = AllowFeedbackRepresentation.primitiveBool
+}
+
 /// Represents a Pandora song with metadata and playback information.
 ///
 /// `Song` is the core model for representing music tracks in Hermes. It uses the `@Observable`
@@ -245,7 +254,22 @@ final class Song: NSObject, Identifiable {
         self.titleUrl = coder.decodeObject(of: NSString.self, forKey: "titleUrl") as String?
         self.token = coder.decodeObject(of: NSString.self, forKey: "token") as String?
         self.trackGain = coder.decodeObject(of: NSString.self, forKey: "trackGain") as String?
-        self.allowFeedback = coder.decodeBool(forKey: "allowFeedback")
+        if coder.containsValue(forKey: "allowFeedback") {
+            switch SongArchiveDecoding.allowFeedbackRepresentation {
+            case .primitiveBool:
+                self.allowFeedback = coder.decodeBool(forKey: "allowFeedback")
+            case .boxedNumber:
+                guard let allowFeedback = coder.decodeObject(
+                    of: NSNumber.self,
+                    forKey: "allowFeedback"
+                ) else {
+                    return nil
+                }
+                self.allowFeedback = allowFeedback.boolValue
+            }
+        } else {
+            self.allowFeedback = false
+        }
         self.playDate = coder.decodeObject(of: NSDate.self, forKey: "playDate") as Date?
         super.init()
         setupRatingObserver()

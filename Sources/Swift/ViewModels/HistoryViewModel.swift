@@ -9,6 +9,11 @@ import Foundation
 import AppKit
 import Combine
 import Observation
+import CryptoSwift
+
+private enum HistoryArchiveError: Error {
+    case invalidRootObject
+}
 
 @MainActor
 @Observable
@@ -18,6 +23,10 @@ final class HistoryViewModel {
     
     @ObservationIgnored
     private var cancellables = Set<AnyCancellable>()
+    @ObservationIgnored
+    private let persistenceQueue = DispatchQueue(label: "com.hermes.history.persistence")
+    @ObservationIgnored
+    private var persistenceGeneration = 0
     @ObservationIgnored
     private let maxHistoryItems = 20 // Maximum number of history items to retain
     @ObservationIgnored
@@ -78,43 +87,106 @@ final class HistoryViewModel {
     
     private func loadSavedHistory() {
         guard FileManager.default.fileExists(atPath: saveStatePath) else { return }
-        
-        Task.detached(priority: .utility) {
+
+        let url = URL(fileURLWithPath: saveStatePath)
+        let loadGeneration = persistenceGeneration
+        persistenceQueue.async { [weak self] in
+            let data: Data
+
             do {
-                let url = URL(fileURLWithPath: self.saveStatePath)
-                let data = try Data(contentsOf: url)
-                
-                // Use NSKeyedUnarchiver to read archived Song objects
-                if let songs = try NSKeyedUnarchiver.unarchivedObject(ofClasses: [NSArray.self, Song.self], from: data) as? [Song] {
-                    await MainActor.run {
-                        self.historyItems = songs
+                data = try Data(contentsOf: url)
+            } catch {
+                print("HistoryViewModel: Failed to read saved history; leaving it untouched: \(error)")
+                return
+            }
+
+            do {
+                let songs = try Self.decodeHistory(data)
+                Task { @MainActor [weak self] in
+                    guard let self,
+                          self.persistenceGeneration == loadGeneration else {
+                        return
                     }
+                    self.historyItems = songs
                 }
             } catch {
-                print("HistoryViewModel: Failed to load saved history (likely old format): \(error)")
-                print("HistoryViewModel: Deleting old history file and starting fresh")
-                
-                // Delete the old incompatible history file
-                try? FileManager.default.removeItem(atPath: self.saveStatePath)
+                print("HistoryViewModel: Failed to decode saved history: \(error)")
+                Self.preserveUnreadableHistory(data, nextTo: url)
+            }
+        }
+    }
+
+    private nonisolated static func decodeHistory(_ data: Data) throws -> [Song] {
+        do {
+            return try decodeHistory(
+                data,
+                allowFeedbackRepresentation: .primitiveBool
+            )
+        } catch {
+            return try decodeHistory(
+                data,
+                allowFeedbackRepresentation: .boxedNumber
+            )
+        }
+    }
+
+    private nonisolated static func decodeHistory(
+        _ data: Data,
+        allowFeedbackRepresentation: SongArchiveDecoding.AllowFeedbackRepresentation
+    ) throws -> [Song] {
+        try SongArchiveDecoding.$allowFeedbackRepresentation.withValue(allowFeedbackRepresentation) {
+            guard let songs = try NSKeyedUnarchiver.unarchivedObject(
+                ofClasses: [NSArray.self, Song.self],
+                from: data
+            ) as? [Song] else {
+                throw HistoryArchiveError.invalidRootObject
+            }
+            return songs
+        }
+    }
+
+    private nonisolated static func preserveUnreadableHistory(_ data: Data, nextTo sourceURL: URL) {
+        let directoryURL = sourceURL.deletingLastPathComponent()
+        let prefix = "\(sourceURL.lastPathComponent).unreadable-"
+        let digest = Array(data).sha256().toHexString()
+        let preservedURL = directoryURL.appendingPathComponent("\(prefix)\(digest)")
+
+        do {
+            try data.write(to: preservedURL, options: .withoutOverwriting)
+            print("HistoryViewModel: Preserved unreadable history at \(preservedURL.path)")
+        } catch {
+            if let existingData = try? Data(contentsOf: preservedURL),
+               existingData == data {
+                print("HistoryViewModel: Unreadable history is already preserved")
+            } else {
+                print("HistoryViewModel: Could not preserve unreadable history bytes: \(error)")
             }
         }
     }
     
     func saveHistory() -> Bool {
-        // Song objects are directly archivable via NSSecureCoding
-        let songs = historyItems
+        persistenceGeneration &+= 1
+
+        let data: Data
+        do {
+            data = try NSKeyedArchiver.archivedData(
+                withRootObject: historyItems,
+                requiringSecureCoding: false
+            )
+        } catch {
+            print("HistoryViewModel: Failed to archive history: \(error)")
+            return false
+        }
+
         let path = saveStatePath
-        
-        // Save asynchronously on background thread
-        Task.detached(priority: .utility) {
+        persistenceQueue.async {
             do {
-                let data = try NSKeyedArchiver.archivedData(withRootObject: songs, requiringSecureCoding: false)
-                try data.write(to: URL(fileURLWithPath: path))
+                try data.write(to: URL(fileURLWithPath: path), options: .atomic)
             } catch {
                 print("HistoryViewModel: Failed to save history: \(error)")
             }
         }
-        
+
         return true
     }
     
