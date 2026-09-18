@@ -84,7 +84,7 @@ struct AppStateFactoryTests {
         let settingsLines = projectContents.split(whereSeparator: \.isNewline)
         let nonEmptyTeamAssignments = settingsLines.filter { line in
             guard line.contains("DEVELOPMENT_TEAM"),
-                  let equalsIndex = line.firstIndex(of: "=") else {
+                  let equalsIndex = line.lastIndex(of: "=") else {
                 return false
             }
             let value = line[line.index(after: equalsIndex)...]
@@ -93,7 +93,7 @@ struct AppStateFactoryTests {
         }
         let hardCodedIdentityAssignments = settingsLines.filter { line in
             guard line.contains("CODE_SIGN_IDENTITY"),
-                  let equalsIndex = line.firstIndex(of: "=") else {
+                  let equalsIndex = line.lastIndex(of: "=") else {
                 return false
             }
             let value = line[line.index(after: equalsIndex)...]
