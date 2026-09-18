@@ -18,6 +18,13 @@ import Testing
 struct AppStateFactoryTests {
     // MARK: - Production Factory Tests
 
+    private func sourceRepositoryRoot() -> URL {
+        URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+    }
+
     /// Test that production() creates AppState with PandoraClient
     /// **Validates: Requirement 4.2**
     @Test("Production Creates Pandora Client")
@@ -35,8 +42,16 @@ struct AppStateFactoryTests {
         #expect(appState.historyViewModel.historyItems.isEmpty, "historyViewModel should start without history")
     }
 
-    @Test("Debug host uses an identity-based designated requirement")
-    func debugHostUsesIdentityBasedDesignatedRequirement() throws {
+    @Test("Locally signed Debug host uses an identity-based designated requirement")
+    func locallySignedDebugHostUsesIdentityBasedDesignatedRequirement() throws {
+        let repositoryRoot = sourceRepositoryRoot()
+        let localSigningConfig = repositoryRoot
+            .appendingPathComponent("Config")
+            .appendingPathComponent("DebugSigning.local.xcconfig")
+        guard FileManager.default.fileExists(atPath: localSigningConfig.path) else {
+            return
+        }
+
         let hostBundle = Bundle(for: AppState.self)
         let hostExecutable = try #require(hostBundle.executableURL)
         let process = Process()
@@ -61,17 +76,33 @@ struct AppStateFactoryTests {
 
     @Test("Debug signing identifiers stay out of the committed project file")
     func debugSigningIdentifiersStayOutOfCommittedProjectFile() throws {
-        let repositoryRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-        let projectFile = repositoryRoot
+        let projectFile = sourceRepositoryRoot()
             .appendingPathComponent("Hermes.xcodeproj")
             .appendingPathComponent("project.pbxproj")
         let projectContents = try String(contentsOf: projectFile, encoding: .utf8)
 
-        #expect(!projectContents.contains("YSHQQLS73U"))
-        #expect(!projectContents.contains("Apple Development"))
+        let settingsLines = projectContents.split(whereSeparator: \.isNewline)
+        let nonEmptyTeamAssignments = settingsLines.filter { line in
+            guard line.contains("DEVELOPMENT_TEAM"),
+                  let equalsIndex = line.firstIndex(of: "=") else {
+                return false
+            }
+            let value = line[line.index(after: equalsIndex)...]
+                .trimmingCharacters(in: CharacterSet(charactersIn: " \t;\""))
+            return !value.isEmpty
+        }
+        let hardCodedIdentityAssignments = settingsLines.filter { line in
+            guard line.contains("CODE_SIGN_IDENTITY"),
+                  let equalsIndex = line.firstIndex(of: "=") else {
+                return false
+            }
+            let value = line[line.index(after: equalsIndex)...]
+                .trimmingCharacters(in: CharacterSet(charactersIn: " \t;\""))
+            return value != "-"
+        }
+
+        #expect(nonEmptyTeamAssignments.isEmpty)
+        #expect(hardCodedIdentityAssignments.isEmpty)
     }
 
     /// Test that production() creates AppState with correct initial state
