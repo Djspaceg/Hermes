@@ -5,4 +5,5 @@ build
 *.xcodeproj/*.pbxuser
 *.xcodeproj/xcuserdata
 *.xcodeproj/*.xcworkspace
+Config/DebugSigning.local.xcconfig
 Hermes.dmg

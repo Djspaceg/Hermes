@@ -1,0 +1,5 @@
+// Copy to DebugSigning.local.xcconfig and replace the placeholder with your
+// own Apple Developer team. This file is intentionally ignored by Git.
+CODE_SIGN_IDENTITY[sdk=macosx*] = Apple Development
+CODE_SIGN_STYLE = Manual
+DEVELOPMENT_TEAM = YOUR_DEVELOPMENT_TEAM

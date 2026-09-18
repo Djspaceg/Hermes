@@ -59,6 +59,21 @@ struct AppStateFactoryTests {
         #expect(!requirement.localizedCaseInsensitiveContains("cdhash"))
     }
 
+    @Test("Debug signing identifiers stay out of the committed project file")
+    func debugSigningIdentifiersStayOutOfCommittedProjectFile() throws {
+        let repositoryRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let projectFile = repositoryRoot
+            .appendingPathComponent("Hermes.xcodeproj")
+            .appendingPathComponent("project.pbxproj")
+        let projectContents = try String(contentsOf: projectFile, encoding: .utf8)
+
+        #expect(!projectContents.contains("YSHQQLS73U"))
+        #expect(!projectContents.contains("Apple Development"))
+    }
+
     /// Test that production() creates AppState with correct initial state
     /// **Validates: Requirement 4.2**
     @Test("Production Has Correct Initial State")

@@ -157,6 +157,8 @@ make                    # Build with Debug configuration
 make CONFIGURATION=Release  # Build with Release configuration
 ```
 
+To use a stable local Debug signature, copy `Config/DebugSigning.local.xcconfig.example` to `Config/DebugSigning.local.xcconfig` and set your own team; without it, `make` uses ad-hoc Debug signing.
+
 ### Architecture
 
 The codebase follows modern macOS development practices:

@@ -142,6 +142,7 @@
 
 /* Begin PBXFileReference section */
 		CB2396AF824442B9B61725B3 /* AudioStreamDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AudioStreamDecoder.swift; path = Sources/Swift/Services/Audio/AudioStreamDecoder.swift; sourceTree = SOURCE_ROOT; };
+		C0D3D0012F70000100D3B001 /* DebugSigning.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config/DebugSigning.xcconfig; sourceTree = SOURCE_ROOT; };
 		81905888B97C4898AED84191 /* AudioStreamBuffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AudioStreamBuffer.swift; path = Sources/Swift/Services/Audio/AudioStreamBuffer.swift; sourceTree = SOURCE_ROOT; };
 		18DB0642B5AC47B997EB35D4 /* NotificationContinuation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NotificationContinuation.swift; path = Sources/Swift/Services/Pandora/NotificationContinuation.swift; sourceTree = SOURCE_ROOT; };
 		089C165DFE840E0CC02AAC07 /* English */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = English; path = English.lproj/InfoPlist.strings; sourceTree = "<group>"; };
@@ -288,6 +289,7 @@
 				080E96DDFE201D6D7F000001 /* Sources */,
 				29B97317FDCFA39411CA2CEA /* Resources */,
 				634D8E982F187B0D0069FD8F /* HermesTests */,
+				C0D3D0012F70000100D3B001 /* DebugSigning.xcconfig */,
 				19C28FACFE9D520D11CA2CBB /* Products */,
 			);
 			indentWidth = 2;
@@ -792,6 +794,7 @@
 		};
 		634D8E9D2F187B0D0069FD8F /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = C0D3D0012F70000100D3B001 /* DebugSigning.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -805,11 +808,8 @@
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = YSHQQLS73U;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
@@ -886,14 +886,11 @@
 		};
 		C01FCF4B08A954540054247B /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = C0D3D0012F70000100D3B001 /* DebugSigning.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
-				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = YSHQQLS73U;
 				ENABLE_HARDENED_RUNTIME = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
@@ -926,7 +923,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
