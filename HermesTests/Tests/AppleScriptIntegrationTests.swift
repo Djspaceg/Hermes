@@ -183,6 +183,102 @@ struct AppleScriptIntegrationTests {
         #expect(specifier.key == "currentStation")
     }
 
+    @Test("AppleScript scripted models use the SDEF Objective-C class names")
+    @MainActor
+    func testScriptedModelObjectiveCClassNames() {
+        #expect(NSStringFromClass(Station.self) == "Station")
+        #expect(NSStringFromClass(Song.self) == "Song")
+    }
+
+    @Test("AppleScript class pins preserve station state and history archives")
+    @MainActor
+    func testScriptedModelArchiveCompatibility() throws {
+        #expect(NSStringFromClass(Station.self) == "Station")
+        #expect(NSStringFromClass(Song.self) == "Song")
+
+        let legacyStationArchive = try #require(
+            Data(base64Encoded: Self.legacyStationArchiveBase64)
+        )
+        let legacyStationClassNames = try archivedClassNames(in: legacyStationArchive)
+        #expect(legacyStationClassNames.contains(Self.legacyStationClassName))
+
+        let decodedLegacyStation = try NSKeyedUnarchiver.unarchivedObject(
+            ofClass: Station.self,
+            from: legacyStationArchive
+        )
+        let restoredLegacyStation = try #require(decodedLegacyStation)
+        #expect(restoredLegacyStation.name == "Archive Compatibility Station")
+        #expect(restoredLegacyStation.token == "archive-compatibility-token")
+        #expect(restoredLegacyStation.stationId == "archive-compatibility-id")
+
+        let legacyHistoryArchive = try Data(contentsOf: prechangeHistoryArchiveURL())
+        let legacyHistoryClassNames = try archivedClassNames(in: legacyHistoryArchive)
+        #expect(legacyHistoryClassNames.contains(Self.legacySongClassName))
+
+        let decodedLegacySongs = try SongArchiveDecoding.$allowFeedbackRepresentation.withValue(
+            .boxedNumber
+        ) {
+            try NSKeyedUnarchiver.unarchivedObject(
+                ofClasses: [NSArray.self, Song.self],
+                from: legacyHistoryArchive
+            ) as? [Song]
+        }
+        let restoredLegacySongs = try #require(decodedLegacySongs)
+        #expect(restoredLegacySongs.map(\.token) == ["historical-song-two", "historical-song-one"])
+        #expect(restoredLegacySongs.map(\.allowFeedback) == [true, false])
+
+        let testDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("hermes-applescript-archive-\(UUID().uuidString)")
+        let stationArchiveURL = testDirectory.appendingPathComponent("station.savestate")
+        let defaultsName = "com.hermes.tests.applescript.archive.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: defaultsName))
+        defer {
+            defaults.removePersistentDomain(forName: defaultsName)
+            try? FileManager.default.removeItem(at: testDirectory)
+        }
+        try FileManager.default.createDirectory(
+            at: testDirectory,
+            withIntermediateDirectories: true
+        )
+
+        let station = Station()
+        station.name = "Archive Compatibility Station"
+        station.token = "archive-compatibility-token"
+        station.stationId = "archive-compatibility-id"
+
+        let stateStore = PlaybackStateStore(
+            userDefaults: defaults,
+            resolveStatePath: { _ in stationArchiveURL.path }
+        )
+        #expect(stateStore.save(station: station))
+
+        let currentStationArchive = try Data(contentsOf: stationArchiveURL)
+        let currentStationClassNames = try archivedClassNames(in: currentStationArchive)
+        #expect(currentStationClassNames.contains(Self.legacyStationClassName))
+        #expect(!currentStationClassNames.contains("Station"))
+
+        let decodedCurrentStation = try NSKeyedUnarchiver.unarchivedObject(
+            ofClass: Station.self,
+            from: currentStationArchive
+        )
+        let restoredCurrentStation = try #require(decodedCurrentStation)
+        #expect(restoredCurrentStation.stationId == station.stationId)
+
+        let song = Song(
+            artist: "Archive Compatibility Artist",
+            title: "Archive Compatibility Title",
+            album: "Archive Compatibility Album"
+        )
+        song.token = "archive-compatibility-song-token"
+        let currentHistoryArchive = try NSKeyedArchiver.archivedData(
+            withRootObject: [song],
+            requiringSecureCoding: false
+        )
+        let currentHistoryClassNames = try archivedClassNames(in: currentHistoryArchive)
+        #expect(currentHistoryClassNames.contains(Self.legacySongClassName))
+        #expect(!currentHistoryClassNames.contains("Song"))
+    }
+
     @Test("AppleScript exposes shared-station and history-entry inspection state")
     @MainActor
     func testAutomationInspectionModels() throws {
@@ -234,6 +330,45 @@ struct AppleScriptIntegrationTests {
             InterfaceMode.menuBar.rawValue
         ].contains(NSApp.interfaceMode))
     }
+
+    private func archivedClassNames(in data: Data) throws -> Set<String> {
+        let propertyList = try PropertyListSerialization.propertyList(
+            from: data,
+            options: [],
+            format: nil
+        )
+        var result = Set<String>()
+
+        func collectClassNames(from value: Any) {
+            if let dictionary = value as? [String: Any] {
+                if let className = dictionary["$classname"] as? String {
+                    result.insert(className)
+                }
+                for child in dictionary.values {
+                    collectClassNames(from: child)
+                }
+            } else if let array = value as? [Any] {
+                for child in array {
+                    collectClassNames(from: child)
+                }
+            }
+        }
+
+        collectClassNames(from: propertyList)
+        return result
+    }
+
+    private func prechangeHistoryArchiveURL() -> URL {
+        URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Fixtures/history-prechange.savestate")
+    }
+
+    private static let legacyStationClassName = "Hermes.Station"
+    private static let legacySongClassName = "Hermes.Song"
+
+    private static let legacyStationArchiveBase64 = "YnBsaXN0MDDUAQIDBAUGBwpYJHZlcnNpb25ZJGFyY2hpdmVyVCR0b3BYJG9iamVjdHMSAAGGoF8QD05TS2V5ZWRBcmNoaXZlctEICVRyb290gAGmCwwjJCUmVSRudWxs2w0ODxAREhMUFRYXGBkZGxwYHhwgISJWc2hhcmVkVmFydFVybFZnZW5yZXNWJGNsYXNzXWFsbG93QWRkTXVzaWNaaXNRdWlja01peFdjcmVhdGVkW2FsbG93UmVuYW1lVXRva2VuWXN0YXRpb25JZFRuYW1lCIAAgACABQkIEAAJgAOABIACXxAdQXJjaGl2ZSBDb21wYXRpYmlsaXR5IFN0YXRpb25fEBthcmNoaXZlLWNvbXBhdGliaWxpdHktdG9rZW5fEBhhcmNoaXZlLWNvbXBhdGliaWxpdHktaWTSJygpKlokY2xhc3NuYW1lWCRjbGFzc2VzXkhlcm1lcy5TdGF0aW9uoyssLV5IZXJtZXMuU3RhdGlvbl1Td2lmdFBsYXlsaXN0WE5TT2JqZWN0AAgAEQAaACQAKQAyADcASQBMAFEAUwBaAGAAdwB+AIUAjACTAKEArAC0AMAAxgDQANUA1gDYANoA3ADdAN4A4ADhAOMA5QDnAQcBJQFAAUUBUAFZAWgBbAF7AYkAAAAAAAACAQAAAAAAAAAuAAAAAAAAAAAAAAAAAAABkg=="
 
     // MARK: - Station Management Tests
     

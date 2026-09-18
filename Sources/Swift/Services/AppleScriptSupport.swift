@@ -8,6 +8,25 @@
 
 import Cocoa
 
+/// Keeps SDEF runtime class names compatible with pre-existing keyed archives.
+///
+/// `Station` and `Song` must use the unqualified Objective-C names declared by
+/// Hermes.sdef. Existing archives recorded their pre-pinning Swift runtime
+/// names, so register those names for both encoding and decoding before any
+/// application state can be restored or saved.
+enum ScriptedModelArchiveCompatibility {
+    private static let registerLegacyClassNames: Void = {
+        NSKeyedArchiver.setClassName("Hermes.Station", for: Station.self)
+        NSKeyedArchiver.setClassName("Hermes.Song", for: Song.self)
+        NSKeyedUnarchiver.setClass(Station.self, forClassName: "Hermes.Station")
+        NSKeyedUnarchiver.setClass(Song.self, forClassName: "Hermes.Song")
+    }()
+
+    static func register() {
+        _ = registerLegacyClassNames
+    }
+}
+
 // MARK: - Playback State Enum
 
 /// Playback states matching iTunes conventions (4-char codes)

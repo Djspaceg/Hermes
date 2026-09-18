@@ -80,6 +80,7 @@ enum SongArchiveDecoding {
 ///     print("Playing on: \(station.name)")
 /// }
 /// ```
+@objc(Song)
 @Observable
 final class Song: NSObject, Identifiable {
     // MARK: - Properties

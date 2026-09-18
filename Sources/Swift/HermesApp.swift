@@ -17,6 +17,7 @@ struct HermesApp: App {
 
     init() {
         TestProcessIsolationGuard.enforceBeforeAppStateInitialization()
+        ScriptedModelArchiveCompatibility.register()
         _appState = State(initialValue: AppState.shared)
     }
     

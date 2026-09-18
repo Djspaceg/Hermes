@@ -18,6 +18,7 @@ import Observation
 /// including song management, rating, and Pandora API integration.
 ///
 /// Uses @Observable for automatic SwiftUI state tracking.
+@objc(Station)
 @Observable
 final class Station: Playlist, NSSecureCoding, Identifiable {
     
