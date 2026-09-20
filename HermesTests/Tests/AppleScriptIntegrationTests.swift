@@ -190,6 +190,13 @@ struct AppleScriptIntegrationTests {
         #expect(NSStringFromClass(Song.self) == "Song")
     }
 
+    @Test("AppleScript song dictionary properties have Objective-C getters")
+    func testSongDictionaryPropertyObjectiveCGetters() {
+        for key in ["title", "artist", "album"] {
+            #expect(Song.instancesRespond(to: NSSelectorFromString(key)))
+        }
+    }
+
     @Test("AppleScript class pins preserve station state and history archives")
     @MainActor
     func testScriptedModelArchiveCompatibility() throws {
