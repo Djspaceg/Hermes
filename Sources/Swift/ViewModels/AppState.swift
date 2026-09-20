@@ -167,7 +167,8 @@ final class AppState {
             pandora: pandora,
             credentialStore: credentialStore,
             userDefaults: userDefaults,
-            notificationCenter: notificationCenter
+            notificationCenter: notificationCenter,
+            historySaveStateURL: testHistorySaveStateURL()
         )
     }
     
@@ -189,6 +190,7 @@ final class AppState {
             credentialStore: MockKeychainManager(),
             userDefaults: userDefaults,
             notificationCenter: notificationCenter,
+            historySaveStateURL: testHistorySaveStateURL(),
             skipCredentialCheck: true
         )
     }
@@ -203,6 +205,7 @@ final class AppState {
             pandora: pandora,
             credentialStore: credentialStore,
             userDefaults: userDefaults,
+            historySaveStateURL: testHistorySaveStateURL(),
             credentialRestorationDeadline: deadline
         )
     }
@@ -214,6 +217,7 @@ final class AppState {
         credentialStore: any CredentialStore,
         userDefaults: UserDefaults,
         notificationCenter: NotificationCenter = .default,
+        historySaveStateURL: URL? = nil,
         credentialRestorationDeadline: Duration = .seconds(2),
         skipCredentialCheck: Bool = false
     ) {
@@ -237,7 +241,7 @@ final class AppState {
         )
         self.playerViewModel = PlayerViewModel()
         self.stationsViewModel = StationsViewModel(pandora: pandora)
-        self.historyViewModel = HistoryViewModel()
+        self.historyViewModel = HistoryViewModel(saveStateURL: historySaveStateURL)
 
         self.loginViewModel.onManualAuthenticationStarted = { [weak self] in
             self?.invalidateCredentialRestorationForManualSignIn()
@@ -273,6 +277,16 @@ final class AppState {
             return UserDefaults(suiteName: "com.hermes.tests.production.\(UUID().uuidString)")!
         }
         return .standard
+    }
+
+    private static func testHistorySaveStateURL() -> URL? {
+        guard isRunningTests else {
+            return nil
+        }
+        return FileManager.default.temporaryDirectory
+            .appendingPathComponent("AppStateHistoryTests")
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathComponent("history.savestate")
     }
     
     // MARK: - Notification Subscriptions

@@ -147,6 +147,11 @@ final class HistoryViewModelTests: XCTestCase {
             ]
         }
 
+        sut = HistoryViewModel(
+            saveStateURL: tempDirectory
+                .appendingPathComponent("isolated")
+                .appendingPathComponent("history.savestate")
+        )
         sut.addToHistory(createMockSong(title: "Test Song"))
 
         XCTAssertEqual(sut.historyItems.count, 1, "History should contain only this test's song")
