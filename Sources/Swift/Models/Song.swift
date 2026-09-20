@@ -99,6 +99,7 @@ final class Song: NSObject, Identifiable {
     var album: String
     
     /// The album artwork URL string
+    @objc
     var art: String?
     
     /// The station ID this song belongs to
@@ -114,6 +115,7 @@ final class Song: NSObject, Identifiable {
     var artistUrl: String?
     
     /// URL for song/title information
+    @objc
     var titleUrl: String?
     
     /// Unique token identifying this song
@@ -163,6 +165,7 @@ final class Song: NSObject, Identifiable {
     /// Legacy NSNumber accessor for backward compatibility with NSCoding
     ///
     /// Provides compatibility with older saved data that used NSNumber for ratings.
+    @objc
     var nrating: NSNumber? {
         get { NSNumber(value: rating) }
         set { rating = newValue?.intValue ?? 0 }
