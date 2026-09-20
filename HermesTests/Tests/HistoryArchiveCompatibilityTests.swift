@@ -35,18 +35,21 @@ final class HistoryArchiveCompatibilityTests: XCTestCase {
 
         let historyPath = NSString(string: "~/Library/Application Support/Hermes/history.savestate")
             .expandingTildeInPath
-        let candidateHistoryURL = canonicalURL(historyPath)
-        let actualStatePath = candidateHistoryURL.deletingLastPathComponent().path
+        let productionHistoryURL = canonicalURL(historyPath)
+        let actualStatePath = productionHistoryURL.deletingLastPathComponent().path
         let expectedStatePath = canonicalURL(expectedState).path
         guard actualStatePath == expectedStatePath else {
             throw isolationError("Expected isolated state \(expectedStatePath), found \(actualStatePath)")
         }
 
-        guard isDescendant(candidateHistoryURL, of: rootURL) else {
+        guard isDescendant(productionHistoryURL, of: rootURL) else {
             throw isolationError("History archive path is outside the isolated test root")
         }
 
-        historyURL = candidateHistoryURL
+        historyURL = rootURL
+            .appendingPathComponent("history-archive-compatibility")
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathComponent("history.savestate")
         try FileManager.default.createDirectory(
             at: historyURL.deletingLastPathComponent(),
             withIntermediateDirectories: true
@@ -64,7 +67,7 @@ final class HistoryArchiveCompatibilityTests: XCTestCase {
     func testLoadSavedHistoryDecodesPreChangeArchive() async throws {
         try Data(contentsOf: historicalArchiveURL()).write(to: historyURL)
 
-        let history = HistoryViewModel()
+        let history = HistoryViewModel(saveStateURL: historyURL)
 
         try await waitUntil {
             history.historyItems.map(\.token) == ["historical-song-two", "historical-song-one"]
@@ -78,7 +81,7 @@ final class HistoryArchiveCompatibilityTests: XCTestCase {
         let unreadableData = Data("not a keyed archive".utf8)
         try unreadableData.write(to: historyURL)
 
-        let history = HistoryViewModel()
+        let history = HistoryViewModel(saveStateURL: historyURL)
 
         let preservedURL = try await waitForPreservedHistoryArchive()
         XCTAssertEqual(try Data(contentsOf: preservedURL), unreadableData)
@@ -98,8 +101,8 @@ final class HistoryArchiveCompatibilityTests: XCTestCase {
         let unreadableData = Data("not a keyed archive".utf8)
         try unreadableData.write(to: historyURL)
 
-        let firstHistory = HistoryViewModel()
-        let secondHistory = HistoryViewModel()
+        let firstHistory = HistoryViewModel(saveStateURL: historyURL)
+        let secondHistory = HistoryViewModel(saveStateURL: historyURL)
         _ = try await waitForPreservedHistoryArchive()
         try await Task.sleep(nanoseconds: 200_000_000)
 
@@ -111,7 +114,7 @@ final class HistoryArchiveCompatibilityTests: XCTestCase {
     func testProductionHistoryReaderDecodesPrimitiveBoolArchive() async throws {
         try Data(contentsOf: primitiveBoolArchiveURL()).write(to: historyURL)
 
-        let history = HistoryViewModel()
+        let history = HistoryViewModel(saveStateURL: historyURL)
 
         try await waitUntil {
             history.historyItems.map(\.allowFeedback) == [true, false]

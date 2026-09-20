@@ -183,7 +183,7 @@ struct ObservableMigrationTests {
     @Test("History View Model Is Observable")
 
     func testHistoryViewModel_IsObservable() {
-        let viewModel = HistoryViewModel()
+        let viewModel = HistoryViewModel(saveStateURL: historyTestSaveStateURL())
 
         // Test state changes
         let mockSong = Song.mock()
@@ -197,7 +197,7 @@ struct ObservableMigrationTests {
     @Test("History View Model History Items Changes")
 
     func testHistoryViewModel_HistoryItemsChanges() {
-        let viewModel = HistoryViewModel()
+        let viewModel = HistoryViewModel(saveStateURL: historyTestSaveStateURL())
 
         let initialCount = viewModel.historyItems.count
         let mockSong = Song.mock()
@@ -338,4 +338,11 @@ struct ObservableMigrationTests {
         viewModel.isLoading = true
         #expect(viewModel.isLoading)
     }
+}
+
+private func historyTestSaveStateURL() -> URL {
+    FileManager.default.temporaryDirectory
+        .appendingPathComponent("HistoryViewModelTests")
+        .appendingPathComponent(UUID().uuidString)
+        .appendingPathComponent("history.savestate")
 }

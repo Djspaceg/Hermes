@@ -102,7 +102,7 @@ extension HistoryViewModel {
     ///
     /// - Returns: A fresh HistoryViewModel instance for testing
     static func testInstance() -> HistoryViewModel {
-        return HistoryViewModel()
+        HistoryViewModel(saveStateURL: testSaveStateURL())
     }
     
     /// Creates a test HistoryViewModel pre-populated with history items
@@ -110,9 +110,16 @@ extension HistoryViewModel {
     /// - Parameter items: Array of songs to pre-populate in history
     /// - Returns: A HistoryViewModel with the specified history items
     static func testInstance(withItems items: [Song]) -> HistoryViewModel {
-        let viewModel = HistoryViewModel()
+        let viewModel = HistoryViewModel(saveStateURL: testSaveStateURL())
         viewModel.historyItems = items
         return viewModel
+    }
+
+    private static func testSaveStateURL() -> URL {
+        FileManager.default.temporaryDirectory
+            .appendingPathComponent("HistoryViewModelTests")
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathComponent("history.savestate")
     }
 }
 

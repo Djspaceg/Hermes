@@ -41,11 +41,21 @@ final class HistoryViewModel {
         selectedItem?.rating ?? 0
     }
     
-    init() {
-        // Set up save state path in application support directory
-        let folder = ("~/Library/Application Support/Hermes/" as NSString).expandingTildeInPath
-        try? FileManager.default.createDirectory(atPath: folder, withIntermediateDirectories: true)
-        saveStatePath = (folder as NSString).appendingPathComponent("history.savestate")
+    init(saveStateURL: URL? = nil) {
+        let resolvedSaveStateURL: URL
+        if let saveStateURL {
+            resolvedSaveStateURL = saveStateURL
+        } else {
+            let folder = ("~/Library/Application Support/Hermes/" as NSString)
+                .expandingTildeInPath
+            resolvedSaveStateURL = URL(fileURLWithPath: folder)
+                .appendingPathComponent("history.savestate")
+        }
+        try? FileManager.default.createDirectory(
+            at: resolvedSaveStateURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        saveStatePath = resolvedSaveStateURL.path
         
         setupNotificationSubscriptions()
         loadSavedHistory()

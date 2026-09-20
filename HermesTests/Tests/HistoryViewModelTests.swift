@@ -24,7 +24,9 @@ final class HistoryViewModelTests: XCTestCase {
         // Create HistoryViewModel directly - it doesn't depend on Pandora
         // The AppState.shared singleton has test detection that skips credential checking
         // when running in a test environment (XCTestSessionIdentifier or XCTest class present)
-        sut = HistoryViewModel()
+        sut = HistoryViewModel(
+            saveStateURL: tempDirectory.appendingPathComponent("history.savestate")
+        )
     }
     
     override func tearDown() async throws {
@@ -124,21 +126,22 @@ final class HistoryViewModelTests: XCTestCase {
     }
 
     func testSaveHistory_IsolatedFromCompatibilityFixture() async throws {
-        let sharedHistoryURL = URL(
-            fileURLWithPath: NSString(
-                string: "~/Library/Application Support/Hermes/history.savestate"
-            ).expandingTildeInPath
-        )
+        let compatibilityHistoryURL = tempDirectory
+            .appendingPathComponent("compatibility")
+            .appendingPathComponent("history.savestate")
         let compatibilityFixtureURL = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .appendingPathComponent("Fixtures/history-prechange.savestate")
-        try Data(contentsOf: compatibilityFixtureURL).write(to: sharedHistoryURL)
+        try FileManager.default.createDirectory(
+            at: compatibilityHistoryURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try Data(contentsOf: compatibilityFixtureURL).write(to: compatibilityHistoryURL)
 
-        sut = HistoryViewModel()
-
+        let compatibilityHistory = HistoryViewModel(saveStateURL: compatibilityHistoryURL)
         try await waitUntil {
-            self.sut.historyItems.map(\.title) == [
+            compatibilityHistory.historyItems.map(\.title) == [
                 "Historical Song Two",
                 "Historical Song One"
             ]
@@ -215,7 +218,9 @@ final class HistoryViewModelTests: XCTestCase {
         sut.clearHistory()
         
         // Then - Create new view model to verify empty state persisted
-        let newViewModel = HistoryViewModel()
+        let newViewModel = HistoryViewModel(
+            saveStateURL: tempDirectory.appendingPathComponent("history.savestate")
+        )
         XCTAssertEqual(newViewModel.historyItems.count, 0, "Cleared state should persist")
     }
     
