@@ -224,6 +224,39 @@ struct AppleScriptIntegrationTests {
         }
     }
 
+    @Test("AppleScript derived dictionary keys are not Objective-C reachable")
+    func testDerivedDictionaryKeyObjectiveCReachability() {
+        let song = Song(
+            artist: "Runtime Artist",
+            title: "Runtime Title",
+            album: "Runtime Album"
+        )
+        song.albumUrl = "https://example.com/album"
+        song.artistUrl = "https://example.com/artist"
+
+        let songProperties = [
+            "albumURL": "https://example.com/album",
+            "artistURL": "https://example.com/artist"
+        ]
+        for (key, expectedValue) in songProperties {
+            let responds = Song.instancesRespond(to: NSSelectorFromString(key))
+            #expect(!responds)
+            if responds {
+                #expect(song.value(forKey: key) as? String == expectedValue)
+            }
+        }
+
+        let station = Station()
+        station.stationId = "runtime-station-id"
+
+        let stationKey = "stationID"
+        let responds = Station.instancesRespond(to: NSSelectorFromString(stationKey))
+        #expect(!responds)
+        if responds {
+            #expect(station.value(forKey: stationKey) as? String == station.stationId)
+        }
+    }
+
     @Test("AppleScript class pins preserve station state and history archives")
     @MainActor
     func testScriptedModelArchiveCompatibility() throws {
