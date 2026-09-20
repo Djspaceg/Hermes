@@ -147,11 +147,20 @@ final class HistoryViewModelTests: XCTestCase {
             ]
         }
 
+        let isolatedHistoryLoaded = expectation(
+            description: "isolated history reader finishes loading"
+        )
         sut = HistoryViewModel(
             saveStateURL: tempDirectory
                 .appendingPathComponent("isolated")
-                .appendingPathComponent("history.savestate")
+                .appendingPathComponent("history.savestate"),
+            onHistoryLoadCompleted: {
+                isolatedHistoryLoaded.fulfill()
+            }
         )
+        await fulfillment(of: [isolatedHistoryLoaded], timeout: 1)
+        XCTAssertTrue(sut.historyItems.isEmpty, "Isolated reader should not load fixture history")
+
         sut.addToHistory(createMockSong(title: "Test Song"))
 
         XCTAssertEqual(sut.historyItems.count, 1, "History should contain only this test's song")

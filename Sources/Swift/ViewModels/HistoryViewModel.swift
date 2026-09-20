@@ -31,6 +31,8 @@ final class HistoryViewModel {
     private let maxHistoryItems = 20 // Maximum number of history items to retain
     @ObservationIgnored
     private let saveStatePath: String
+    @ObservationIgnored
+    private let onHistoryLoadCompleted: (@MainActor () -> Void)?
     
     // Distributed notification name for external app integration
     @ObservationIgnored
@@ -41,7 +43,10 @@ final class HistoryViewModel {
         selectedItem?.rating ?? 0
     }
     
-    init(saveStateURL: URL? = nil) {
+    init(
+        saveStateURL: URL? = nil,
+        onHistoryLoadCompleted: (@MainActor () -> Void)? = nil
+    ) {
         let resolvedSaveStateURL: URL
         if let saveStateURL {
             resolvedSaveStateURL = saveStateURL
@@ -56,6 +61,7 @@ final class HistoryViewModel {
             withIntermediateDirectories: true
         )
         saveStatePath = resolvedSaveStateURL.path
+        self.onHistoryLoadCompleted = onHistoryLoadCompleted
         
         setupNotificationSubscriptions()
         loadSavedHistory()
@@ -96,7 +102,10 @@ final class HistoryViewModel {
     // MARK: - Persistence
     
     private func loadSavedHistory() {
-        guard FileManager.default.fileExists(atPath: saveStatePath) else { return }
+        guard FileManager.default.fileExists(atPath: saveStatePath) else {
+            onHistoryLoadCompleted?()
+            return
+        }
 
         let url = URL(fileURLWithPath: saveStatePath)
         let loadGeneration = persistenceGeneration
@@ -107,21 +116,29 @@ final class HistoryViewModel {
                 data = try Data(contentsOf: url)
             } catch {
                 print("HistoryViewModel: Failed to read saved history; leaving it untouched: \(error)")
+                Task { @MainActor [weak self] in
+                    self?.onHistoryLoadCompleted?()
+                }
                 return
             }
 
             do {
                 let songs = try Self.decodeHistory(data)
                 Task { @MainActor [weak self] in
-                    guard let self,
-                          self.persistenceGeneration == loadGeneration else {
+                    guard let self else {
                         return
                     }
-                    self.historyItems = songs
+                    if self.persistenceGeneration == loadGeneration {
+                        self.historyItems = songs
+                    }
+                    self.onHistoryLoadCompleted?()
                 }
             } catch {
                 print("HistoryViewModel: Failed to decode saved history: \(error)")
                 Self.preserveUnreadableHistory(data, nextTo: url)
+                Task { @MainActor [weak self] in
+                    self?.onHistoryLoadCompleted?()
+                }
             }
         }
     }
