@@ -122,6 +122,32 @@ final class HistoryViewModelTests: XCTestCase {
         XCTAssertTrue(success, "Save should return success")
         XCTAssertEqual(sut.historyItems.count, 1, "History should contain the song")
     }
+
+    func testSaveHistory_IsolatedFromCompatibilityFixture() async throws {
+        let sharedHistoryURL = URL(
+            fileURLWithPath: NSString(
+                string: "~/Library/Application Support/Hermes/history.savestate"
+            ).expandingTildeInPath
+        )
+        let compatibilityFixtureURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Fixtures/history-prechange.savestate")
+        try Data(contentsOf: compatibilityFixtureURL).write(to: sharedHistoryURL)
+
+        sut = HistoryViewModel()
+
+        try await waitUntil {
+            self.sut.historyItems.map(\.title) == [
+                "Historical Song Two",
+                "Historical Song One"
+            ]
+        }
+
+        sut.addToHistory(createMockSong(title: "Test Song"))
+
+        XCTAssertEqual(sut.historyItems.count, 1, "History should contain only this test's song")
+    }
     
     func testSaveAndLoad_PreservesHistory() {
         // Given
@@ -308,5 +334,20 @@ final class HistoryViewModelTests: XCTestCase {
         song.artistUrl = artistUrl.isEmpty ? nil : artistUrl
         song.albumUrl = albumUrl.isEmpty ? nil : albumUrl
         return song
+    }
+
+    private func waitUntil(
+        timeout: TimeInterval = 2,
+        condition: @escaping @MainActor () -> Bool
+    ) async throws {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if condition() {
+                return
+            }
+            try await Task.sleep(nanoseconds: 20_000_000)
+        }
+
+        XCTFail("Timed out waiting for history to load")
     }
 }
