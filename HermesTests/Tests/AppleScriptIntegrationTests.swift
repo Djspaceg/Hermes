@@ -192,8 +192,35 @@ struct AppleScriptIntegrationTests {
 
     @Test("AppleScript song dictionary properties have Objective-C getters")
     func testSongDictionaryPropertyObjectiveCGetters() {
-        for key in ["title", "artist", "album"] {
-            #expect(Song.instancesRespond(to: NSSelectorFromString(key)))
+        let song = Song(
+            artist: "Runtime Artist",
+            title: "Runtime Title",
+            album: "Runtime Album"
+        )
+        song.art = "https://example.com/artwork.jpg"
+        song.rating = 1
+        song.titleUrl = "https://example.com/track"
+
+        let stringProperties = [
+            "title": "Runtime Title",
+            "artist": "Runtime Artist",
+            "album": "Runtime Album",
+            "art": "https://example.com/artwork.jpg",
+            "titleUrl": "https://example.com/track"
+        ]
+        for (key, expectedValue) in stringProperties {
+            let responds = Song.instancesRespond(to: NSSelectorFromString(key))
+            #expect(responds)
+            if responds {
+                #expect(song.value(forKey: key) as? String == expectedValue)
+            }
+        }
+
+        let ratingKey = "nrating"
+        let respondsToRating = Song.instancesRespond(to: NSSelectorFromString(ratingKey))
+        #expect(respondsToRating)
+        if respondsToRating {
+            #expect((song.value(forKey: ratingKey) as? NSNumber)?.intValue == 1)
         }
     }
 
