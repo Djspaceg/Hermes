@@ -86,13 +86,16 @@ final class Song: NSObject, Identifiable {
     // MARK: - Properties
     
     /// The artist name
+    @objc
     var artist: String
     
     /// The song title
+    @objc
     var title: String
     
     /// The album name
     /// The album name
+    @objc
     var album: String
     
     /// The album artwork URL string
