@@ -109,9 +109,11 @@ final class Song: NSObject, Identifiable {
     var stationToken: String?
     
     /// URL for album information
+    @objc
     var albumUrl: String?
     
     /// URL for artist information
+    @objc
     var artistUrl: String?
     
     /// URL for song/title information

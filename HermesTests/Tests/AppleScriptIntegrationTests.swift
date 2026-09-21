@@ -224,8 +224,20 @@ struct AppleScriptIntegrationTests {
         }
     }
 
-    @Test("AppleScript derived dictionary keys are not Objective-C reachable")
-    func testDerivedDictionaryKeyObjectiveCReachability() {
+    @Test("AppleScript mapped dictionary keys are Objective-C reachable")
+    func testMappedDictionaryKeyObjectiveCReachability() throws {
+        let sdefURL = try #require(Bundle.main.url(forResource: "Hermes", withExtension: "sdef"))
+        let sdef = try XMLDocument(contentsOf: sdefURL, options: [])
+        let dictionaryMappings = [
+            (className: "song", propertyName: "album URL", code: "alur", key: "albumUrl"),
+            (className: "song", propertyName: "artist URL", code: "arur", key: "artistUrl"),
+            (className: "station", propertyName: "station ID", code: "pid ", key: "stationId")
+        ]
+        for mapping in dictionaryMappings {
+            let xpath = "//class[@name='\(mapping.className)']/property[@name='\(mapping.propertyName)' and @code='\(mapping.code)']/cocoa[@key='\(mapping.key)']"
+            #expect(try sdef.nodes(forXPath: xpath).count == 1)
+        }
+
         let song = Song(
             artist: "Runtime Artist",
             title: "Runtime Title",
@@ -235,12 +247,12 @@ struct AppleScriptIntegrationTests {
         song.artistUrl = "https://example.com/artist"
 
         let songProperties = [
-            "albumURL": "https://example.com/album",
-            "artistURL": "https://example.com/artist"
+            "albumUrl": "https://example.com/album",
+            "artistUrl": "https://example.com/artist"
         ]
         for (key, expectedValue) in songProperties {
             let responds = Song.instancesRespond(to: NSSelectorFromString(key))
-            #expect(!responds)
+            #expect(responds)
             if responds {
                 #expect(song.value(forKey: key) as? String == expectedValue)
             }
@@ -249,9 +261,9 @@ struct AppleScriptIntegrationTests {
         let station = Station()
         station.stationId = "runtime-station-id"
 
-        let stationKey = "stationID"
+        let stationKey = "stationId"
         let responds = Station.instancesRespond(to: NSSelectorFromString(stationKey))
-        #expect(!responds)
+        #expect(responds)
         if responds {
             #expect(station.value(forKey: stationKey) as? String == station.stationId)
         }

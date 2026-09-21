@@ -73,8 +73,12 @@
 			<property name="rating" code="prat" description="The song’s numeric rating (1 if liked, -1 if disliked, 0 otherwise)." type="integer" access="r">
 				<cocoa key="nrating"/>
 			</property>
-			<property name="album URL" code="alur" description="A Pandora URL for more information on the album." type="text" access="r"/>
-			<property name="artist URL" code="arur" description="A Pandora URL for more information on the artist." type="text" access="r"/>
+			<property name="album URL" code="alur" description="A Pandora URL for more information on the album." type="text" access="r">
+				<cocoa key="albumUrl"/>
+			</property>
+			<property name="artist URL" code="arur" description="A Pandora URL for more information on the artist." type="text" access="r">
+				<cocoa key="artistUrl"/>
+			</property>
 			<property name="track URL" code="tiur" description="A Pandora URL for more information on the track." type="text" access="r">
 				<cocoa key="titleUrl"/>
 			</property>
@@ -82,7 +86,9 @@
 		<class name="station" code="csta" description="A Pandora station.">
 			<cocoa class="Station"/>
 			<property name="name" code="pnam" description="The station’s name." type="text" access="r"/>
-			<property name="station ID" code="pid " description="The station’s ID." type="text" access="r"/>
+			<property name="station ID" code="pid " description="The station’s ID." type="text" access="r">
+				<cocoa key="stationId"/>
+			</property>
 			<property name="is shared" code="shrd" description="Whether this station belongs to another Pandora user and cannot accept feedback." type="boolean" access="r">
 				<cocoa key="isShared"/>
 			</property>

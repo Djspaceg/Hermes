@@ -38,6 +38,7 @@ final class Station: Playlist, NSSecureCoding, Identifiable {
     var token: String = ""
     
     /// Station ID
+    @objc
     var stationId: String = ""
     
     /// Creation timestamp (milliseconds since epoch)
