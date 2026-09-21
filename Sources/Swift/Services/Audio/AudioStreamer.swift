@@ -259,7 +259,20 @@ public final class AudioStreamer: NSObject, AudioStreaming {
     
     // URLSession for HTTP streaming
     private var urlSession: URLSession?
-    var dataTask: URLSessionDataTask?
+    private let dataTaskLock = NSLock()
+    private var storedDataTask: URLSessionDataTask?
+    var dataTask: URLSessionDataTask? {
+        get {
+            dataTaskLock.lock()
+            defer { dataTaskLock.unlock() }
+            return storedDataTask
+        }
+        set {
+            dataTaskLock.lock()
+            storedDataTask = newValue
+            dataTaskLock.unlock()
+        }
+    }
     // Alias for compatibility with existing code that checks `stream != nil`
     var stream: URLSessionDataTask? {
         get { dataTask }
@@ -342,7 +355,7 @@ public final class AudioStreamer: NSObject, AudioStreaming {
     /// Whether the HTTP stream completed normally (server delivered all data).
     /// When true, draining buffers represent the natural end of the song,
     /// not a network stall — starvation detection should be suppressed.
-    private var httpStreamCompleted = false
+    var httpStreamCompleted = false
     
     /// Whether we've registered a listener for default output device changes
     var hasDeviceChangeListener = false
@@ -1263,6 +1276,20 @@ extension AudioStreamer: URLSessionDataDelegate {
             // Flush remaining data
             if bytesFilled > 0 {
                 _ = enqueueBuffer()
+            }
+
+            // Keep the task alive through the final enqueue: enqueueBuffer()
+            // requires stream != nil. Once that flush has finished, this task
+            // no longer represents a live input, so a drained AudioQueue can
+            // take its existing clean end-of-file path.
+            self.dataTask = nil
+
+            // The final AudioQueue callback may already have run before this
+            // completion arrives. Re-check on the buffer queue so that order
+            // still reaches the same clean terminal path.
+            bufferQueue.async { [weak self] in
+                guard let self = self else { return }
+                _ = self.stopQueueIfDrainedAfterInputCompletion()
             }
             
             // If we're still waiting for data, we can transition immediately.

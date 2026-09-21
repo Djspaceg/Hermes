@@ -219,6 +219,137 @@ struct AudioStreamerCoreTests {
         
         streamer.stop()
     }
+
+    @Test("Normal URLSession completion enables drained-buffer termination")
+    func testNormalCompletionClearsTaskForDrainedBufferPath() {
+        let session = URLSession(configuration: .ephemeral)
+        let url = URL(string: "https://example.invalid/audio.mp3")!
+        let task = session.dataTask(with: url)
+        let streamer = AudioStreamer(url: url)
+
+        defer {
+            streamer.stop()
+            session.invalidateAndCancel()
+        }
+
+        streamer.dataTask = task
+        streamer.buffersUsed = 1
+        streamer.urlSession(session, task: task, didCompleteWithError: nil)
+
+        // A queued final buffer keeps the terminal predicate false.
+        #expect(streamer.queuedPackets.isEmpty)
+        #expect(!streamer.hasDrainedCompletedInput())
+
+        // This models the final buffer completion on the production buffer path.
+        streamer.buffersUsed = 0
+        #expect(
+            streamer.hasDrainedCompletedInput(),
+            "Normal completion plus final-buffer drain must reach the clean EOF predicate"
+        )
+    }
+
+    @Test("Normal URLSession completion preserves cached-packet enqueueing")
+    func testNormalCompletionAllowsCachedPacketsToDrainAfterTaskClears() {
+        let session = URLSession(configuration: .ephemeral)
+        let url = URL(string: "https://example.invalid/audio.mp3")!
+        let task = session.dataTask(with: url)
+        let streamer = AudioStreamer(url: url)
+
+        defer {
+            streamer.stop()
+            session.invalidateAndCancel()
+        }
+
+        streamer.dataTask = task
+        streamer.queuedPackets = [
+            QueuedPacketData(
+                description: AudioStreamPacketDescription(),
+                data: Data([0])
+            )
+        ]
+        streamer.urlSession(session, task: task, didCompleteWithError: nil)
+
+        #expect(streamer.dataTask == nil)
+        #expect(
+            streamer.canEnqueueBufferedInput(),
+            "Normal completion must not strand cached packets after clearing the task"
+        )
+        #expect(
+            !streamer.hasDrainedCompletedInput(),
+            "Cached packets must prevent clean EOF until they drain"
+        )
+
+        streamer.queuedPackets.removeAll()
+        #expect(streamer.hasDrainedCompletedInput())
+    }
+
+    @Test("Cached packets flush their final partial buffer after normal completion")
+    func testCachedPacketDrainEnqueuesFinalPartialBufferAfterCompletion() {
+        let session = URLSession(configuration: .ephemeral)
+        let url = URL(string: "https://example.invalid/audio.mp3")!
+        let task = session.dataTask(with: url)
+        let streamer = AudioStreamer(url: url)
+
+        defer {
+            streamer.stop()
+            session.invalidateAndCancel()
+        }
+
+        streamer.dataTask = task
+        streamer.queuedPackets = [
+            QueuedPacketData(
+                description: AudioStreamPacketDescription(),
+                data: Data([0])
+            )
+        ]
+        streamer.urlSession(session, task: task, didCompleteWithError: nil)
+        streamer.bytesFilled = 1
+
+        #expect(
+            !streamer.needsFinalBufferEnqueueAfterCachedPacketDrain(),
+            "Cached packets must drain before their final partial buffer flushes"
+        )
+
+        streamer.queuedPackets.removeAll()
+        #expect(
+            streamer.needsFinalBufferEnqueueAfterCachedPacketDrain(),
+            "The remaining partial buffer must be enqueued once cached packets drain"
+        )
+
+        streamer.bytesFilled = 0
+        #expect(!streamer.needsFinalBufferEnqueueAfterCachedPacketDrain())
+    }
+
+    @Test("Incomplete stream drain still triggers in-place reconnect")
+    func testIncompleteStreamDrainStillTriggersReconnect() {
+        let streamer = AudioStreamer(
+            url: URL(string: "https://example.invalid/audio.mp3")!
+        )
+
+        defer {
+            streamer.stop()
+        }
+
+        streamer.bufferCount = 4
+        streamer.bitrateNotificationSent = true
+        streamer.stallDetector = StallDetector(
+            highMark: 0.75,
+            lowMark: 0.40,
+            debounceCount: 1
+        )
+        streamer.setState(.playing)
+
+        streamer.buffersUsed = 3
+        streamer.checkBufferHealth()
+
+        streamer.buffersUsed = 1
+        streamer.checkBufferHealth()
+
+        #expect(
+            streamer.state == .rebuffering,
+            "An incomplete stream that drains below the low-water mark must reconnect"
+        )
+    }
     
     /// Test volume setting before audio queue is ready
     @Test("Volume Setting Before Audio Queue")

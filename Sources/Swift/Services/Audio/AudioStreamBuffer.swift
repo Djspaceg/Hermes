@@ -251,7 +251,7 @@ extension AudioStreamer {
 
 
     func enqueueBuffer() -> Int {
-        guard stream != nil, let audioQueue = audioQueue else { return -1 }
+        guard canEnqueueBufferedInput(), let audioQueue = audioQueue else { return -1 }
 
         // Serialize buffer tracking mutations through bufferQueue.
         // enqueueBuffer is called from the stream queue (via URLSession callbacks),
@@ -351,6 +351,36 @@ extension AudioStreamer {
     }
 
 
+    /// Must be called while holding bufferQueue.
+    func hasDrainedCompletedInput() -> Bool {
+        buffersUsed == 0 && queuedPackets.isEmpty && dataTask == nil
+    }
+
+    /// Whether the active HTTP task or completed input can still enqueue packets.
+    ///
+    /// After URLSession reports normal completion, packets already parsed into
+    /// `queuedPackets` still need to reach the AudioQueue even though the task
+    /// has been cleared to permit clean end-of-file detection.
+    func canEnqueueBufferedInput() -> Bool {
+        dataTask != nil || httpStreamCompleted
+    }
+
+    /// Must be called from streamQueue.
+    func needsFinalBufferEnqueueAfterCachedPacketDrain() -> Bool {
+        httpStreamCompleted && queuedPackets.isEmpty && bytesFilled > 0
+    }
+
+    /// Must be called while holding bufferQueue.
+    @discardableResult
+    func stopQueueIfDrainedAfterInputCompletion() -> Bool {
+        guard hasDrainedCompletedInput(), let audioQueue = audioQueue else {
+            return false
+        }
+
+        AudioQueueStop(audioQueue, true)
+        return true
+    }
+
     func handleBufferComplete(queue: AudioQueueRef, buffer: AudioQueueBufferRef) {
         // Ignore if queue was disposed
         guard audioQueue != nil, queue == audioQueue else { return }
@@ -392,13 +422,9 @@ extension AudioStreamer {
                 return
             }
 
-            // Check if stream ended and no more data
-            if self.buffersUsed == 0 && self.queuedPackets.isEmpty {
-                if self.dataTask == nil {
-                    // Stream already completed — stop the queue
-                    AudioQueueStop(self.audioQueue!, true)
-                    return
-                }
+            // Check if stream ended and no more data.
+            if self.stopQueueIfDrainedAfterInputCompletion() {
+                return
             }
 
             // Proactive stall detection: evaluate buffer health and trigger
@@ -423,7 +449,7 @@ extension AudioStreamer {
             guard idx < bufferInUse.count else { return false }
             return !bufferInUse[idx]
         }
-        guard !isDone, !waitingOnBuffer, canProceed, stream != nil else { return }
+        guard !isDone, !waitingOnBuffer, canProceed, canEnqueueBufferedInput() else { return }
 
         // Process queued packets
         while !queuedPackets.isEmpty {
@@ -443,6 +469,13 @@ extension AudioStreamer {
             }
 
             queuedPackets.removeFirst()
+        }
+
+        // Cached packets can form a final partial buffer after URLSession has
+        // completed. Enqueue it now so the tail reaches the AudioQueue before
+        // the completed-input drain path stops the queue.
+        if needsFinalBufferEnqueueAfterCachedPacketDrain() {
+            _ = enqueueBuffer()
         }
     }
 

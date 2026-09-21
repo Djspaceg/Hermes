@@ -304,6 +304,33 @@ struct PlaybackControllerStationManagementTests {
     }
 }
 
+@Suite("Playback Progress Watchdog")
+struct PlaybackProgressWatchdogTests {
+
+    @Test("Progress beyond duration tolerance advances stalled playback")
+    @MainActor
+    func testProgressBeyondDurationToleranceIsStalled() {
+        #expect(
+            PlaybackController.progressExceededStallTolerance(
+                progress: 396.0,
+                duration: 393.5
+            )
+        )
+        #expect(
+            !PlaybackController.progressExceededStallTolerance(
+                progress: 395.5,
+                duration: 393.5
+            )
+        )
+        #expect(
+            !PlaybackController.progressExceededStallTolerance(
+                progress: 1.0,
+                duration: 0
+            )
+        )
+    }
+}
+
 @Suite("System Event Resume Ownership", .serialized)
 struct SystemEventResumeOwnershipTests {
     @MainActor

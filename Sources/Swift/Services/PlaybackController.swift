@@ -653,6 +653,13 @@ extension PlaybackController {
 // MARK: - Progress
 
 extension PlaybackController {
+
+    static func progressExceededStallTolerance(
+        progress: Double,
+        duration: Double
+    ) -> Bool {
+        duration > 0 && progress > duration + 2.0
+    }
     
     /// Start updating progress periodically
     @objc func startUpdatingProgress() {
@@ -682,7 +689,7 @@ extension PlaybackController {
         // tolerance, the stream is stalled (e.g. connection reset left the
         // AudioQueue clock running with no data). Clamp the reported value
         // and force-advance to the next song.
-        if dur > 0 && prog > dur + 2.0 {
+        if Self.progressExceededStallTolerance(progress: prog, duration: dur) {
             currentProgress = dur
             currentDuration = dur
             
