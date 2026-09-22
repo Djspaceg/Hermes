@@ -814,6 +814,42 @@ final class NotificationBridgePropertyTests: XCTestCase {
         }
     }
     
+    /// Regression test: An unrelated stations notification must not satisfy
+    /// the failure-path assertion for a MockPandora operation.
+    func testProperty_NotificationsNotPostedOnFailureIgnoresUnrelatedStationsNotification() throws {
+        let mock = MockPandora()
+        mock.fetchStationsResult = false
+        mock.fetchStationsError = nil
+
+        let stationsExpectation = XCTestExpectation(description: "Mock stations notification")
+        stationsExpectation.isInverted = true
+        let stationsCancellable = NotificationCenter.default.publisher(
+            for: Notification.Name("hermes.stations")
+        )
+        .sink { _ in
+            stationsExpectation.fulfill()
+        }
+
+        let foreignPostExpectation = XCTestExpectation(description: "Unrelated stations notification")
+        let foreignPostObserver = NotificationCenter.default.addObserver(
+            forName: Notification.Name("hermes.stations"),
+            object: nil,
+            queue: nil
+        ) { _ in
+            foreignPostExpectation.fulfill()
+        }
+
+        let result = mock.fetchStations()
+        NotificationCenter.default.post(name: Notification.Name("hermes.stations"), object: nil)
+        wait(for: [foreignPostExpectation], timeout: 1.0)
+        wait(for: [stationsExpectation], timeout: 0.1)
+
+        XCTAssertFalse(result)
+
+        NotificationCenter.default.removeObserver(foreignPostObserver)
+        stationsCancellable.cancel()
+    }
+
     /// Property test: Multiple notification subscribers receive notifications
     /// Tests that notifications are broadcast to all subscribers
     func testProperty_MultipleSubscribersReceiveNotifications() throws {
