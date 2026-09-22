@@ -269,6 +269,25 @@ struct AppleScriptIntegrationTests {
         }
     }
 
+    @Test("AppleScript history entry collection maps to its KVC key")
+    @MainActor
+    func testHistoryEntryCollectionDictionaryBinding() throws {
+        let sdefURL = try #require(Bundle.main.url(forResource: "Hermes", withExtension: "sdef"))
+        let sdef = try XMLDocument(contentsOf: sdefURL, options: [])
+        let elementXPath = "//class[@name='application']/element[@type='history entry' and @access='r']"
+        let matchingKeyXPath = "\(elementXPath)/cocoa[@key='historyEntries']"
+
+        #expect(try sdef.nodes(forXPath: matchingKeyXPath).count == 1)
+        #expect(try sdef.nodes(forXPath: "\(elementXPath)/cocoa").count == 1)
+
+        let key = "historyEntries"
+        let responds = NSApp.responds(to: NSSelectorFromString(key))
+        #expect(responds)
+        if responds {
+            #expect(NSApp.value(forKey: key) as? [HistoryEntry] != nil)
+        }
+    }
+
     @Test("AppleScript class pins preserve station state and history archives")
     @MainActor
     func testScriptedModelArchiveCompatibility() throws {
