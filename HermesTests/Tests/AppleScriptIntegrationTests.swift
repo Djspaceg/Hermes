@@ -335,7 +335,6 @@ struct AppleScriptIntegrationTests {
     @Test("AppleScript core/getd reads all history entry properties from the Debug host")
     @MainActor
     func testCoreGetDataHistoryEntryProperties() throws {
-        let playback = try #require(MinimalAppDelegate.shared?.playbackController)
         let bundleIdentifier = try #require(Bundle.main.bundleIdentifier)
         let bundleURL = Bundle.main.bundleURL
             .resolvingSymlinksInPath()
@@ -347,22 +346,8 @@ struct AppleScriptIntegrationTests {
             title: "Apple Event History Title",
             album: "Apple Event History Album"
         )
-        song.highUrl = "file:///tmp/hermes-apple-event-history-test.mp3"
         song.stationId = "apple-event-history-test-station"
         song.rating = 1
-
-        let station = Station()
-        station.stationId = song.stationId ?? ""
-        playback.playStation(station)
-        defer {
-            playback.playStation(nil)
-        }
-
-        station.addSong(song)
-        let songURL = try #require(URL(string: song.highUrl ?? ""))
-        station.setValue(songURL, forKey: "playing")
-        NotificationCenter.default.post(name: ASNewSongPlaying, object: station)
-        try #require(NSApp.currentSong === song)
 
         let originalHistoryItems = AppState.shared.historyViewModel.historyItems
         AppState.shared.historyViewModel.historyItems = [song]
