@@ -511,7 +511,25 @@ struct AppleScriptIntegrationTests {
         bundleIdentifier: String,
         expression: String
     ) throws -> String {
-        throw AppleEventIntegrationTestError.senderNotImplemented
+        let source = """
+        using terms from application id "\(bundleIdentifier)"
+            tell current application
+                get \(expression)
+            end tell
+        end using terms from
+        """
+        let script = try #require(NSAppleScript(source: source))
+        var error: NSDictionary?
+        let reply = script.executeAndReturnError(&error)
+        if let error {
+            throw AppleEventIntegrationTestError.scriptError(error.description)
+        }
+        guard let text = reply.stringValue else {
+            throw AppleEventIntegrationTestError.unexpectedReply(
+                reply.description
+            )
+        }
+        return text
     }
 
     private static let legacyStationClassName = "Hermes.Station"
@@ -551,14 +569,11 @@ struct AppleScriptIntegrationTests {
 }
 
 private enum AppleEventIntegrationTestError: LocalizedError {
-    case senderNotImplemented
     case scriptError(String)
     case unexpectedReply(String)
 
     var errorDescription: String? {
         switch self {
-        case .senderNotImplemented:
-            return "self-addressed AppleScript sender is not implemented"
         case .scriptError(let error):
             return "AppleScript execution failed: \(error)"
         case .unexpectedReply(let reply):
