@@ -288,6 +288,67 @@ struct AppleScriptIntegrationTests {
         }
     }
 
+    @Test(
+        "AppleScript core/getd reads artist URL and history entry from the Debug host",
+        .enabled(
+            if: ProcessInfo.processInfo.environment["HERMES_RUN_APPLE_EVENT_INTEGRATION"] == "1",
+            "Set HERMES_RUN_APPLE_EVENT_INTEGRATION=1 to run the process-level Apple Event check."
+        )
+    )
+    @MainActor
+    func testCoreGetDataAppleEventRoundTrip() async throws {
+        let playback = try #require(MinimalAppDelegate.shared?.playbackController)
+        let bundleIdentifier = try #require(Bundle.main.bundleIdentifier)
+        let bundleURL = Bundle.main.bundleURL
+            .resolvingSymlinksInPath()
+            .standardizedFileURL
+        let runningApplications = NSRunningApplication.runningApplications(
+            withBundleIdentifier: bundleIdentifier
+        )
+        try #require(runningApplications.count == 1)
+        let runningApplication = try #require(runningApplications.first)
+        try #require(
+            runningApplication.processIdentifier == ProcessInfo.processInfo.processIdentifier
+        )
+        try #require(
+            runningApplication.bundleURL?.resolvingSymlinksInPath().standardizedFileURL == bundleURL
+        )
+
+        let song = Song(
+            artist: "Apple Event Artist",
+            title: "Apple Event Title",
+            album: "Apple Event Album"
+        )
+        song.artistUrl = "https://example.com/apple-event-artist"
+        song.highUrl = "file:///tmp/hermes-apple-event-test.mp3"
+
+        let station = Station()
+        station.stationId = "apple-event-test-station"
+        playback.playStation(station)
+        defer {
+            playback.playStation(nil)
+        }
+
+        station.addSong(song)
+        let songURL = try #require(URL(string: song.highUrl ?? ""))
+        station.setValue(songURL, forKey: "playing")
+        NotificationCenter.default.post(name: ASNewSongPlaying, object: station)
+        try #require(NSApp.currentSong === song)
+
+        let originalHistoryItems = AppState.shared.historyViewModel.historyItems
+        AppState.shared.historyViewModel.historyItems = [song]
+        defer {
+            AppState.shared.historyViewModel.historyItems = originalHistoryItems
+        }
+
+        let responses = try await Task.detached {
+            try Self.runGetDataAppleScripts(bundleIdentifier: bundleIdentifier)
+        }.value
+
+        #expect(responses.artistURL == song.artistUrl)
+        #expect(responses.historyTitle == song.title)
+    }
+
     @Test("AppleScript class pins preserve station state and history archives")
     @MainActor
     func testScriptedModelArchiveCompatibility() throws {
@@ -463,6 +524,12 @@ struct AppleScriptIntegrationTests {
             .appendingPathComponent("Fixtures/history-prechange.savestate")
     }
 
+    private static func runGetDataAppleScripts(
+        bundleIdentifier: String
+    ) throws -> (artistURL: String, historyTitle: String) {
+        throw AppleEventIntegrationTestError.senderNotImplemented
+    }
+
     private static let legacyStationClassName = "Hermes.Station"
     private static let legacySongClassName = "Hermes.Song"
 
@@ -497,4 +564,8 @@ struct AppleScriptIntegrationTests {
         controller.playStation(nil)
         #expect(controller.playing == nil)
     }
+}
+
+private enum AppleEventIntegrationTestError: Error {
+    case senderNotImplemented
 }

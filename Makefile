@@ -308,6 +308,7 @@ test:
 		TEST_RUNNER_HERMES_TEST_HOME="$$test_home" \
 		TEST_RUNNER_HERMES_TEST_STATE_PATH="$$test_state" \
 		TEST_RUNNER_TMPDIR="$$test_tmp" \
+		TEST_RUNNER_HERMES_RUN_APPLE_EVENT_INTEGRATION="$${HERMES_RUN_APPLE_EVENT_INTEGRATION:-}" \
 		TEST_RUNNER_HERMES_UX_EVIDENCE_PATH="$${HERMES_UX_EVIDENCE_PATH:-}" \
 		$(XCB) $(COMMON_OPTS) -scheme Hermes -derivedDataPath "$$build_derived_data" test-without-building; \
 		test_status=$$?; \
