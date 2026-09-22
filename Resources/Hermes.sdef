@@ -48,7 +48,9 @@
 		<class name="application" code="capp" description="The Pandora player.">
 			<cocoa class="NSApplication"/>
 			<element type="station" access="r"/>
-			<element type="history entry" access="r"/>
+			<element type="history entry" access="r">
+				<cocoa key="historyEntries"/>
+			</element>
 			<property name="playback volume" code="cvol" description="The current playback volume (0–100)." type="integer">
 				<cocoa key="volume"/>
 			</property>
