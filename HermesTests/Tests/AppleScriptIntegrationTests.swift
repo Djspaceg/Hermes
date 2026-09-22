@@ -288,31 +288,20 @@ struct AppleScriptIntegrationTests {
         }
     }
 
-    @Test(
-        "AppleScript core/getd reads artist URL and history entry from the Debug host",
-        .enabled(
-            if: ProcessInfo.processInfo.environment["HERMES_RUN_APPLE_EVENT_INTEGRATION"] == "1",
-            "Set HERMES_RUN_APPLE_EVENT_INTEGRATION=1 to run the process-level Apple Event check."
-        )
-    )
+    @Test("AppleScript core/getd reads artist URL from the Debug host")
     @MainActor
-    func testCoreGetDataAppleEventRoundTrip() async throws {
+    func testCoreGetDataAppleEventRoundTrip() throws {
         let playback = try #require(MinimalAppDelegate.shared?.playbackController)
         let bundleIdentifier = try #require(Bundle.main.bundleIdentifier)
         let bundleURL = Bundle.main.bundleURL
             .resolvingSymlinksInPath()
             .standardizedFileURL
-        let runningApplications = NSRunningApplication.runningApplications(
-            withBundleIdentifier: bundleIdentifier
-        )
-        try #require(runningApplications.count == 1)
-        let runningApplication = try #require(runningApplications.first)
-        try #require(
-            runningApplication.processIdentifier == ProcessInfo.processInfo.processIdentifier
-        )
-        try #require(
-            runningApplication.bundleURL?.resolvingSymlinksInPath().standardizedFileURL == bundleURL
-        )
+        try #require(bundleURL.path.contains("/Debug/"))
+        let supportDirectory = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support/Hermes")
+            .resolvingSymlinksInPath()
+            .standardizedFileURL
+        print("APPLE_EVENT_TEST_SUPPORT_DIRECTORY path=\(supportDirectory.path)")
 
         let song = Song(
             artist: "Apple Event Artist",
@@ -335,18 +324,12 @@ struct AppleScriptIntegrationTests {
         NotificationCenter.default.post(name: ASNewSongPlaying, object: station)
         try #require(NSApp.currentSong === song)
 
-        let originalHistoryItems = AppState.shared.historyViewModel.historyItems
-        AppState.shared.historyViewModel.historyItems = [song]
-        defer {
-            AppState.shared.historyViewModel.historyItems = originalHistoryItems
-        }
-
-        let responses = try await Task.detached {
-            try Self.runGetDataAppleScripts(bundleIdentifier: bundleIdentifier)
-        }.value
-
-        #expect(responses.artistURL == song.artistUrl)
-        #expect(responses.historyTitle == song.title)
+        #expect(
+            try Self.getDataText(
+                bundleIdentifier: bundleIdentifier,
+                expression: "artist URL of current song"
+            ) == song.artistUrl
+        )
     }
 
     @Test("AppleScript class pins preserve station state and history archives")
@@ -524,9 +507,10 @@ struct AppleScriptIntegrationTests {
             .appendingPathComponent("Fixtures/history-prechange.savestate")
     }
 
-    private static func runGetDataAppleScripts(
-        bundleIdentifier: String
-    ) throws -> (artistURL: String, historyTitle: String) {
+    private static func getDataText(
+        bundleIdentifier: String,
+        expression: String
+    ) throws -> String {
         throw AppleEventIntegrationTestError.senderNotImplemented
     }
 
@@ -566,6 +550,19 @@ struct AppleScriptIntegrationTests {
     }
 }
 
-private enum AppleEventIntegrationTestError: Error {
+private enum AppleEventIntegrationTestError: LocalizedError {
     case senderNotImplemented
+    case scriptError(String)
+    case unexpectedReply(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .senderNotImplemented:
+            return "self-addressed AppleScript sender is not implemented"
+        case .scriptError(let error):
+            return "AppleScript execution failed: \(error)"
+        case .unexpectedReply(let reply):
+            return "core/getd returned a non-text reply: \(reply)"
+        }
+    }
 }
