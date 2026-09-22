@@ -332,6 +332,98 @@ struct AppleScriptIntegrationTests {
         )
     }
 
+    @Test("AppleScript core/getd reads all history entry properties from the Debug host")
+    @MainActor
+    func testCoreGetDataHistoryEntryProperties() throws {
+        let playback = try #require(MinimalAppDelegate.shared?.playbackController)
+        let bundleIdentifier = try #require(Bundle.main.bundleIdentifier)
+        let bundleURL = Bundle.main.bundleURL
+            .resolvingSymlinksInPath()
+            .standardizedFileURL
+        try #require(bundleURL.path.contains("/Debug/"))
+
+        let song = Song(
+            artist: "Apple Event History Artist",
+            title: "Apple Event History Title",
+            album: "Apple Event History Album"
+        )
+        song.highUrl = "file:///tmp/hermes-apple-event-history-test.mp3"
+        song.stationId = "apple-event-history-test-station"
+        song.rating = 1
+
+        let station = Station()
+        station.stationId = song.stationId ?? ""
+        playback.playStation(station)
+        defer {
+            playback.playStation(nil)
+        }
+
+        station.addSong(song)
+        let songURL = try #require(URL(string: song.highUrl ?? ""))
+        station.setValue(songURL, forKey: "playing")
+        NotificationCenter.default.post(name: ASNewSongPlaying, object: station)
+        try #require(NSApp.currentSong === song)
+
+        let originalHistoryItems = AppState.shared.historyViewModel.historyItems
+        AppState.shared.historyViewModel.historyItems = [song]
+        defer {
+            AppState.shared.historyViewModel.historyItems = originalHistoryItems
+        }
+
+        func read(label: String, expression: String) -> String? {
+            do {
+                let value = try Self.getDataText(
+                    bundleIdentifier: bundleIdentifier,
+                    expression: expression
+                )
+                print("APPLE_EVENT_HISTORY_ENTRY_\(label) value=\(value)")
+                return value
+            } catch {
+                print("APPLE_EVENT_HISTORY_ENTRY_\(label) error=\(error)")
+                return nil
+            }
+        }
+
+        let properties: [(label: String, expression: String, expected: String)] = [
+            (
+                "FORWARD_STATION_ID",
+                "station ID of history entry 1",
+                song.stationId ?? ""
+            ),
+            ("FORWARD_TITLE", "title of history entry 1", song.title),
+            ("FORWARD_ARTIST", "artist of history entry 1", song.artist),
+            ("FORWARD_ALBUM", "album of history entry 1", song.album),
+            ("FORWARD_RATING", "rating of history entry 1", String(song.rating))
+        ]
+
+        var results: [String: String?] = [:]
+        for property in properties {
+            results[property.label] = read(
+                label: property.label,
+                expression: property.expression
+            )
+        }
+        for property in properties {
+            #expect(results[property.label] == property.expected)
+        }
+
+        for property in properties.reversed() {
+            _ = read(
+                label: "REVERSE_\(property.label)",
+                expression: property.expression
+            )
+        }
+
+        _ = read(
+            label: "EXPLICIT_HTIT",
+            expression: "\u{00AB}class htit\u{00BB} of history entry 1"
+        )
+        _ = read(
+            label: "EXPLICIT_PTIT",
+            expression: "\u{00AB}class ptit\u{00BB} of history entry 1"
+        )
+    }
+
     @Test("AppleScript class pins preserve station state and history archives")
     @MainActor
     func testScriptedModelArchiveCompatibility() throws {
