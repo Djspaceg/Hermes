@@ -778,7 +778,8 @@ final class NotificationBridgePropertyTests: XCTestCase {
         // **Validates: Requirements 6.3, 6.4**
         
         for iteration in 0..<100 {
-            let mock = MockPandora()
+            let notificationCenter = NotificationCenter()
+            let mock = MockPandora(notificationCenter: notificationCenter)
             
             // Configure for failure (no error, just false result)
             mock.fetchStationsResult = false
@@ -789,7 +790,7 @@ final class NotificationBridgePropertyTests: XCTestCase {
             let stationsExpectation = XCTestExpectation(description: "Stations notification")
             stationsExpectation.isInverted = true // Should NOT be fulfilled
             
-            let cancellable = NotificationCenter.default.publisher(for: Notification.Name("hermes.stations"))
+            let cancellable = notificationCenter.publisher(for: Notification.Name("hermes.stations"))
                 .sink { _ in
                     receivedStationsNotification = true
                     stationsExpectation.fulfill()
@@ -817,13 +818,14 @@ final class NotificationBridgePropertyTests: XCTestCase {
     /// Regression test: An unrelated stations notification must not satisfy
     /// the failure-path assertion for a MockPandora operation.
     func testProperty_NotificationsNotPostedOnFailureIgnoresUnrelatedStationsNotification() throws {
-        let mock = MockPandora()
+        let mockNotificationCenter = NotificationCenter()
+        let mock = MockPandora(notificationCenter: mockNotificationCenter)
         mock.fetchStationsResult = false
         mock.fetchStationsError = nil
 
         let stationsExpectation = XCTestExpectation(description: "Mock stations notification")
         stationsExpectation.isInverted = true
-        let stationsCancellable = NotificationCenter.default.publisher(
+        let stationsCancellable = mockNotificationCenter.publisher(
             for: Notification.Name("hermes.stations")
         )
         .sink { _ in

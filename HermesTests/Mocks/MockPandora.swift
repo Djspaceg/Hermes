@@ -63,6 +63,12 @@ final class MockPandora: NSObject, PandoraProtocol {
     
     /// Array of all recorded calls in chronological order
     private(set) var calls: [Call] = []
+    private let notificationCenter: NotificationCenter
+
+    init(notificationCenter: NotificationCenter = .default) {
+        self.notificationCenter = notificationCenter
+        super.init()
+    }
     
     // MARK: - Configurable Behavior
     
@@ -173,7 +179,7 @@ final class MockPandora: NSObject, PandoraProtocol {
         }
         
         if fetchStationsResult {
-            NotificationCenter.default.post(name: Notification.Name("hermes.stations"), object: nil)
+            notificationCenter.post(name: Notification.Name("hermes.stations"), object: nil)
         }
         
         return fetchStationsResult
