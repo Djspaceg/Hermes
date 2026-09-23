@@ -97,13 +97,13 @@
 		</class>
 		<class name="history entry" code="hien" description="An immutable snapshot of a song shown in Hermes’s History list.">
 			<cocoa class="HistoryEntry"/>
-			<property name="title" code="htit" description="The song’s title." type="text" access="r"/>
-			<property name="artist" code="hart" description="The song’s artist." type="text" access="r"/>
-			<property name="album" code="halb" description="The song’s album." type="text" access="r"/>
+			<property name="title" code="ptit" description="The song’s title." type="text" access="r"/>
+			<property name="artist" code="part" description="The song’s artist." type="text" access="r"/>
+			<property name="album" code="palb" description="The song’s album." type="text" access="r"/>
 			<property name="station ID" code="hsid" description="The Pandora station ID associated with this history entry." type="text" access="r">
 				<cocoa key="stationID"/>
 			</property>
-			<property name="rating" code="hrat" description="The song rating captured for this history entry." type="integer" access="r"/>
+			<property name="rating" code="prat" description="The song rating captured for this history entry." type="integer" access="r"/>
 		</class>
 		<!-- Playback commands -->
 		<command name="playpause" code="HeRMplpa" description="Play the current song if it is paused; pause the current song if it is playing.">
