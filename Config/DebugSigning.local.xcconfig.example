@@ -1,5 +1,4 @@
-// Copy to DebugSigning.local.xcconfig and replace the placeholder with your
-// own Apple Developer team. This file is intentionally ignored by Git.
+// Copy this file to DebugSigning.local.xcconfig to use a locally installed
+// Apple Development signing identity for App Group-enabled Debug builds.
 CODE_SIGN_IDENTITY[sdk=macosx*] = Apple Development
-CODE_SIGN_STYLE = Manual
-DEVELOPMENT_TEAM = YOUR_DEVELOPMENT_TEAM
+DEVELOPMENT_TEAM = 4D22XL743H

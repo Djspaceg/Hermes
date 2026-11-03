@@ -337,6 +337,10 @@ final class Station: Playlist, NSSecureCoding, Identifiable {
         super.clearSongList()
         songs.removeAll()
     }
+
+    func setPlayingSongForTesting(_ song: Song) {
+        playingSong = song
+    }
     
     // MARK: - Notification Handlers
     

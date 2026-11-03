@@ -302,6 +302,59 @@ struct PlaybackControllerStationManagementTests {
         // Should be the same instance
         #expect(controller.playing === firstPlaying)
     }
+
+    @Test("stop keeps the widget snapshot idle after a retained song state notification")
+    @MainActor
+    func stopKeepsNowPlayingSnapshotIdle() throws {
+        let suiteName = "com.hermes.tests.now-playing-stop.\(UUID().uuidString)"
+        let userDefaults = try #require(UserDefaults(suiteName: suiteName))
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("HermesNowPlayingStopTests-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(
+            at: directory,
+            withIntermediateDirectories: false
+        )
+        defer {
+            userDefaults.removePersistentDomain(forName: suiteName)
+            try? FileManager.default.removeItem(at: directory)
+        }
+
+        let store = NowPlayingSnapshotStore(containerURL: directory)
+        let controller = PlaybackController(
+            userDefaults: userDefaults,
+            nowPlayingSnapshotStore: store
+        )
+        let station = Station()
+        station.name = "Test Station"
+        let song = Song.mock(
+            title: "Retained Song",
+            artist: "Test Artist",
+            album: "Test Album"
+        )
+        station.setPlayingSongForTesting(song)
+        controller.selectStationForSystemEventTesting(station)
+        try store.write(
+            snapshot: NowPlayingSnapshot(
+                title: song.title,
+                artist: song.artist,
+                album: song.album,
+                stationName: station.name,
+                playbackState: .paused,
+                rating: song.rating,
+                duration: 120,
+                elapsedTime: 30,
+                playbackStartDate: Date(),
+                artworkFilename: nil
+            ),
+            artworkData: Data([1, 2, 3])
+        )
+
+        controller.setup()
+        controller.stop()
+        NotificationCenter.default.post(name: ASStatusChangedNotification, object: station)
+
+        #expect(store.readSnapshot() == .idle)
+    }
 }
 
 @Suite("Playback Progress Watchdog")

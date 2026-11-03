@@ -14,6 +14,7 @@ import AppKit
 import MediaPlayer
 import Combine
 import OSLog
+import WidgetKit
 
 // MARK: - PlaybackController
 
@@ -107,6 +108,7 @@ final class PlaybackController: ObservableObject {
     
     private let userDefaults: UserDefaults
     private let playbackStateStore: PlaybackStateStoring
+    private let nowPlayingSnapshotStore: NowPlayingSnapshotStore?
     private let systemEventNotificationSource: SystemEventNotificationSource
     private let pandoraProvider: @MainActor () -> PandoraProtocol?
     private let songFeedbackService: SongFeedbackService
@@ -126,12 +128,14 @@ final class PlaybackController: ObservableObject {
     init(
         userDefaults: UserDefaults = .standard,
         playbackStateStore: PlaybackStateStoring? = nil,
+        nowPlayingSnapshotStore: NowPlayingSnapshotStore? = NowPlayingSnapshotStore.appGroupStore(),
         systemEventNotificationSource: SystemEventNotificationSource =
             DistributedSystemEventNotificationSource(),
         pandoraProvider: @escaping @MainActor () -> PandoraProtocol? = { AppState.shared.pandora }
     ) {
         self.userDefaults = userDefaults
         self.playbackStateStore = playbackStateStore ?? PlaybackStateStore(userDefaults: userDefaults)
+        self.nowPlayingSnapshotStore = nowPlayingSnapshotStore
         self.systemEventNotificationSource = systemEventNotificationSource
         self.pandoraProvider = pandoraProvider
         self.songFeedbackService = SongFeedbackService(pandoraProvider: pandoraProvider)
@@ -415,6 +419,7 @@ extension PlaybackController {
             playbackStateStore.clearSelection()
             lastImgSrc = nil
             postStateChange()
+            updateNowPlayingInfo()
             return
         }
         
@@ -519,6 +524,7 @@ extension PlaybackController {
 
         playing?.stop()
         postStateChange()
+        updateNowPlayingInfo()
     }
     
     /// Toggles between play and pause states
@@ -589,6 +595,7 @@ extension PlaybackController {
                 next()
             }
             postStateChange()
+            updateNowPlayingInfo()
         }
     }
     
@@ -887,8 +894,11 @@ extension PlaybackController {
     
     /// Update the Now Playing info center with current song info
     private func updateNowPlayingInfo() {
-        guard let song = playing?.playingSong else {
+        guard let station = playing,
+              !station.isIdle(),
+              let song = station.playingSong else {
             MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+            writeIdleNowPlayingSnapshot()
             return
         }
         
@@ -914,6 +924,56 @@ extension PlaybackController {
         }
         
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+        writeNowPlayingSnapshot(for: song)
+    }
+
+    private func writeNowPlayingSnapshot(for song: Song) {
+        guard let nowPlayingSnapshotStore else { return }
+
+        let duration = max(playing?.duration() ?? currentDuration, 0)
+        let elapsedTime = min(
+            max(playing?.progress() ?? currentProgress, 0),
+            duration
+        )
+        let playbackState: NowPlayingPlaybackState = (playing?.isPlaying() ?? false)
+            ? .playing
+            : .paused
+        let playbackStartDate = duration > 0
+            ? Date().addingTimeInterval(-elapsedTime)
+            : nil
+        let snapshot = NowPlayingSnapshot(
+            title: song.title,
+            artist: song.artist,
+            album: song.album,
+            stationName: playing?.name ?? "",
+            playbackState: playbackState,
+            rating: song.rating,
+            duration: duration,
+            elapsedTime: elapsedTime,
+            playbackStartDate: playbackStartDate,
+            artworkFilename: nil
+        )
+
+        do {
+            try nowPlayingSnapshotStore.write(
+                snapshot: snapshot,
+                artworkData: lastImg as Data?
+            )
+            WidgetCenter.shared.reloadTimelines(ofKind: NowPlayingWidgetConfiguration.kind)
+        } catch {
+            logger.error("Could not write now-playing widget snapshot: \(error.localizedDescription)")
+        }
+    }
+
+    private func writeIdleNowPlayingSnapshot() {
+        guard let nowPlayingSnapshotStore else { return }
+
+        do {
+            try nowPlayingSnapshotStore.writeIdleSnapshot()
+            WidgetCenter.shared.reloadTimelines(ofKind: NowPlayingWidgetConfiguration.kind)
+        } catch {
+            logger.error("Could not clear now-playing widget snapshot: \(error.localizedDescription)")
+        }
     }
 }
 
