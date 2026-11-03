@@ -1166,6 +1166,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = C0D3D0012F70000100D3B001 /* Config/DebugSigning.xcconfig */;
 			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = HermesWidget/HermesWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
@@ -1189,6 +1190,7 @@
 		E90000000000000000000051 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = HermesWidget/HermesWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
