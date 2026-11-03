@@ -7,18 +7,17 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		F45A03C6AB7F4AA2AF69C5E7 /* AudioStreamDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB2396AF824442B9B61725B3 /* AudioStreamDecoder.swift */; };
-		6318D442136A456DBE647EFA /* AudioStreamBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81905888B97C4898AED84191 /* AudioStreamBuffer.swift */; };
-		2131EFB7363647799BE4288A /* NotificationContinuation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18DB0642B5AC47B997EB35D4 /* NotificationContinuation.swift */; };
 		05C0BB8F3C1940D8BEBFA6F2 /* NetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D276383AE2745A59B7165F6 /* NetworkMonitor.swift */; };
 		16A03D4CD43741B4A5967EE7 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D19183DC23704102B6CFDB12 /* MenuBarView.swift */; };
 		1A615A41A03E43DBB8C0DDF5 /* PandoraPlayback.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87DB5AE4398A41328C29E895 /* PandoraPlayback.swift */; };
+		2131EFB7363647799BE4288A /* NotificationContinuation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18DB0642B5AC47B997EB35D4 /* NotificationContinuation.swift */; };
 		3028D908ACEE48939E153EE8 /* SidebarWidthKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1C07AF1C3E448FDB3B2CA5E /* SidebarWidthKey.swift */; };
 		3BCBD3A909E5492F86A73181 /* ViewModifiers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AC8B812A0CC4AE0A4D40883 /* ViewModifiers.swift */; };
 		42F388EA7D0A48E69072BBCF /* PandoraStations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F5C950BC79C4DBAB560C9EE /* PandoraStations.swift */; };
 		44310F8B18EB87AB0095359D /* Credits.rtf in Resources */ = {isa = PBXBuildFile; fileRef = 44310F8A18EB87AB0095359D /* Credits.rtf */; };
 		459A3DDA60B348F38426008C /* ImageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = B42501158E25473A9B5A38CF /* ImageCache.swift */; };
 		45E083D7892741638D71D5A7 /* PandoraModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A0035B3D8264B15AA05105B /* PandoraModels.swift */; };
+		6318D442136A456DBE647EFA /* AudioStreamBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81905888B97C4898AED84191 /* AudioStreamBuffer.swift */; };
 		63198A802F327F7B0045FCD6 /* PandoraCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63198A7E2F327F7B0045FCD6 /* PandoraCrypto.swift */; };
 		63198A812F327F7B0045FCD6 /* PandoraClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63198A7D2F327F7B0045FCD6 /* PandoraClient.swift */; };
 		632471052F3513490024D803 /* VolumeControlView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632471032F3513490024D803 /* VolumeControlView.swift */; };
@@ -58,7 +57,6 @@
 		634D8E902F1719EA0069FD8F /* StationEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634D8E8F2F1719EA0069FD8F /* StationEditView.swift */; };
 		634D8E922F171F060069FD8F /* SettingsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634D8E912F171F060069FD8F /* SettingsManager.swift */; };
 		634D8E942F171F070069FD8F /* WindowTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634D8E932F171F070069FD8F /* WindowTracker.swift */; };
-		DCB01A1E2F20010100AA00AA /* DockMenuBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCB01A1F2F20010100AA00AA /* DockMenuBuilder.swift */; };
 		634D8E962F171FFF0069FD8F /* PreviewMocks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634D8E952F171FFF0069FD8F /* PreviewMocks.swift */; };
 		634D8E982F1720000069FD8F /* KeychainManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634D8E972F1720000069FD8F /* KeychainManager.swift */; };
 		634D90EA2F19AD5E0069FD8F /* AppleScriptSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634D90E72F19AD5E0069FD8F /* AppleScriptSupport.swift */; };
@@ -66,9 +64,10 @@
 		634D910C2F19BCB10069FD8F /* Song.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634D910B2F19BCB10069FD8F /* Song.swift */; };
 		634D910D2F19BCB10069FD8F /* PandoraDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634D910A2F19BCB10069FD8F /* PandoraDevice.swift */; };
 		6D2D8B1F1FAD4654B364E77F /* StationArtworkLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD2036192DD64C5DB24413F7 /* StationArtworkLoader.swift */; };
-		87032BFA97044C76BD1EB5A8 /* UpdateChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB9E84EEFDC4FFEB2DF8F4F /* UpdateChecker.swift */; };
 		728CC0A620A645A99CD50CA3 /* Station.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51F1E6C3C4541D59BFD58C3 /* Station.swift */; };
 		7593CF3D967045AB81A643B3 /* UserDefaultsKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB8673FAFDE046A196C93DC7 /* UserDefaultsKeys.swift */; };
+		87032BFA97044C76BD1EB5A8 /* UpdateChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB9E84EEFDC4FFEB2DF8F4F /* UpdateChecker.swift */; };
+		8A55EEC82F68000100A10001 /* PlaybackStateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A55EEC92F68000100A10001 /* PlaybackStateStore.swift */; };
 		8D11072B0486CEB800E47090 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 089C165CFE840E0CC02AAC07 /* InfoPlist.strings */; };
 		96BB97EF20A84DC8857739DC /* HTTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83CE1A66FC3E4E83B90BC42F /* HTTPClient.swift */; };
 		97177194159EAA7D00EE3355 /* cd.png in Resources */ = {isa = PBXBuildFile; fileRef = 97177193159EAA7D00EE3355 /* cd.png */; };
@@ -80,12 +79,13 @@
 		C9B0C1C980D64A47B9221AB2 /* PandoraNetwork.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEC9202DB7794B3EA1B78B66 /* PandoraNetwork.swift */; };
 		CDE16F7D896A4CA8A7CC428E /* IconMask.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFB0900750CF48EC8605E065 /* IconMask.swift */; };
 		CRYPTOSWIFT001 /* CryptoSwift in Frameworks */ = {isa = PBXBuildFile; productRef = CRYPTOSWIFT002 /* CryptoSwift */; };
+		D9A7B102EFB14ED1AD050001 /* SongFeedbackService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9A7B102EFB14ED1AD050002 /* SongFeedbackService.swift */; };
+		DCB01A1E2F20010100AA00AA /* DockMenuBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCB01A1F2F20010100AA00AA /* DockMenuBuilder.swift */; };
 		E1C1EC121A1AE7E4001E4D8F /* Pandora-Menu-Dark-Play.pdf in Resources */ = {isa = PBXBuildFile; fileRef = E1C1EC101A1AE7E4001E4D8F /* Pandora-Menu-Dark-Play.pdf */; };
 		E1C1EC131A1AE7E4001E4D8F /* Pandora-Menu-Dark-Pause.pdf in Resources */ = {isa = PBXBuildFile; fileRef = E1C1EC111A1AE7E4001E4D8F /* Pandora-Menu-Dark-Pause.pdf */; };
 		EFF506A611DA461CB03497E8 /* PlaybackController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 457303C5850141E18298EAB9 /* PlaybackController.swift */; };
-		8A55EEC82F68000100A10001 /* PlaybackStateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A55EEC92F68000100A10001 /* PlaybackStateStore.swift */; };
-		D9A7B102EFB14ED1AD050001 /* SongFeedbackService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9A7B102EFB14ED1AD050002 /* SongFeedbackService.swift */; };
 		F3758E07F47648BF8FD86559 /* PandoraAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C67A2A19BEF4175B91E6442 /* PandoraAuth.swift */; };
+		F45A03C6AB7F4AA2AF69C5E7 /* AudioStreamDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB2396AF824442B9B61725B3 /* AudioStreamDecoder.swift */; };
 		FA04AE9C14438F1000819310 /* thumbdown.png in Resources */ = {isa = PBXBuildFile; fileRef = FA04AE9A14438F1000819310 /* thumbdown.png */; };
 		FA04AE9D14438F1000819310 /* thumbup.png in Resources */ = {isa = PBXBuildFile; fileRef = FA04AE9B14438F1000819310 /* thumbup.png */; };
 		FA0E555A14784A3000C36794 /* Hermes.sdef in Resources */ = {isa = PBXBuildFile; fileRef = FA0E555914784A3000C36794 /* Hermes.sdef */; };
@@ -141,18 +141,13 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		CB2396AF824442B9B61725B3 /* AudioStreamDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AudioStreamDecoder.swift; path = Sources/Swift/Services/Audio/AudioStreamDecoder.swift; sourceTree = SOURCE_ROOT; };
-		C0D3D0012F70000100D3B001 /* DebugSigning.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config/DebugSigning.xcconfig; sourceTree = SOURCE_ROOT; };
-		81905888B97C4898AED84191 /* AudioStreamBuffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AudioStreamBuffer.swift; path = Sources/Swift/Services/Audio/AudioStreamBuffer.swift; sourceTree = SOURCE_ROOT; };
-		18DB0642B5AC47B997EB35D4 /* NotificationContinuation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NotificationContinuation.swift; path = Sources/Swift/Services/Pandora/NotificationContinuation.swift; sourceTree = SOURCE_ROOT; };
 		089C165DFE840E0CC02AAC07 /* English */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = English; path = English.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		0E81F712705C47EEA429934D /* PandoraProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PandoraProtocol.swift; path = Sources/Swift/Models/PandoraProtocol.swift; sourceTree = SOURCE_ROOT; };
+		18DB0642B5AC47B997EB35D4 /* NotificationContinuation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NotificationContinuation.swift; path = Sources/Swift/Services/Pandora/NotificationContinuation.swift; sourceTree = SOURCE_ROOT; };
 		197AFF42DDEA46718095DC3F /* NotificationNames.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NotificationNames.swift; path = Sources/Swift/Utilities/NotificationNames.swift; sourceTree = SOURCE_ROOT; };
 		1C67A2A19BEF4175B91E6442 /* PandoraAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PandoraAuth.swift; path = Sources/Swift/Services/Pandora/PandoraAuth.swift; sourceTree = SOURCE_ROOT; };
 		44310F8A18EB87AB0095359D /* Credits.rtf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.rtf; path = Credits.rtf; sourceTree = "<group>"; };
 		457303C5850141E18298EAB9 /* PlaybackController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlaybackController.swift; path = Sources/Swift/Services/PlaybackController.swift; sourceTree = SOURCE_ROOT; };
-		8A55EEC92F68000100A10001 /* PlaybackStateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlaybackStateStore.swift; path = Sources/Swift/Services/PlaybackStateStore.swift; sourceTree = SOURCE_ROOT; };
-		D9A7B102EFB14ED1AD050002 /* SongFeedbackService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SongFeedbackService.swift; path = Sources/Swift/Services/SongFeedbackService.swift; sourceTree = SOURCE_ROOT; };
 		4912892BCD9F452D912F7C3E /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Constants.swift; path = Sources/Swift/Utilities/Constants.swift; sourceTree = SOURCE_ROOT; };
 		4AC8B812A0CC4AE0A4D40883 /* ViewModifiers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ViewModifiers.swift; path = Sources/Swift/Utilities/ViewModifiers.swift; sourceTree = SOURCE_ROOT; };
 		4D276383AE2745A59B7165F6 /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NetworkMonitor.swift; path = Sources/Swift/Utilities/NetworkMonitor.swift; sourceTree = SOURCE_ROOT; };
@@ -196,7 +191,6 @@
 		634D8E8F2F1719EA0069FD8F /* StationEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StationEditView.swift; sourceTree = "<group>"; };
 		634D8E912F171F060069FD8F /* SettingsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsManager.swift; sourceTree = "<group>"; };
 		634D8E932F171F070069FD8F /* WindowTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowTracker.swift; sourceTree = "<group>"; };
-		DCB01A1F2F20010100AA00AA /* DockMenuBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockMenuBuilder.swift; sourceTree = "<group>"; };
 		634D8E952F171FFF0069FD8F /* PreviewMocks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewMocks.swift; sourceTree = "<group>"; };
 		634D8E972F1720000069FD8F /* KeychainManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainManager.swift; sourceTree = "<group>"; };
 		634D8E972F187B0D0069FD8F /* HermesTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HermesTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -205,18 +199,24 @@
 		634D910A2F19BCB10069FD8F /* PandoraDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PandoraDevice.swift; sourceTree = "<group>"; };
 		634D910B2F19BCB10069FD8F /* Song.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Song.swift; sourceTree = "<group>"; };
 		6A0035B3D8264B15AA05105B /* PandoraModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PandoraModels.swift; path = Sources/Swift/Services/Pandora/PandoraModels.swift; sourceTree = SOURCE_ROOT; };
+		81905888B97C4898AED84191 /* AudioStreamBuffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AudioStreamBuffer.swift; path = Sources/Swift/Services/Audio/AudioStreamBuffer.swift; sourceTree = SOURCE_ROOT; };
 		83CE1A66FC3E4E83B90BC42F /* HTTPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HTTPClient.swift; path = Sources/Swift/Utilities/HTTPClient.swift; sourceTree = SOURCE_ROOT; };
 		87DB5AE4398A41328C29E895 /* PandoraPlayback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PandoraPlayback.swift; path = Sources/Swift/Services/Pandora/PandoraPlayback.swift; sourceTree = SOURCE_ROOT; };
+		8A55EEC92F68000100A10001 /* PlaybackStateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlaybackStateStore.swift; path = Sources/Swift/Services/PlaybackStateStore.swift; sourceTree = SOURCE_ROOT; };
 		8D1107310486CEB800E47090 /* Hermes-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "Hermes-Info.plist"; sourceTree = "<group>"; };
 		8D1107320486CEB800E47090 /* Hermes.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Hermes.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		97177193159EAA7D00EE3355 /* cd.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = cd.png; sourceTree = "<group>"; };
 		97177199159EB0E200EE3355 /* music-note.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "music-note.png"; sourceTree = "<group>"; };
 		97E0DA34159EDF7C00BEA465 /* radio.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = radio.png; sourceTree = "<group>"; };
 		B42501158E25473A9B5A38CF /* ImageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ImageCache.swift; path = Sources/Swift/Utilities/ImageCache.swift; sourceTree = SOURCE_ROOT; };
+		BBB9E84EEFDC4FFEB2DF8F4F /* UpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UpdateChecker.swift; path = Sources/Swift/Services/UpdateChecker.swift; sourceTree = SOURCE_ROOT; };
+		C0D3D0012F70000100D3B001 /* Config/DebugSigning.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config/DebugSigning.xcconfig; sourceTree = SOURCE_ROOT; };
+		CB2396AF824442B9B61725B3 /* AudioStreamDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AudioStreamDecoder.swift; path = Sources/Swift/Services/Audio/AudioStreamDecoder.swift; sourceTree = SOURCE_ROOT; };
 		CB8673FAFDE046A196C93DC7 /* UserDefaultsKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UserDefaultsKeys.swift; path = Sources/Swift/Utilities/UserDefaultsKeys.swift; sourceTree = SOURCE_ROOT; };
 		D19183DC23704102B6CFDB12 /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MenuBarView.swift; path = Sources/Swift/Views/MenuBarView.swift; sourceTree = SOURCE_ROOT; };
+		D9A7B102EFB14ED1AD050002 /* SongFeedbackService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SongFeedbackService.swift; path = Sources/Swift/Services/SongFeedbackService.swift; sourceTree = SOURCE_ROOT; };
+		DCB01A1F2F20010100AA00AA /* DockMenuBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockMenuBuilder.swift; sourceTree = "<group>"; };
 		DD2036192DD64C5DB24413F7 /* StationArtworkLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StationArtworkLoader.swift; path = Sources/Swift/Services/StationArtworkLoader.swift; sourceTree = SOURCE_ROOT; };
-		BBB9E84EEFDC4FFEB2DF8F4F /* UpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UpdateChecker.swift; path = Sources/Swift/Services/UpdateChecker.swift; sourceTree = SOURCE_ROOT; };
 		E137BA0A2132E698002E513C /* RELEASING.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = RELEASING.md; sourceTree = SOURCE_ROOT; };
 		E1C07AF1C3E448FDB3B2CA5E /* SidebarWidthKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SidebarWidthKey.swift; path = Sources/Swift/Utilities/SidebarWidthKey.swift; sourceTree = SOURCE_ROOT; };
 		E1C1EC101A1AE7E4001E4D8F /* Pandora-Menu-Dark-Play.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = "Pandora-Menu-Dark-Play.pdf"; sourceTree = "<group>"; };
@@ -289,7 +289,7 @@
 				080E96DDFE201D6D7F000001 /* Sources */,
 				29B97317FDCFA39411CA2CEA /* Resources */,
 				634D8E982F187B0D0069FD8F /* HermesTests */,
-				C0D3D0012F70000100D3B001 /* DebugSigning.xcconfig */,
+				C0D3D0012F70000100D3B001 /* Config/DebugSigning.xcconfig */,
 				19C28FACFE9D520D11CA2CBB /* Products */,
 			);
 			indentWidth = 2;
@@ -324,8 +324,8 @@
 				5F5C950BC79C4DBAB560C9EE /* PandoraStations.swift */,
 				1C67A2A19BEF4175B91E6442 /* PandoraAuth.swift */,
 				6A0035B3D8264B15AA05105B /* PandoraModels.swift */,
-			
-				18DB0642B5AC47B997EB35D4 /* NotificationContinuation.swift */,);
+				18DB0642B5AC47B997EB35D4 /* NotificationContinuation.swift */,
+			);
 			path = Pandora;
 			sourceTree = "<group>";
 		};
@@ -794,7 +794,7 @@
 		};
 		634D8E9D2F187B0D0069FD8F /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = C0D3D0012F70000100D3B001 /* DebugSigning.xcconfig */;
+			baseConfigurationReference = C0D3D0012F70000100D3B001 /* Config/DebugSigning.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -886,11 +886,12 @@
 		};
 		C01FCF4B08A954540054247B /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = C0D3D0012F70000100D3B001 /* DebugSigning.xcconfig */;
+			baseConfigurationReference = C0D3D0012F70000100D3B001 /* Config/DebugSigning.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = 4D22XL743H;
 				ENABLE_HARDENED_RUNTIME = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
@@ -901,6 +902,8 @@
 					"\"$(SRCROOT)/Sources\"/**",
 				);
 				INFOPLIST_FILE = "Resources/Hermes-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Hermes;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -928,7 +931,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 4D22XL743H;
 				ENABLE_HARDENED_RUNTIME = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
@@ -939,6 +942,8 @@
 					"\"$(SRCROOT)/Sources\"/**",
 				);
 				INFOPLIST_FILE = "Resources/Hermes-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Hermes;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
