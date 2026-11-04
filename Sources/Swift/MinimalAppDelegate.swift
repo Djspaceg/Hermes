@@ -34,7 +34,11 @@ import Combine
         
         // Create PlaybackController
         print("MinimalAppDelegate: Creating PlaybackController...")
-        playbackController = PlaybackController()
+        playbackController = PlaybackController(
+            nowPlayingSnapshotStore: TestProcessDetection.isRunningTests
+                ? nil
+                : NowPlayingSnapshotStore.appGroupStore()
+        )
         print("MinimalAppDelegate: PlaybackController created = \(String(describing: playbackController))")
         
         // Initialize the controller (sets up notification observers, media keys, etc.)

@@ -46,7 +46,11 @@ final class PlaybackController: ObservableObject {
     // MARK: - Singleton
     
     /// Shared instance for production use
-    static let shared = PlaybackController()
+    static let shared = PlaybackController(
+        nowPlayingSnapshotStore: TestProcessDetection.isRunningTests
+            ? nil
+            : NowPlayingSnapshotStore.appGroupStore()
+    )
     
     // MARK: - Published Properties
     
@@ -128,7 +132,7 @@ final class PlaybackController: ObservableObject {
     init(
         userDefaults: UserDefaults = .standard,
         playbackStateStore: PlaybackStateStoring? = nil,
-        nowPlayingSnapshotStore: NowPlayingSnapshotStore? = NowPlayingSnapshotStore.appGroupStore(),
+        nowPlayingSnapshotStore: NowPlayingSnapshotStore? = nil,
         systemEventNotificationSource: SystemEventNotificationSource =
             DistributedSystemEventNotificationSource(),
         pandoraProvider: @escaping @MainActor () -> PandoraProtocol? = { AppState.shared.pandora }
