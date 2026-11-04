@@ -241,6 +241,8 @@ extension PlaybackController {
 
         // Set up media key handling
         setupMediaKeys()
+
+        updateNowPlayingInfo()
         
         logger.info("PlaybackController setup complete")
     }

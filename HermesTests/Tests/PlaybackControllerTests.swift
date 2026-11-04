@@ -355,6 +355,27 @@ struct PlaybackControllerStationManagementTests {
 
         #expect(store.readSnapshot() == .idle)
     }
+
+    @Test("setup writes an idle widget snapshot without playback")
+    @MainActor
+    func setupWritesIdleWidgetSnapshotWithoutPlayback() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("HermesNowPlayingSetupTests-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(
+            at: directory,
+            withIntermediateDirectories: false
+        )
+        defer {
+            try? FileManager.default.removeItem(at: directory)
+        }
+
+        let store = NowPlayingSnapshotStore(containerURL: directory)
+        let controller = PlaybackController(nowPlayingSnapshotStore: store)
+
+        controller.setup()
+
+        #expect(store.readSnapshot() == .idle)
+    }
 }
 
 @Suite("Playback Progress Watchdog")
