@@ -514,6 +514,7 @@ extension PlaybackController {
         
         station.play()
         postStateChange()
+        updateNowPlayingInfo()
         return true
     }
     
@@ -539,6 +540,7 @@ extension PlaybackController {
         
         station.pause()
         postStateChange()
+        updateNowPlayingInfo()
         return true
     }
     

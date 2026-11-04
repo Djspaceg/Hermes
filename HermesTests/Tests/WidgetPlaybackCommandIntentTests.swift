@@ -50,4 +50,19 @@ struct WidgetPlaybackCommandIntentTests {
         #expect(!NowPlayingPlaybackState.paused.isControlEnabled)
         #expect(!NowPlayingPlaybackState.idle.isControlEnabled)
     }
+
+    @Test("rejects a control state when no app handler is available")
+    @MainActor
+    func rejectsUnhandledControlState() async {
+        WidgetPlaybackCommandRouter.setHandler(nil)
+
+        do {
+            _ = try await WidgetPlaybackStateIntent(value: true).perform()
+            Issue.record("Expected an unhandled control state to fail")
+        } catch let error as WidgetPlaybackStateIntentError {
+            #expect(error == .commandNotHandled)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
 }

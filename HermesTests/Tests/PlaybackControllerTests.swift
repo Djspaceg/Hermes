@@ -376,6 +376,46 @@ struct PlaybackControllerStationManagementTests {
 
         #expect(store.readSnapshot() == .idle)
     }
+
+    @Test("normal play refreshes the control snapshot")
+    @MainActor
+    func playRefreshesControlSnapshot() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("HermesControlSnapshotTests-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(
+            at: directory,
+            withIntermediateDirectories: false
+        )
+        defer {
+            try? FileManager.default.removeItem(at: directory)
+        }
+
+        let store = NowPlayingSnapshotStore(containerURL: directory)
+        let controller = PlaybackController(nowPlayingSnapshotStore: store)
+        let station = Station()
+        station.setPlayingSongForTesting(
+            Song.mock(title: "Test Song", artist: "Test Artist", album: "Test Album")
+        )
+        controller.selectStationForSystemEventTesting(station)
+        try store.write(
+            snapshot: NowPlayingSnapshot(
+                title: "Test Song",
+                artist: "Test Artist",
+                album: "Test Album",
+                stationName: station.name,
+                playbackState: .paused,
+                rating: 0,
+                duration: 0,
+                elapsedTime: 0,
+                playbackStartDate: nil,
+                artworkFilename: nil
+            ),
+            artworkData: nil
+        )
+
+        #expect(controller.play())
+        #expect(store.readSnapshot() == .idle)
+    }
 }
 
 @Suite("Playback Progress Watchdog")

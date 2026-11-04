@@ -43,6 +43,10 @@ enum WidgetPlaybackCommandRouter {
     }
 }
 
+enum WidgetPlaybackStateIntentError: Error, Equatable {
+    case commandNotHandled
+}
+
 struct WidgetPlaybackCommandIntent: AudioPlaybackIntent {
     static let title: LocalizedStringResource = "Hermes Playback Command"
 
@@ -80,9 +84,10 @@ struct WidgetPlaybackStateIntent: AudioPlaybackIntent, SetValueIntent {
     }
 
     func perform() async throws -> some IntentResult {
-        await MainActor.run {
-            _ = WidgetPlaybackCommandRouter.route(value ? .play : .pause)
+        let handled = await MainActor.run {
+            WidgetPlaybackCommandRouter.route(value ? .play : .pause)
         }
+        guard handled else { throw WidgetPlaybackStateIntentError.commandNotHandled }
         return .result()
     }
 }
