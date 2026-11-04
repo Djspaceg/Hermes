@@ -1171,7 +1171,6 @@
 				CODE_SIGN_ENTITLEMENTS = HermesWidget/HermesWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2059;
-				DEVELOPMENT_TEAM = 4D22XL743H;
 				INFOPLIST_FILE = HermesWidget/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1195,7 +1194,6 @@
 				CODE_SIGN_ENTITLEMENTS = HermesWidget/HermesWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2059;
-				DEVELOPMENT_TEAM = 4D22XL743H;
 				INFOPLIST_FILE = HermesWidget/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
