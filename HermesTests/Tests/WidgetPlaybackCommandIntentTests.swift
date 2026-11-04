@@ -30,4 +30,24 @@ struct WidgetPlaybackCommandIntentTests {
 
         #expect(handler.commands == [.next])
     }
+
+    @Test("routes control state to play and pause commands")
+    @MainActor
+    func routesControlStateToPlaybackCommand() async throws {
+        let handler = WidgetPlaybackCommandHandlerStub()
+        WidgetPlaybackCommandRouter.setHandler(handler)
+        defer { WidgetPlaybackCommandRouter.setHandler(nil) }
+
+        _ = try await WidgetPlaybackStateIntent(value: true).perform()
+        _ = try await WidgetPlaybackStateIntent(value: false).perform()
+
+        #expect(handler.commands == [.play, .pause])
+    }
+
+    @Test("reports only playing snapshots as enabled controls")
+    func mapsPlaybackStateToControlState() {
+        #expect(NowPlayingPlaybackState.playing.isControlEnabled)
+        #expect(!NowPlayingPlaybackState.paused.isControlEnabled)
+        #expect(!NowPlayingPlaybackState.idle.isControlEnabled)
+    }
 }

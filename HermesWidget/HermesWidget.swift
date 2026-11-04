@@ -88,6 +88,47 @@ struct HermesNowPlayingWidget: Widget {
     }
 }
 
+private struct HermesPlaybackControlValueProvider: ControlValueProvider {
+    private let store: NowPlayingSnapshotStore?
+
+    init(store: NowPlayingSnapshotStore? = NowPlayingSnapshotStore.appGroupStore()) {
+        self.store = store
+    }
+
+    var previewValue: Bool {
+        false
+    }
+
+    func currentValue() async throws -> Bool {
+        store?.readSnapshot().playbackState.isControlEnabled ?? false
+    }
+}
+
+struct HermesPlaybackControl: ControlWidget {
+    static let kind = NowPlayingWidgetConfiguration.playbackControlKind
+
+    var body: some ControlWidgetConfiguration {
+        StaticControlConfiguration(
+            kind: Self.kind,
+            provider: HermesPlaybackControlValueProvider()
+        ) { isPlaying in
+            ControlWidgetToggle(
+                isOn: isPlaying,
+                action: WidgetPlaybackStateIntent()
+            ) {
+                Label("Hermes", systemImage: "music.note")
+            } valueLabel: { isPlaying in
+                Label(
+                    isPlaying ? "Pause" : "Play",
+                    systemImage: isPlaying ? "pause.fill" : "play.fill"
+                )
+            }
+        }
+        .displayName("Hermes Playback")
+        .description("Play or pause Hermes from Control Center.")
+    }
+}
+
 private struct HermesNowPlayingWidgetView: View {
     @Environment(\.widgetFamily) private var widgetFamily
 
@@ -250,5 +291,6 @@ private struct HermesNowPlayingWidgetView: View {
 struct HermesWidgetBundle: WidgetBundle {
     var body: some Widget {
         HermesNowPlayingWidget()
+        HermesPlaybackControl()
     }
 }

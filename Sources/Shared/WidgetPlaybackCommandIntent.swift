@@ -64,3 +64,25 @@ struct WidgetPlaybackCommandIntent: AudioPlaybackIntent {
         return .result()
     }
 }
+
+struct WidgetPlaybackStateIntent: AudioPlaybackIntent, SetValueIntent {
+    static let title: LocalizedStringResource = "Hermes Playback State"
+
+    @Parameter(title: "Playing")
+    var value: Bool
+
+    init() {
+        value = false
+    }
+
+    init(value: Bool) {
+        self.value = value
+    }
+
+    func perform() async throws -> some IntentResult {
+        await MainActor.run {
+            _ = WidgetPlaybackCommandRouter.route(value ? .play : .pause)
+        }
+        return .result()
+    }
+}

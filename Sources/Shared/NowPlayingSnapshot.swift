@@ -8,6 +8,7 @@ import Foundation
 enum NowPlayingWidgetConfiguration {
     static let appGroupIdentifier = "4D22XL743H.com.alexcrichton.hermes"
     static let kind = "HermesNowPlayingWidget"
+    static let playbackControlKind = "HermesPlaybackControl"
     static let snapshotFilename = "now-playing.json"
     static let artworkFilenamePrefix = "now-playing-artwork-"
 }
@@ -16,6 +17,10 @@ enum NowPlayingPlaybackState: String, Codable, Equatable, Sendable {
     case playing
     case paused
     case idle
+
+    var isControlEnabled: Bool {
+        self == .playing
+    }
 }
 
 struct NowPlayingSnapshot: Codable, Equatable, Sendable {

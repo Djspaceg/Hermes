@@ -992,6 +992,9 @@ extension PlaybackController {
                 artworkData: lastImg as Data?
             )
             WidgetCenter.shared.reloadTimelines(ofKind: NowPlayingWidgetConfiguration.kind)
+            ControlCenter.shared.reloadControls(
+                ofKind: NowPlayingWidgetConfiguration.playbackControlKind
+            )
         } catch {
             logger.error("Could not write now-playing widget snapshot: \(error.localizedDescription)")
         }
@@ -1003,6 +1006,9 @@ extension PlaybackController {
         do {
             try nowPlayingSnapshotStore.writeIdleSnapshot()
             WidgetCenter.shared.reloadTimelines(ofKind: NowPlayingWidgetConfiguration.kind)
+            ControlCenter.shared.reloadControls(
+                ofKind: NowPlayingWidgetConfiguration.playbackControlKind
+            )
         } catch {
             logger.error("Could not clear now-playing widget snapshot: \(error.localizedDescription)")
         }
