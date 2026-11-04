@@ -115,9 +115,10 @@ private struct HermesNowPlayingWidgetView: View {
     }
 
     private var smallNowPlayingView: some View {
-        VStack(alignment: .leading, spacing: 7) {
+        VStack(alignment: .leading, spacing: 5) {
             artwork
-                .frame(maxWidth: .infinity, maxHeight: 88)
+                .frame(maxWidth: .infinity)
+                .frame(height: 56)
             trackText
             progress
             controls
@@ -152,6 +153,7 @@ private struct HermesNowPlayingWidgetView: View {
            let image = NSImage(contentsOf: containerURL.appendingPathComponent(artworkFilename)) {
             Image(nsImage: image)
                 .resizable()
+                .widgetAccentedRenderingMode(.desaturated)
                 .scaledToFill()
                 .clipShape(RoundedRectangle(cornerRadius: 8))
         } else {
