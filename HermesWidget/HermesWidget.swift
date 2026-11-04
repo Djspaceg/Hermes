@@ -4,6 +4,7 @@
 //
 
 import AppKit
+import AppIntents
 import SwiftUI
 import WidgetKit
 
@@ -119,6 +120,7 @@ private struct HermesNowPlayingWidgetView: View {
                 .frame(maxWidth: .infinity, maxHeight: 88)
             trackText
             progress
+            controls
         }
         .containerBackground(.fill.tertiary, for: .widget)
     }
@@ -135,6 +137,7 @@ private struct HermesNowPlayingWidgetView: View {
                     .lineLimit(1)
                 Spacer(minLength: 0)
                 progress
+                controls
             }
         }
         .containerBackground(.fill.tertiary, for: .widget)
@@ -178,6 +181,48 @@ private struct HermesNowPlayingWidgetView: View {
                     .lineLimit(1)
             }
         }
+    }
+
+    private var controls: some View {
+        HStack(spacing: 12) {
+            controlButton(
+                entry.snapshot.playbackState == .playing ? .pause : .play,
+                systemImage: entry.snapshot.playbackState == .playing
+                    ? "pause.fill"
+                    : "play.fill",
+                label: entry.snapshot.playbackState == .playing ? "Pause" : "Play"
+            )
+            controlButton(.next, systemImage: "forward.fill", label: "Next")
+            controlButton(
+                .thumbsUp,
+                systemImage: entry.snapshot.rating > 0
+                    ? "hand.thumbsup.fill"
+                    : "hand.thumbsup",
+                label: "Thumbs Up"
+            )
+            controlButton(
+                .thumbsDown,
+                systemImage: entry.snapshot.rating < 0
+                    ? "hand.thumbsdown.fill"
+                    : "hand.thumbsdown",
+                label: "Thumbs Down"
+            )
+        }
+        .font(.body)
+        .frame(maxWidth: .infinity)
+    }
+
+    private func controlButton(
+        _ command: WidgetPlaybackCommand,
+        systemImage: String,
+        label: String
+    ) -> some View {
+        Button(intent: WidgetPlaybackCommandIntent(command: command)) {
+            Label(label, systemImage: systemImage)
+                .labelStyle(.iconOnly)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
     }
 
     @ViewBuilder

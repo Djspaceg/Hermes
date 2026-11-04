@@ -465,6 +465,32 @@ extension PlaybackController {
 // MARK: - Playback Controls
 
 extension PlaybackController {
+    @discardableResult
+    func handleWidgetPlaybackCommand(_ command: WidgetPlaybackCommand) -> Bool {
+        let handled: Bool
+
+        switch command {
+        case .play:
+            handled = play()
+        case .pause:
+            handled = pause()
+        case .next:
+            guard playing != nil else { return false }
+            next()
+            handled = true
+        case .thumbsUp:
+            guard playing?.playingSong != nil else { return false }
+            likeCurrent()
+            handled = true
+        case .thumbsDown:
+            guard playing?.playingSong != nil else { return false }
+            dislikeCurrent()
+            handled = true
+        }
+
+        updateNowPlayingInfo()
+        return handled
+    }
     
     /// Starts or resumes playback of the current station
     ///

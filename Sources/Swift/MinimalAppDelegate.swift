@@ -39,6 +39,7 @@ import Combine
                 ? nil
                 : NowPlayingSnapshotStore.appGroupStore()
         )
+        WidgetPlaybackCommandRouter.setHandler(self)
         print("MinimalAppDelegate: PlaybackController created = \(String(describing: playbackController))")
         
         // Initialize the controller (sets up notification observers, media keys, etc.)
@@ -68,6 +69,7 @@ import Combine
     }
     
     func applicationWillTerminate(_ notification: Notification) {
+        WidgetPlaybackCommandRouter.setHandler(nil)
         // Save state before terminating
         saveState()
     }
@@ -293,5 +295,11 @@ import Combine
     @objc func window() -> NSWindow? {
         // Return nil - SwiftUI manages windows
         return nil
+    }
+}
+
+extension MinimalAppDelegate: WidgetPlaybackCommandHandling {
+    func handleWidgetPlaybackCommand(_ command: WidgetPlaybackCommand) -> Bool {
+        playbackController?.handleWidgetPlaybackCommand(command) ?? false
     }
 }
