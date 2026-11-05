@@ -316,6 +316,15 @@ struct AppStateFactoryTests {
         #expect(appState.selectedSidebar == .history)
     }
 
+    @Test("Embedded test bundle alone does not identify a test process")
+    func embeddedTestBundleAloneDoesNotIdentifyTestProcess() {
+        #expect(!TestProcessDetection.detectsTestProcess(
+            environment: [:],
+            arguments: [],
+            hasTestRuntime: false
+        ))
+    }
+
     // MARK: - Notification Subscription Tests
 
     /// Test that production() AppState subscribes to notifications

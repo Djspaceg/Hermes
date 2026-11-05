@@ -11,22 +11,29 @@ import Security
 
 enum TestProcessDetection {
     static var isRunningTests: Bool {
-        let environment = ProcessInfo.processInfo.environment
+        detectsTestProcess(
+            environment: ProcessInfo.processInfo.environment,
+            arguments: ProcessInfo.processInfo.arguments,
+            hasTestRuntime: NSClassFromString("XCTest") != nil ||
+                NSClassFromString("XCTestCase") != nil
+        )
+    }
+
+    static func detectsTestProcess(
+        environment: [String: String],
+        arguments: [String],
+        hasTestRuntime: Bool
+    ) -> Bool {
         let hasGuardedTestEnvironment = environment["HERMES_TEST_ROOT"] != nil ||
             environment["HERMES_TEST_CANONICAL_TMP"] != nil ||
             environment["HERMES_TEST_HOME"] != nil ||
             environment["HERMES_TEST_STATE_PATH"] != nil
-        let containsTestBundle = Bundle.main.builtInPlugInsURL
-            .map { $0.appendingPathComponent("HermesTests.xctest") }
-            .map { FileManager.default.fileExists(atPath: $0.path) } ?? false
         return environment["XCTestConfigurationFilePath"] != nil ||
             environment["XCTestSessionIdentifier"] != nil ||
             environment["XCTestBundlePath"] != nil ||
             hasGuardedTestEnvironment ||
-            containsTestBundle ||
-            NSClassFromString("XCTest") != nil ||
-            NSClassFromString("XCTestCase") != nil ||
-            ProcessInfo.processInfo.arguments.contains { argument in
+            hasTestRuntime ||
+            arguments.contains { argument in
                 argument.contains("xctest") ||
                     argument.contains("XCTest") ||
                     argument.hasSuffix(".xctest")
