@@ -73,10 +73,14 @@ struct PlaybackStatePersistenceCharacterizationTests {
         try #require(isDescendant(resolvedStateDirectory, of: expectedHome))
         try #require(isDescendant(resolvedStateDirectory, of: rootDirectory))
 
+        let stateDirectory = rootDirectory.appendingPathComponent(
+            "playback-state-characterization-\(UUID().uuidString)"
+        )
+
         return IsolatedPaths(
             rootDirectory: rootDirectory,
-            stateDirectory: resolvedStateDirectory,
-            archive: resolvedStateDirectory.appendingPathComponent("station.savestate"),
+            stateDirectory: stateDirectory,
+            archive: stateDirectory.appendingPathComponent("station.savestate"),
             lockFile: rootDirectory.appendingPathComponent("playback-state.lock")
         )
     }
@@ -132,7 +136,20 @@ struct PlaybackStatePersistenceCharacterizationTests {
         #expect(UserDefaultsKeys.stationPlayTimestamps == "stationPlayTimestamps")
 
         PlaybackController.playOnStart = false
-        let controller = PlaybackController(userDefaults: userDefaults)
+        let stateStore = PlaybackStateStore(
+            userDefaults: userDefaults,
+            resolveStatePath: { _ in
+                try? fileManager.createDirectory(
+                    at: paths.stateDirectory,
+                    withIntermediateDirectories: true
+                )
+                return paths.archive.path
+            }
+        )
+        let controller = PlaybackController(
+            userDefaults: userDefaults,
+            playbackStateStore: stateStore
+        )
 
         #expect(!controller.saveState())
         #expect(fileManager.fileExists(atPath: paths.stateDirectory.path))
