@@ -5,7 +5,6 @@
 //  Root view that switches between login, loading, player, and error states
 //
 
-import AppKit
 import SwiftUI
 
 struct ContentView: View {
@@ -99,6 +98,7 @@ struct ContentView: View {
                             stationsViewModel: appState.stationsViewModel,
                             historyViewModel: appState.historyViewModel
                         )
+                        .toolbar(removing: .sidebarToggle)
                         .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300 - 8 * 2)
                     } detail: {
                         PlayerControlsView(
@@ -109,7 +109,6 @@ struct ContentView: View {
                         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
                     }
                     .navigationSplitViewStyle(.balanced)
-                    .toolbar(removing: .sidebarToggle)
                     .opacity(controlsOpacity)
                     .allowsHitTesting(controlsVisible)
                     
@@ -124,7 +123,6 @@ struct ContentView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                         .zIndex(1)
                 }
-                .background(WindowToolbarSidebarToggleRemover())
                 .onChange(of: isWindowTooNarrow) { _, tooNarrow in
                     if tooNarrow {
                         appState.isSidebarVisible = false
@@ -214,32 +212,6 @@ private struct SidebarTitlebarButtons: View {
                 .accessibilityLabel(selection.title)
         }
         .help(selection.title)
-    }
-}
-
-private struct WindowToolbarSidebarToggleRemover: NSViewRepresentable {
-    func makeNSView(context: Context) -> SidebarToggleRemovingView {
-        SidebarToggleRemovingView()
-    }
-
-    func updateNSView(_ nsView: SidebarToggleRemovingView, context: Context) {}
-}
-
-private final class SidebarToggleRemovingView: NSView {
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-
-        DispatchQueue.main.async { [weak self] in
-            guard let toolbar = self?.window?.toolbar,
-                  let index = toolbar.items.firstIndex(
-                    where: { $0.itemIdentifier == .toggleSidebar }
-                  )
-            else {
-                return
-            }
-
-            toolbar.removeItem(at: index)
-        }
     }
 }
 

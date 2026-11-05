@@ -351,7 +351,6 @@ struct AppStateFactoryTests {
         )
 
         #expect(contentView.contains(".toolbar(removing: .sidebarToggle)"))
-        #expect(contentView.contains("WindowToolbarSidebarToggleRemover()"))
         #expect(!contentView.contains("Show Sidebar"))
         #expect(!contentView.contains("sidebar.leading"))
         #expect(!contentView.contains("ToolbarItem("))
