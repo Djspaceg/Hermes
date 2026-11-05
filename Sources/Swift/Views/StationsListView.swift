@@ -146,6 +146,7 @@ struct StationRow: View {
                     }
                     Text(station.name)
                         .lineLimit(1)
+                        .foregroundStyle(Color(nsColor: .textColor))
                     
                     Spacer(minLength: 0)
                 }

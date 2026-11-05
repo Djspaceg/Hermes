@@ -97,9 +97,9 @@ final class MenuExtraStationSidebarPresenter {
     static let shared = MenuExtraStationSidebarPresenter()
 
     private let preferredWidth: CGFloat = 280
-    private let preferredHeight: CGFloat = 460
     private let minimumWidth: CGFloat = 180
     private var panel: NSPanel?
+    private var hostWindowObservers: [NSObjectProtocol] = []
 
     private init() {}
 
@@ -122,13 +122,16 @@ final class MenuExtraStationSidebarPresenter {
         panel.contentView = NSHostingView(
             rootView: MenuExtraStationSidebar(
                 state: state,
-                stationsViewModel: stationsViewModel,
-                width: frame.width,
-                height: frame.height
+                stationsViewModel: stationsViewModel
             )
         )
+        panel.contentView?.autoresizingMask = [.width, .height]
         panel.setFrame(frame, display: false)
-        hostWindow.addChildWindow(panel, ordered: .above)
+        if panel.parent !== hostWindow {
+            panel.parent?.removeChildWindow(panel)
+            hostWindow.addChildWindow(panel, ordered: .above)
+        }
+        observe(hostWindow)
         panel.orderFront(nil)
         state.onDismiss = { [weak self] in
             self?.hidePanel()
@@ -155,21 +158,74 @@ final class MenuExtraStationSidebarPresenter {
 
     private func hidePanel() {
         guard let panel else { return }
+        removeHostWindowObservers()
         panel.parent?.removeChildWindow(panel)
         panel.orderOut(nil)
     }
 
+    private func observe(_ hostWindow: NSWindow) {
+        removeHostWindowObservers()
+        let center = NotificationCenter.default
+        hostWindowObservers = [
+            center.addObserver(
+                forName: NSWindow.didResizeNotification,
+                object: hostWindow,
+                queue: .main
+            ) { [weak self, weak hostWindow] _ in
+                guard let self, let hostWindow else { return }
+                self.updatePanelFrame(attachedTo: hostWindow)
+            },
+            center.addObserver(
+                forName: NSWindow.didMoveNotification,
+                object: hostWindow,
+                queue: .main
+            ) { [weak self, weak hostWindow] _ in
+                guard let self, let hostWindow else { return }
+                self.updatePanelFrame(attachedTo: hostWindow)
+            }
+        ]
+    }
+
+    private func removeHostWindowObservers() {
+        let center = NotificationCenter.default
+        hostWindowObservers.forEach(center.removeObserver)
+        hostWindowObservers.removeAll()
+    }
+
+    private func updatePanelFrame(attachedTo hostWindow: NSWindow) {
+        panel?.setFrame(panelFrame(attachedTo: hostWindow), display: true)
+    }
+
     private func panelFrame(attachedTo hostWindow: NSWindow) -> NSRect {
         let visibleFrame = hostWindow.screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? hostWindow.frame
-        let leftSpace = hostWindow.frame.minX - visibleFrame.minX
-        let rightSpace = visibleFrame.maxX - hostWindow.frame.maxX
+        return MenuExtraStationSidebarLayout.panelFrame(
+            hostFrame: hostWindow.frame,
+            visibleFrame: visibleFrame,
+            preferredWidth: preferredWidth,
+            minimumWidth: minimumWidth
+        )
+    }
+}
+
+enum MenuExtraStationSidebarLayout {
+    static func panelFrame(
+        hostFrame: NSRect,
+        visibleFrame: NSRect,
+        preferredWidth: CGFloat,
+        minimumWidth: CGFloat
+    ) -> NSRect {
+        let leftSpace = hostFrame.minX - visibleFrame.minX
+        let rightSpace = visibleFrame.maxX - hostFrame.maxX
         let availableWidth = max(leftSpace, rightSpace)
         let width = min(preferredWidth, availableWidth)
         let attachOnLeft = leftSpace >= minimumWidth || leftSpace >= rightSpace
-        let x = attachOnLeft ? hostWindow.frame.minX - width : hostWindow.frame.maxX
-        let height = min(preferredHeight, visibleFrame.height)
-        let y = min(max(hostWindow.frame.maxY - height, visibleFrame.minY), visibleFrame.maxY - height)
-        return NSRect(x: x, y: y, width: width, height: height)
+        let x = attachOnLeft ? hostFrame.minX - width : hostFrame.maxX
+        return NSRect(
+            x: x,
+            y: hostFrame.minY,
+            width: width,
+            height: hostFrame.height
+        )
     }
 }
 
@@ -192,8 +248,6 @@ private struct MenuExtraWindowReader: NSViewRepresentable {
 private struct MenuExtraStationSidebar: View {
     @Bindable var state: MenuExtraStationSidebarState
     @Bindable var stationsViewModel: StationsViewModel
-    let width: CGFloat
-    let height: CGFloat
 
     @State private var selectedStation: Station?
     @AppStorage(UserDefaultsKeys.sortStations) private var sortOrderRawValue: Int = 1
@@ -216,42 +270,44 @@ private struct MenuExtraStationSidebar: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text("Stations")
-                    .font(.headline)
-                Spacer()
-                Button {
-                    state.dismiss()
-                } label: {
-                    Image(systemName: "xmark")
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                HStack {
+                    Text("Stations")
+                        .font(.headline)
+                    Spacer()
+                    Button {
+                        state.dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Close station sidebar")
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Close station sidebar")
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
 
-            Divider()
+                Divider()
 
-            StationsListView(
-                viewModel: stationsViewModel,
-                selectedStation: $selectedStation,
-                sortOrder: Binding(
-                    get: { sortOrder },
-                    set: { sortOrder = $0 }
-                ),
-                onStationSelected: selectStation
-            )
-            .onChange(of: selectedStation) { _, station in
-                if let station {
-                    selectStation(station)
+                StationsListView(
+                    viewModel: stationsViewModel,
+                    selectedStation: $selectedStation,
+                    sortOrder: Binding(
+                        get: { sortOrder },
+                        set: { sortOrder = $0 }
+                    ),
+                    onStationSelected: selectStation
+                )
+                .onChange(of: selectedStation) { _, station in
+                    if let station {
+                        selectStation(station)
+                    }
                 }
             }
+            .frame(width: geometry.size.width, height: geometry.size.height)
+            .background(.regularMaterial)
+            .environment(\.sidebarWidth, geometry.size.width)
         }
-        .frame(width: width, height: height)
-        .background(.regularMaterial)
-        .environment(\.sidebarWidth, width)
         .onChange(of: stationsViewModel.selectedStationId) { _, stationId in
             if let stationId,
                selectedStation?.id != stationId {

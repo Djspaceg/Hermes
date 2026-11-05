@@ -7,6 +7,7 @@
 
 import Testing
 import Foundation
+import AppKit
 @testable import Hermes
 
 @MainActor
@@ -344,6 +345,25 @@ struct StationsViewModelTests {
         station.stationId = id
         station.created = created
         return station
+    }
+}
+
+@Suite("MenuExtraStationSidebarLayoutTests")
+struct MenuExtraStationSidebarLayoutTests {
+    @Test("Attached sidebar matches the dropdown's vertical bounds")
+    func sidebarMatchesHostHeight() {
+        let hostFrame = NSRect(x: 900, y: 260, width: 300, height: 612)
+        let visibleFrame = NSRect(x: 0, y: 0, width: 1440, height: 900)
+
+        let sidebarFrame = MenuExtraStationSidebarLayout.panelFrame(
+            hostFrame: hostFrame,
+            visibleFrame: visibleFrame,
+            preferredWidth: 280,
+            minimumWidth: 180
+        )
+
+        #expect(sidebarFrame.minY == hostFrame.minY)
+        #expect(sidebarFrame.maxY == hostFrame.maxY)
     }
 }
 
