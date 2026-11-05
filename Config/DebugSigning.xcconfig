@@ -1,5 +1,6 @@
-// Shared Debug signing defaults. A local override may opt into a stable
-// development identity without placing personal signing metadata in the repo.
+// Shared local signing defaults. A local override may opt into a stable
+// development identity for Debug and local Release builds without placing
+// personal signing metadata in the repo.
 CODE_SIGN_IDENTITY[sdk=macosx*] = -
 CODE_SIGN_STYLE = Automatic
 DEVELOPMENT_TEAM =

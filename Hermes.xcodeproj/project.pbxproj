@@ -949,6 +949,7 @@
 		};
 		634D8E9E2F187B0D0069FD8F /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = C0D3D0012F70000100D3B001 /* Config/DebugSigning.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -1030,9 +1031,9 @@
 		};
 		C01FCF4C08A954540054247B /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = C0D3D0012F70000100D3B001 /* Config/DebugSigning.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				CODE_SIGN_ENTITLEMENTS = Config/Hermes.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -1192,6 +1193,7 @@
 		};
 		E90000000000000000000051 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = C0D3D0012F70000100D3B001 /* Config/DebugSigning.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				APPLICATION_EXTENSION_API_ONLY = YES;
