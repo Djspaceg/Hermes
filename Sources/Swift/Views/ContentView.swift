@@ -23,8 +23,10 @@ struct ContentView: View {
     @Environment(\.openWindow) private var openWindow
     
     private let sidebarToggleWidth: CGFloat = 500
-    private let titlebarButtonsLeadingInset: CGFloat = 160
-    private let titlebarButtonsTopInset: CGFloat = 0
+    // A regular AppKit toolbar button measures 30x23 points and a regular
+    // segmented control measures 27x24 points on macOS 26.
+    private let titlebarButtonsLeadingInset: CGFloat = 88
+    private let titlebarButtonsTopInset: CGFloat = 4
     
     // MARK: - Initialization
     
@@ -210,9 +212,9 @@ private struct SidebarTitlebarButtons: View {
         } label: {
             Image(systemName: selection.systemImage)
                 .foregroundStyle(isSelected ? Color.white : Color.primary)
-                .frame(width: 48, height: 32)
+                .frame(width: 30, height: 24)
                 .background {
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .fill(isSelected ? Color.orange : Color.black.opacity(0.28))
                 }
                 .accessibilityLabel(selection.title)

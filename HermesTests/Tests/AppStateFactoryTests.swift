@@ -351,7 +351,7 @@ struct AppStateFactoryTests {
         #expect(contentView.contains(".zIndex(1)"))
     }
 
-    @Test("Titlebar controls stay anchored, rounded, accented, and hover-faded")
+    @Test("Titlebar controls use standard compact anchored layout")
     func titlebarControlsUseThePolishedFixedLayout() throws {
         let root = sourceRepositoryRoot()
         let contentView = try String(
@@ -360,10 +360,13 @@ struct AppStateFactoryTests {
         )
 
         #expect(contentView.contains("alignment: .topLeading"))
+        #expect(contentView.contains("private let titlebarButtonsLeadingInset: CGFloat = 88"))
+        #expect(contentView.contains("private let titlebarButtonsTopInset: CGFloat = 4"))
         #expect(contentView.contains(".padding(.leading, titlebarButtonsLeadingInset)"))
         #expect(contentView.contains(".padding(.top, titlebarButtonsTopInset)"))
         #expect(contentView.contains(".opacity(controlsOpacity)"))
-        #expect(contentView.contains("RoundedRectangle(cornerRadius: 16, style: .continuous)"))
+        #expect(contentView.contains(".frame(width: 30, height: 24)"))
+        #expect(contentView.contains("RoundedRectangle(cornerRadius: 12, style: .continuous)"))
         #expect(contentView.contains("Color.orange"))
     }
 
