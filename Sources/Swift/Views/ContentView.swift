@@ -24,7 +24,7 @@ struct ContentView: View {
     
     private let sidebarToggleWidth: CGFloat = 500
         private let titlebarButtonsLeadingInset: CGFloat = 160
-        private let titlebarButtonsTopInset: CGFloat = -12
+        private let titlebarButtonsTopInset: CGFloat = 0
     
     // MARK: - Initialization
     
