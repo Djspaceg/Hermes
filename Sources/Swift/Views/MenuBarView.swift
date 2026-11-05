@@ -172,16 +172,20 @@ final class MenuExtraStationSidebarPresenter {
                 object: hostWindow,
                 queue: .main
             ) { [weak self, weak hostWindow] _ in
-                guard let self, let hostWindow else { return }
-                self.updatePanelFrame(attachedTo: hostWindow)
+                Task { @MainActor [weak self, weak hostWindow] in
+                    guard let self, let hostWindow else { return }
+                    self.updatePanelFrame(attachedTo: hostWindow)
+                }
             },
             center.addObserver(
                 forName: NSWindow.didMoveNotification,
                 object: hostWindow,
                 queue: .main
             ) { [weak self, weak hostWindow] _ in
-                guard let self, let hostWindow else { return }
-                self.updatePanelFrame(attachedTo: hostWindow)
+                Task { @MainActor [weak self, weak hostWindow] in
+                    guard let self, let hostWindow else { return }
+                    self.updatePanelFrame(attachedTo: hostWindow)
+                }
             }
         ]
     }
