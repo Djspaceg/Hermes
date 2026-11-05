@@ -351,6 +351,22 @@ struct AppStateFactoryTests {
         #expect(contentView.contains(".zIndex(1)"))
     }
 
+    @Test("Titlebar controls stay anchored, rounded, accented, and hover-faded")
+    func titlebarControlsUseThePolishedFixedLayout() throws {
+        let root = sourceRepositoryRoot()
+        let contentView = try String(
+            contentsOf: root.appendingPathComponent("Sources/Swift/Views/ContentView.swift"),
+            encoding: .utf8
+        )
+
+        #expect(contentView.contains("alignment: .topLeading"))
+        #expect(contentView.contains(".padding(.leading, titlebarButtonsLeadingInset)"))
+        #expect(contentView.contains(".padding(.top, titlebarButtonsTopInset)"))
+        #expect(contentView.contains(".opacity(controlsOpacity)"))
+        #expect(contentView.contains("RoundedRectangle(cornerRadius: 16, style: .continuous)"))
+        #expect(contentView.contains("Color.orange"))
+    }
+
     @Test("Content view removes sidebar toggle controls")
     func contentViewRemovesSidebarToggleControls() throws {
         let root = sourceRepositoryRoot()

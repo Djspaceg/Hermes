@@ -23,6 +23,8 @@ struct ContentView: View {
     @Environment(\.openWindow) private var openWindow
     
     private let sidebarToggleWidth: CGFloat = 500
+        private let titlebarButtonsLeadingInset: CGFloat = 160
+        private let titlebarButtonsTopInset: CGFloat = -12
     
     // MARK: - Initialization
     
@@ -119,8 +121,11 @@ struct ContentView: View {
                     // move into the toolbar overflow menu at compact widths.
                     SidebarTitlebarButtons(appState: appState)
                         .fixedSize()
-                        .padding(.top, 20)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        .padding(.leading, titlebarButtonsLeadingInset)
+                        .padding(.top, titlebarButtonsTopInset)
+                        .opacity(controlsOpacity)
+                        .allowsHitTesting(controlsVisible)
                         .zIndex(1)
                 }
                 .onChange(of: isWindowTooNarrow) { _, tooNarrow in
@@ -190,27 +195,29 @@ private struct SidebarTitlebarButtons: View {
     @Bindable var appState: AppState
 
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 8) {
             ForEach(SidebarSelection.allCases) { selection in
-                if appState.selectedSidebar == selection {
-                    button(for: selection)
-                        .buttonStyle(.glassProminent)
-                } else {
-                    button(for: selection)
-                        .buttonStyle(.glass)
-                }
+                button(for: selection)
             }
         }
     }
 
     private func button(for selection: SidebarSelection) -> some View {
-        Button {
+        let isSelected = appState.selectedSidebar == selection
+
+        return Button {
             appState.selectSidebar(selection)
         } label: {
             Image(systemName: selection.systemImage)
-                .frame(width: 16, height: 16)
+                .foregroundStyle(isSelected ? Color.white : Color.primary)
+                .frame(width: 48, height: 32)
+                .background {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(isSelected ? Color.orange : Color.black.opacity(0.28))
+                }
                 .accessibilityLabel(selection.title)
         }
+        .buttonStyle(.plain)
         .help(selection.title)
     }
 }
