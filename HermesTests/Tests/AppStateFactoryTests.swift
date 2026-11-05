@@ -295,6 +295,27 @@ struct AppStateFactoryTests {
 
     }
 
+    @Test("Reselecting an open sidebar section closes it")
+    func reselectingOpenSidebarSectionClosesIt() {
+        let appState = AppState.test(pandora: MockPandora())
+
+        appState.toggleSidebar()
+        #expect(!appState.isSidebarVisible)
+
+        appState.toggleSidebar()
+        #expect(appState.isSidebarVisible)
+
+        appState.selectSidebar(.stations)
+
+        #expect(!appState.isSidebarVisible)
+        #expect(appState.selectedSidebar == .stations)
+
+        appState.selectSidebar(.history)
+
+        #expect(appState.isSidebarVisible)
+        #expect(appState.selectedSidebar == .history)
+    }
+
     // MARK: - Notification Subscription Tests
 
     /// Test that production() AppState subscribes to notifications

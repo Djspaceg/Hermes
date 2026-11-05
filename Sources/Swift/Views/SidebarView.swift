@@ -8,23 +8,15 @@
 
 import SwiftUI
 
-// MARK: - Sidebar Selection
-
-enum SidebarSelection {
-    case stations
-    case history
-}
-
 // MARK: - Sidebar View
 
 struct SidebarView: View {
     // MARK: - Properties
     
+    @Bindable var appState: AppState
     @Bindable var stationsViewModel: StationsViewModel
     @Bindable var historyViewModel: HistoryViewModel
-    @Binding var columnVisibility: NavigationSplitViewVisibility
     
-    @State private var selectedView: SidebarSelection = .stations
     @State private var selectedStation: Station?
     @AppStorage(UserDefaultsKeys.sortStations) private var sortOrderRawValue: Int = 1 // Default to dateCreated
     @State private var sidebarWidth: CGFloat = 250
@@ -50,13 +42,13 @@ struct SidebarView: View {
     var body: some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
-                if selectedView == .stations {
+                if appState.selectedSidebar == .stations {
                     sortControls
                 }
                 
                 contentArea
                 
-                if selectedView == .stations {
+                if appState.selectedSidebar == .stations {
                     stationsFooter
                 } else {
                     historyFooter
@@ -140,57 +132,27 @@ struct SidebarView: View {
         .background(.ultraThinMaterial.opacity(0.5))
     }
 
-var toolbarIconButtonSize: CGFloat = 16
-
-    @ViewBuilder
     private var stationsButton: some View {
-        if selectedView == .stations {
-            Button { 
-                selectedView = .stations
-                withAnimation { columnVisibility = .all }
-            } label: {
-                Label("Stations", systemImage: "radio")
-                .frame(width: toolbarIconButtonSize, height: toolbarIconButtonSize)
-            }
-            .buttonStyle(.glassProminent)
-        } else {
-            Button { 
-                selectedView = .stations
-                withAnimation { columnVisibility = .all }
-            } label: {
-                Label("Stations", systemImage: "radio")
-                .frame(width: toolbarIconButtonSize, height: toolbarIconButtonSize)
-            }
-            .buttonStyle(.glass)
-        }
+        TitlebarIconButton(
+            title: "Stations",
+            systemImage: "radio",
+            isSelected: appState.selectedSidebar == .stations,
+            action: { appState.selectSidebar(.stations) }
+        )
     }
     
-    @ViewBuilder
     private var historyButton: some View {
-        if selectedView == .history {
-            Button { 
-                selectedView = .history
-                withAnimation { columnVisibility = .all }
-            } label: {
-                Label("History", systemImage: "clock")
-                .frame(width: toolbarIconButtonSize, height: toolbarIconButtonSize)
-            }
-            .buttonStyle(.glassProminent)
-        } else {
-            Button { 
-                selectedView = .history
-                withAnimation { columnVisibility = .all }
-            } label: {
-                Label("History", systemImage: "clock")
-                .frame(width: toolbarIconButtonSize, height: toolbarIconButtonSize)
-            }
-            .buttonStyle(.glass)
-        }
+        TitlebarIconButton(
+            title: "History",
+            systemImage: "clock",
+            isSelected: appState.selectedSidebar == .history,
+            action: { appState.selectSidebar(.history) }
+        )
     }
     
     @ViewBuilder
     private var contentArea: some View {
-        switch selectedView {
+        switch appState.selectedSidebar {
         case .stations:
             StationsListView(
                 viewModel: stationsViewModel,
@@ -362,10 +324,33 @@ struct SidebarIconButton: View {
     }
 }
 
+struct TitlebarIconButton: View {
+    let title: String
+    let systemImage: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        if isSelected {
+            button.buttonStyle(.glassProminent)
+        } else {
+            button.buttonStyle(.glass)
+        }
+    }
+
+    private var button: some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .frame(width: 16, height: 16)
+        }
+    }
+}
+
 // MARK: - Preview
 
 #Preview("Sidebar") {
     SidebarView(
+        appState: AppState.production(),
         stationsViewModel: .mock(
             stations: [
 //                .mock(name: "Rock Classics", stationId: "1"),
@@ -379,8 +364,7 @@ struct SidebarIconButton: View {
                 .mock(title: "Song 1", artist: "Artist 1", album: "Album 1"),
                 .mock(title: "Song 2", artist: "Artist 2", album: "Album 2")
             ]
-        ),
-        columnVisibility: .constant(.all)
+        )
     )
     .frame(width: 250, height: 300)
 }

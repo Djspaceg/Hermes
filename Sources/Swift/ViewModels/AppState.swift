@@ -37,6 +37,11 @@ enum CredentialRestorationState: Equatable {
     case failed(String)
 }
 
+enum SidebarSelection: Equatable {
+    case stations
+    case history
+}
+
 /// Central state manager providing a single source of truth for application state.
 ///
 /// `AppState` is a singleton that manages the global state of the Hermes application,
@@ -102,6 +107,9 @@ final class AppState {
     
     /// Whether the sidebar is currently visible
     var isSidebarVisible: Bool = true
+
+    /// The section displayed when the sidebar is visible.
+    var selectedSidebar: SidebarSelection = .stations
     
     /// Whether the user is authenticated with Pandora
     var isAuthenticated: Bool = false
@@ -478,6 +486,16 @@ final class AppState {
     /// Call this method to show or hide the stations/history sidebar.
     func toggleSidebar() {
         isSidebarVisible.toggle()
+    }
+
+    /// Selects a sidebar section, closing the sidebar when its visible section is reselected.
+    func selectSidebar(_ selection: SidebarSelection) {
+        if isSidebarVisible && selectedSidebar == selection {
+            isSidebarVisible = false
+        } else {
+            selectedSidebar = selection
+            isSidebarVisible = true
+        }
     }
     
     /// Retries the last failed operation

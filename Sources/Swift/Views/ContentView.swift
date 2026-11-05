@@ -94,9 +94,9 @@ struct ContentView: View {
                 ZStack {
                     NavigationSplitView(columnVisibility: $columnVisibility) {
                         SidebarView(
+                            appState: appState,
                             stationsViewModel: appState.stationsViewModel,
-                            historyViewModel: appState.historyViewModel,
-                            columnVisibility: $columnVisibility
+                            historyViewModel: appState.historyViewModel
                         )
                         .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300 - 8 * 2)
                     } detail: {
@@ -108,6 +108,19 @@ struct ContentView: View {
                         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
                     }
                     .navigationSplitViewStyle(.balanced)
+                    .toolbar(removing: .sidebarToggle)
+                    .toolbar {
+                        if !appState.isSidebarVisible {
+                            ToolbarItem(placement: .automatic) {
+                                TitlebarIconButton(
+                                    title: "Show Sidebar",
+                                    systemImage: "sidebar.leading",
+                                    isSelected: false,
+                                    action: appState.toggleSidebar
+                                )
+                            }
+                        }
+                    }
                     .opacity(controlsOpacity)
                     .allowsHitTesting(controlsVisible)
                     
@@ -115,22 +128,30 @@ struct ContentView: View {
                 }
                 .onChange(of: isWindowTooNarrow) { _, tooNarrow in
                     if tooNarrow {
-                        withAnimation { columnVisibility = .detailOnly }
+                        appState.isSidebarVisible = false
                     } else if !settingsManager.userCollapsedSidebar {
-                        withAnimation { columnVisibility = .all }
+                        appState.isSidebarVisible = true
                     }
                 }
                 .onChange(of: columnVisibility) { oldValue, newValue in
                     guard !isWindowTooNarrow else { return }
                     if oldValue != newValue {
                         settingsManager.userCollapsedSidebar = (newValue == .detailOnly)
+                        appState.isSidebarVisible = (newValue != .detailOnly)
+                    }
+                }
+                .onChange(of: appState.isSidebarVisible) { _, isSidebarVisible in
+                    withAnimation {
+                        columnVisibility = isSidebarVisible ? .all : .detailOnly
                     }
                 }
                 .onAppear {
                     if isWindowTooNarrow {
                         columnVisibility = .detailOnly
+                        appState.isSidebarVisible = false
                     } else {
-                        columnVisibility = settingsManager.userCollapsedSidebar ? .detailOnly : .all
+                        appState.isSidebarVisible = !settingsManager.userCollapsedSidebar
+                        columnVisibility = appState.isSidebarVisible ? .all : .detailOnly
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         hasCompletedInitialLoad = true
