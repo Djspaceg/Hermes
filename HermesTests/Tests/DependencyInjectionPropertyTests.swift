@@ -799,8 +799,10 @@ final class NotificationBridgePropertyTests: XCTestCase {
             // Perform operation that should fail
             let result = mock.fetchStations()
             
-            // Wait briefly to ensure no notification is posted
-            wait(for: [stationsExpectation], timeout: 0.5)
+            // A NotificationCenter publisher delivers synchronously. A short
+            // run-loop turn catches deferred delivery without making this
+            // 100-case property test exceed the test-host watchdog.
+            wait(for: [stationsExpectation], timeout: 0.05)
             
             XCTAssertFalse(
                 result,
