@@ -93,6 +93,8 @@
 		E90000000000000000000016 /* NowPlayingSnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E90000000000000000000002 /* NowPlayingSnapshotStore.swift */; };
 		E90000000000000000000017 /* WidgetPlaybackCommandIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9000000000000000000000A /* WidgetPlaybackCommandIntent.swift */; };
 		E90000000000000000000018 /* WidgetPlaybackCommandIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9000000000000000000000A /* WidgetPlaybackCommandIntent.swift */; };
+		E9000000000000000000001A /* NowPlayingWidgetLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = E90000000000000000000019 /* NowPlayingWidgetLayout.swift */; };
+		E9000000000000000000001B /* NowPlayingWidgetLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = E90000000000000000000019 /* NowPlayingWidgetLayout.swift */; };
 		F3758E07F47648BF8FD86559 /* PandoraAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C67A2A19BEF4175B91E6442 /* PandoraAuth.swift */; };
 		F45A03C6AB7F4AA2AF69C5E7 /* AudioStreamDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB2396AF824442B9B61725B3 /* AudioStreamDecoder.swift */; };
 		FA04AE9C14438F1000819310 /* thumbdown.png in Resources */ = {isa = PBXBuildFile; fileRef = FA04AE9A14438F1000819310 /* thumbdown.png */; };
@@ -254,6 +256,7 @@
 		E90000000000000000000008 /* DebugSigning.local.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = DebugSigning.local.xcconfig.example; path = Config/DebugSigning.local.xcconfig.example; sourceTree = SOURCE_ROOT; };
 		E90000000000000000000009 /* HermesWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = HermesWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		E9000000000000000000000A /* WidgetPlaybackCommandIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/Shared/WidgetPlaybackCommandIntent.swift; sourceTree = SOURCE_ROOT; };
+		E90000000000000000000019 /* NowPlayingWidgetLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/Shared/NowPlayingWidgetLayout.swift; sourceTree = SOURCE_ROOT; };
 		FA04AE9A14438F1000819310 /* thumbdown.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = thumbdown.png; sourceTree = "<group>"; };
 		FA04AE9B14438F1000819310 /* thumbup.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = thumbup.png; sourceTree = "<group>"; };
 		FA0E555914784A3000C36794 /* Hermes.sdef */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = Hermes.sdef; sourceTree = "<group>"; };
@@ -505,6 +508,7 @@
 			children = (
 				E90000000000000000000001 /* NowPlayingSnapshot.swift */,
 				E9000000000000000000000A /* WidgetPlaybackCommandIntent.swift */,
+				E90000000000000000000019 /* NowPlayingWidgetLayout.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -803,6 +807,7 @@
 				E90000000000000000000010 /* NowPlayingSnapshot.swift in Sources */,
 				E90000000000000000000011 /* NowPlayingSnapshotStore.swift in Sources */,
 				E90000000000000000000017 /* WidgetPlaybackCommandIntent.swift in Sources */,
+				E9000000000000000000001A /* NowPlayingWidgetLayout.swift in Sources */,
 				8A55EEC82F68000100A10001 /* PlaybackStateStore.swift in Sources */,
 				D9A7B102EFB14ED1AD050001 /* SongFeedbackService.swift in Sources */,
 				728CC0A620A645A99CD50CA3 /* Station.swift in Sources */,
@@ -827,6 +832,7 @@
 				E90000000000000000000013 /* HermesWidget.swift in Sources */,
 				E90000000000000000000016 /* NowPlayingSnapshotStore.swift in Sources */,
 				E90000000000000000000018 /* WidgetPlaybackCommandIntent.swift in Sources */,
+				E9000000000000000000001B /* NowPlayingWidgetLayout.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

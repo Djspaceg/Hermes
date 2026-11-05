@@ -129,164 +129,211 @@ struct HermesPlaybackControl: ControlWidget {
     }
 }
 
-private struct HermesNowPlayingWidgetView: View {
+struct HermesNowPlayingWidgetView: View {
     @Environment(\.widgetFamily) private var widgetFamily
 
     let entry: HermesNowPlayingEntry
+    let artworkImage: NSImage?
+    let layoutOverride: NowPlayingWidgetLayout?
+
+    init(
+        entry: HermesNowPlayingEntry,
+        artworkImage: NSImage? = nil,
+        layoutOverride: NowPlayingWidgetLayout? = nil
+    ) {
+        self.entry = entry
+        self.artworkImage = artworkImage
+        self.layoutOverride = layoutOverride
+    }
 
     var body: some View {
         if entry.snapshot.playbackState == .idle {
             idleView
-        } else if widgetFamily == .systemSmall {
-            smallNowPlayingView
         } else {
-            mediumNowPlayingView
+            nowPlayingView
         }
     }
 
     private var idleView: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "music.note")
-                .font(.system(size: 34))
-                .foregroundStyle(.secondary)
-            Text("Not playing")
-                .font(.headline)
-        }
-        .containerBackground(.fill.tertiary, for: .widget)
-    }
-
-    private var smallNowPlayingView: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            artwork
-                .frame(maxWidth: .infinity)
-                .frame(height: 56)
-            trackText
-            progress
-            controls
-        }
-        .containerBackground(.fill.tertiary, for: .widget)
-    }
-
-    private var mediumNowPlayingView: some View {
-        HStack(spacing: 12) {
-            artwork
-                .frame(width: 92, height: 92)
-            VStack(alignment: .leading, spacing: 7) {
-                trackText
-                Text(entry.snapshot.stationName)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                Spacer(minLength: 0)
-                progress
-                controls
-            }
-        }
-        .containerBackground(.fill.tertiary, for: .widget)
-    }
-
-    @ViewBuilder
-    private var artwork: some View {
-        if let artworkFilename = entry.snapshot.artworkFilename,
-           let containerURL = FileManager.default.containerURL(
-               forSecurityApplicationGroupIdentifier: NowPlayingWidgetConfiguration.appGroupIdentifier
-           ),
-           let image = NSImage(contentsOf: containerURL.appendingPathComponent(artworkFilename)) {
-            Image(nsImage: image)
-                .resizable()
-                .widgetAccentedRenderingMode(.desaturated)
-                .scaledToFill()
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-        } else {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(.quaternary)
-                .overlay {
+        GeometryReader { geometry in
+            ZStack {
+                artwork
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                    .clipped()
+                legibilityScrim
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                VStack(spacing: 10) {
                     Image(systemName: "music.note")
-                        .font(.title2)
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 34))
+                    Text("Not playing")
+                        .font(.headline)
                 }
-        }
-    }
-
-    private var trackText: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(entry.snapshot.title)
-                .font(.headline)
-                .lineLimit(1)
-            Text(entry.snapshot.artist)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-            if !entry.snapshot.album.isEmpty {
-                Text(entry.snapshot.album)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                .foregroundStyle(.white)
             }
         }
+        .containerBackground(.clear, for: .widget)
     }
 
-    private var controls: some View {
-        HStack(spacing: 12) {
+    private var nowPlayingView: some View {
+        GeometryReader { geometry in
+            ZStack {
+                artwork
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                    .clipped()
+                legibilityScrim
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+
+                VStack(spacing: 0) {
+                    trackText
+                        .padding(14)
+
+                    Spacer(minLength: 0)
+
+                    playbackControls
+
+                    Spacer(minLength: 0)
+
+                    if layout.showsFeedbackControls {
+                        feedbackControls
+                            .padding(.bottom, 14)
+                    }
+                }
+            }
+        }
+        .containerBackground(.clear, for: .widget)
+    }
+
+    private var layout: NowPlayingWidgetLayout {
+        layoutOverride ?? (widgetFamily == .systemSmall ? .small : .medium)
+    }
+
+    private var legibilityScrim: some View {
+        LinearGradient(
+            colors: [
+                .black.opacity(0.78),
+                .black.opacity(0.08),
+                .black.opacity(0.72)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .allowsHitTesting(false)
+    }
+
+    private var playbackControls: some View {
+        ZStack {
             controlButton(
                 entry.snapshot.playbackState == .playing ? .pause : .play,
                 systemImage: entry.snapshot.playbackState == .playing
                     ? "pause.fill"
                     : "play.fill",
-                label: entry.snapshot.playbackState == .playing ? "Pause" : "Play"
+                label: entry.snapshot.playbackState == .playing ? "Pause" : "Play",
+                size: layout == .small ? 56 : 64,
+                symbolSize: layout == .small ? 25 : 29
             )
-            controlButton(.next, systemImage: "forward.fill", label: "Next")
+
+            controlButton(
+                .next,
+                systemImage: "forward.fill",
+                label: "Next",
+                size: layout == .small ? 34 : 38,
+                symbolSize: layout == .small ? 14 : 16
+            )
+            .offset(x: layout == .small ? 46 : 52)
+        }
+    }
+
+    @ViewBuilder
+    private var artwork: some View {
+        if let artworkImage {
+            artworkView(artworkImage)
+        } else if let artworkFilename = entry.snapshot.artworkFilename,
+           let containerURL = FileManager.default.containerURL(
+               forSecurityApplicationGroupIdentifier: NowPlayingWidgetConfiguration.appGroupIdentifier
+           ),
+           let image = NSImage(contentsOf: containerURL.appendingPathComponent(artworkFilename)) {
+            artworkView(image)
+        } else {
+            LinearGradient(
+                colors: [.indigo, .purple.opacity(0.7), .black],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .overlay {
+                Image(systemName: "music.note")
+                    .font(.system(size: 50, weight: .light))
+                    .foregroundStyle(.white.opacity(0.75))
+            }
+        }
+    }
+
+    private func artworkView(_ image: NSImage) -> some View {
+        Image(nsImage: image)
+            .resizable()
+            .widgetAccentedRenderingMode(.desaturated)
+            .scaledToFill()
+    }
+
+    private var trackText: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(entry.snapshot.title)
+                .font(.headline.weight(.semibold))
+                .lineLimit(1)
+            Text(entry.snapshot.artist)
+                .font(.subheadline)
+                .lineLimit(1)
+                .opacity(0.88)
+        }
+        .foregroundStyle(.white)
+        .shadow(color: .black.opacity(0.7), radius: 2, y: 1)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var feedbackControls: some View {
+        HStack(spacing: 20) {
             controlButton(
                 .thumbsUp,
                 systemImage: entry.snapshot.rating > 0
                     ? "hand.thumbsup.fill"
                     : "hand.thumbsup",
-                label: "Thumbs Up"
+                label: "Thumbs Up",
+                size: 36,
+                symbolSize: 16
             )
             controlButton(
                 .thumbsDown,
                 systemImage: entry.snapshot.rating < 0
                     ? "hand.thumbsdown.fill"
                     : "hand.thumbsdown",
-                label: "Thumbs Down"
+                label: "Thumbs Down",
+                size: 36,
+                symbolSize: 16
             )
         }
-        .font(.body)
         .frame(maxWidth: .infinity)
     }
 
     private func controlButton(
         _ command: WidgetPlaybackCommand,
         systemImage: String,
-        label: String
+        label: String,
+        size: CGFloat,
+        symbolSize: CGFloat
     ) -> some View {
         Button(intent: WidgetPlaybackCommandIntent(command: command)) {
-            Label(label, systemImage: systemImage)
-                .labelStyle(.iconOnly)
+            Image(systemName: systemImage)
+                .font(.system(size: symbolSize, weight: .medium))
+                .frame(width: size, height: size)
+                .foregroundStyle(.white)
+                .shadow(color: .black.opacity(0.45), radius: 3, y: 1)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.glass)
+        .buttonBorderShape(.circle)
         .accessibilityLabel(label)
-    }
-
-    @ViewBuilder
-    private var progress: some View {
-        if entry.snapshot.duration > 0 {
-            if entry.snapshot.playbackState == .playing,
-               let startDate = entry.snapshot.playbackStartDate {
-                ProgressView(
-                    timerInterval: startDate...startDate.addingTimeInterval(entry.snapshot.duration),
-                    countsDown: false
-                )
-            } else {
-                ProgressView(
-                    value: min(entry.snapshot.elapsedTime, entry.snapshot.duration),
-                    total: entry.snapshot.duration
-                )
-            }
-        }
     }
 }
 
+#if !WIDGET_EVIDENCE_RENDERER
 @main
 struct HermesWidgetBundle: WidgetBundle {
     var body: some Widget {
@@ -294,3 +341,4 @@ struct HermesWidgetBundle: WidgetBundle {
         HermesPlaybackControl()
     }
 }
+#endif
