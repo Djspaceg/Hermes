@@ -240,7 +240,7 @@ dbg: hermes
 
 install: override CONFIGURATION = Release
 install:
-	$(XCB) $(COMMON_OPTS) -configuration $(CONFIGURATION) -scheme $(SCHEME)
+	$(XCB) $(COMMON_OPTS) -configuration $(CONFIGURATION) -xcconfig Config/LocalInstallSigning.xcconfig -scheme $(SCHEME)
 	@hermes_app="$(HERMES_APP)"; \
 	if [ ! -d "$$hermes_app" ]; then \
 		echo "error: Hermes app not found at $$hermes_app; refusing to remove /Applications/Hermes.app" >&2; \

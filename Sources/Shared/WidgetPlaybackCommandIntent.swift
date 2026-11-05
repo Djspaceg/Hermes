@@ -75,7 +75,7 @@ struct WidgetPlaybackCommandIntent: AudioPlaybackIntent {
             WidgetPlaybackCommandRouter.route(command)
         }
         widgetPlaybackCommandIntentLogger.info(
-            "completed command=\(command.rawValue, privacy: .public) handled=\(handled)"
+            "completed command=\(command.rawValue, privacy: .public) handled=\(handled, privacy: .public)"
         )
         return .result()
     }
@@ -97,13 +97,13 @@ struct WidgetPlaybackStateIntent: AudioPlaybackIntent, SetValueIntent {
 
     func perform() async throws -> some IntentResult {
         widgetPlaybackCommandIntentLogger.info(
-            "perform state value=\(value)"
+            "perform state value=\(value, privacy: .public)"
         )
         let handled = await MainActor.run {
             WidgetPlaybackCommandRouter.route(value ? .play : .pause)
         }
         widgetPlaybackCommandIntentLogger.info(
-            "completed state value=\(value) handled=\(handled)"
+            "completed state value=\(value, privacy: .public) handled=\(handled, privacy: .public)"
         )
         guard handled else { throw WidgetPlaybackStateIntentError.commandNotHandled }
         return .result()

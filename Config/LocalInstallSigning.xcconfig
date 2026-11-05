@@ -1,0 +1,3 @@
+// `make install` imports this file only for a local copy in /Applications.
+// The optional include keeps the development team outside the repository.
+#include "DebugSigning.xcconfig"
