@@ -320,13 +320,26 @@ struct AppStateFactoryTests {
         #expect(appState.selectedSidebar == .stations)
     }
 
+    @Test("View menu command keeps sidebar toggle available")
+    func viewMenuCommandKeepsSidebarToggleAvailable() {
+        let appState = AppState.test(pandora: MockPandora())
+
+        appState.toggleSidebarFromCommand()
+
+        #expect(!appState.isSidebarVisible)
+
+        appState.toggleSidebarFromCommand()
+
+        #expect(appState.isSidebarVisible)
+    }
+
     @Test("Titlebar exposes only section controls")
     func titlebarExposesOnlySectionControls() {
         #expect(SidebarSelection.allCases == [.stations, .history])
     }
 
-    @Test("Titlebar controls use the principal fixed group")
-    func titlebarControlsUsePrincipalFixedGroup() throws {
+    @Test("Titlebar controls use a fixed in-window group")
+    func titlebarControlsUseFixedInWindowGroup() throws {
         let root = sourceRepositoryRoot()
         let contentView = try String(
             contentsOf: root.appendingPathComponent("Sources/Swift/Views/ContentView.swift"),
@@ -355,6 +368,13 @@ struct AppStateFactoryTests {
         #expect(!contentView.contains("sidebar.leading"))
         #expect(!contentView.contains("ToolbarItem("))
         #expect(!sidebarView.contains("ToolbarItem("))
+
+        let app = try String(
+            contentsOf: root.appendingPathComponent("Sources/Swift/HermesApp.swift"),
+            encoding: .utf8
+        )
+        #expect(app.contains("CommandGroup(after: .toolbar)"))
+        #expect(app.contains(".keyboardShortcut(\"s\", modifiers: [.command, .control])"))
     }
 
     @Test("Embedded test bundle alone does not identify a test process")

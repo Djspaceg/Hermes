@@ -86,6 +86,7 @@ enum SidebarSelection: CaseIterable, Equatable, Identifiable {
 ///
 /// ### Actions
 /// - ``selectSidebar(_:)``
+/// - ``toggleSidebarFromCommand()``
 /// - ``retry()``
 ///
 /// ## Usage
@@ -496,6 +497,11 @@ final class AppState {
     }
     
     // MARK: - Public Methods
+
+    /// Toggles the sidebar from the View menu or its keyboard shortcut.
+    func toggleSidebarFromCommand() {
+        isSidebarVisible.toggle()
+    }
     
     /// Selects a sidebar section, closing the sidebar when its visible section is reselected.
     func selectSidebar(_ selection: SidebarSelection) {

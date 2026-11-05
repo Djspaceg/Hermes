@@ -47,6 +47,13 @@ struct HermesApp: App {
         .defaultPosition(.center)
         .windowStyle(.hiddenTitleBar)
         .commands {
+            CommandGroup(after: .toolbar) {
+                Button(appState.isSidebarVisible ? "Hide Sidebar" : "Show Sidebar") {
+                    appState.toggleSidebarFromCommand()
+                }
+                .keyboardShortcut("s", modifiers: [.command, .control])
+            }
+
             CommandGroup(replacing: .newItem) {
                 Button("New Station...") {
                     showingNewStation = true
