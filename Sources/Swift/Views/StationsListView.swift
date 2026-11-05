@@ -33,6 +33,7 @@ struct StationsListView: View {
             onRowAppear: { station in
                 viewModel.artworkLoader.loadArtworkIfNeeded(for: station)
             },
+            onDirectSelect: onStationSelected,
             onPlay: playStation,
             onEdit: viewModel.editStation,
             onRename: viewModel.startRenameStation,
@@ -82,6 +83,7 @@ private struct StationsListContent: View {
     let playingStationId: String?
     let showThumbnails: Bool
     let onRowAppear: (Station) -> Void
+    let onDirectSelect: ((Station) -> Void)?
     let onPlay: (Station) -> Void
     let onEdit: (Station) -> Void
     let onRename: (Station) -> Void
@@ -90,12 +92,7 @@ private struct StationsListContent: View {
     
     var body: some View {
         List(stations, id: \.id, selection: $selectedStation) { station in
-            StationRow(
-                station: station,
-                isPlaying: station.id == playingStationId,
-                showThumbnail: showThumbnails,
-                onAppear: onRowAppear
-            )
+            stationRow(for: station)
             .tag(station)
         }
         .listStyle(.sidebar)
@@ -114,6 +111,31 @@ private struct StationsListContent: View {
         }
         .refreshable {
             await onRefresh()
+        }
+    }
+
+    @ViewBuilder
+    private func stationRow(for station: Station) -> some View {
+        if let onDirectSelect {
+            Button {
+                onDirectSelect(station)
+            } label: {
+                StationRow(
+                    station: station,
+                    isPlaying: station.id == playingStationId,
+                    showThumbnail: showThumbnails,
+                    onAppear: onRowAppear
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(station.name)
+        } else {
+            StationRow(
+                station: station,
+                isPlaying: station.id == playingStationId,
+                showThumbnail: showThumbnails,
+                onAppear: onRowAppear
+            )
         }
     }
 }
@@ -284,6 +306,7 @@ private struct StationsListContentPreview: View {
                 playingStationId: "1",
                 showThumbnails: false,
                 onRowAppear: { _ in },
+                onDirectSelect: nil,
                 onPlay: { _ in },
                 onEdit: { _ in },
                 onRename: { _ in },

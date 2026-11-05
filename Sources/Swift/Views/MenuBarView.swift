@@ -545,6 +545,10 @@ struct StatusBarWindowContent: View {
                 )
             }
             .buttonStyle(MenuItemButtonStyle())
+            .accessibilityLabel(
+                stationSidebarState.isPresented ? "Hide Stations" : "Show Stations"
+            )
+            .accessibilityIdentifier("menu-extra-stations-toggle")
 
             Button {
                 NSApp.activate(ignoringOtherApps: true)
