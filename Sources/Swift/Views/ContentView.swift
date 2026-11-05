@@ -109,22 +109,15 @@ struct ContentView: View {
                     }
                     .navigationSplitViewStyle(.balanced)
                     .toolbar(removing: .sidebarToggle)
-                    .toolbar {
-                        if !appState.isSidebarVisible {
-                            ToolbarItem(placement: .automatic) {
-                                TitlebarIconButton(
-                                    title: "Show Sidebar",
-                                    systemImage: "sidebar.leading",
-                                    isSelected: false,
-                                    action: appState.toggleSidebar
-                                )
-                            }
-                        }
-                    }
                     .opacity(controlsOpacity)
                     .allowsHitTesting(controlsVisible)
                     
                     errorOverlay
+                }
+                .overlay {
+                    TitlebarSidebarControls(appState: appState)
+                        .frame(width: 0, height: 0)
+                        .allowsHitTesting(false)
                 }
                 .onChange(of: isWindowTooNarrow) { _, tooNarrow in
                     if tooNarrow {
@@ -186,6 +179,114 @@ struct ContentView: View {
     
     private var controlsOpacity: Double {
         (controlsVisible || playerViewModel.currentSong == nil) ? 1 : 0
+    }
+}
+
+struct TitlebarSidebarControls: NSViewRepresentable {
+    @Bindable var appState: AppState
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    func makeNSView(context: Context) -> TitlebarAccessoryAnchorView {
+        let anchorView = TitlebarAccessoryAnchorView()
+        anchorView.coordinator = context.coordinator
+        return anchorView
+    }
+
+    func updateNSView(_ anchorView: TitlebarAccessoryAnchorView, context: Context) {
+        context.coordinator.update(appState: appState, in: anchorView.window)
+    }
+
+    static func dismantleNSView(_ anchorView: TitlebarAccessoryAnchorView, coordinator: Coordinator) {
+        coordinator.remove()
+    }
+
+    @MainActor
+    final class Coordinator {
+        private weak var window: NSWindow?
+        private(set) var accessoryController: NSTitlebarAccessoryViewController?
+        private var hostingView: NSHostingView<SidebarTitlebarButtons>?
+        private var rootView: SidebarTitlebarButtons?
+
+        func update(appState: AppState, in window: NSWindow?) {
+            let rootView = SidebarTitlebarButtons(appState: appState)
+            self.rootView = rootView
+            if let hostingView {
+                hostingView.rootView = rootView
+            }
+
+            guard let window else { return }
+            installIfNeeded(in: window)
+        }
+
+        func installIfNeeded(in window: NSWindow) {
+            guard accessoryController == nil else { return }
+            guard let rootView else { return }
+
+            let hostingView = NSHostingView(rootView: rootView)
+            let accessoryController = NSTitlebarAccessoryViewController()
+            accessoryController.view = hostingView
+            accessoryController.layoutAttribute = .left
+
+            window.addTitlebarAccessoryViewController(accessoryController)
+            self.window = window
+            self.hostingView = hostingView
+            self.accessoryController = accessoryController
+        }
+
+        func remove() {
+            guard let accessoryController else { return }
+            if let index = window?.titlebarAccessoryViewControllers.firstIndex(
+                where: { $0 === accessoryController }
+            ) {
+                window?.removeTitlebarAccessoryViewController(at: index)
+            }
+            self.accessoryController = nil
+            hostingView = nil
+            rootView = nil
+            window = nil
+        }
+    }
+}
+
+final class TitlebarAccessoryAnchorView: NSView {
+    weak var coordinator: TitlebarSidebarControls.Coordinator?
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard let window else { return }
+        coordinator?.installIfNeeded(in: window)
+    }
+}
+
+private struct SidebarTitlebarButtons: View {
+    @Bindable var appState: AppState
+
+    var body: some View {
+        HStack(spacing: 16) {
+            ForEach(SidebarSelection.allCases) { selection in
+                if appState.selectedSidebar == selection {
+                    button(for: selection)
+                        .buttonStyle(.glassProminent)
+                } else {
+                    button(for: selection)
+                        .buttonStyle(.glass)
+                }
+            }
+        }
+    }
+
+    private func button(for selection: SidebarSelection) -> some View {
+        Button {
+            appState.selectSidebar(selection)
+        } label: {
+            Image(systemName: selection.systemImage)
+                .frame(width: 16, height: 16)
+                .accessibilityLabel(selection.title)
+        }
+        .help(selection.title)
     }
 }
 

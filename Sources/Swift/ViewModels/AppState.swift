@@ -37,9 +37,25 @@ enum CredentialRestorationState: Equatable {
     case failed(String)
 }
 
-enum SidebarSelection: Equatable {
+enum SidebarSelection: CaseIterable, Equatable, Identifiable {
     case stations
     case history
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .stations: "Stations"
+        case .history: "History"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .stations: "radio"
+        case .history: "clock"
+        }
+    }
 }
 
 /// Central state manager providing a single source of truth for application state.
@@ -69,7 +85,7 @@ enum SidebarSelection: Equatable {
 /// - ``historyViewModel``
 ///
 /// ### Actions
-/// - ``toggleSidebar()``
+/// - ``selectSidebar(_:)``
 /// - ``retry()``
 ///
 /// ## Usage
@@ -83,8 +99,8 @@ enum SidebarSelection: Equatable {
 ///     // Show player view
 /// }
 ///
-/// // Toggle sidebar visibility
-/// appState.toggleSidebar()
+/// // Show the History section
+/// appState.selectSidebar(.history)
 /// ```
 @MainActor
 @Observable
@@ -481,13 +497,6 @@ final class AppState {
     
     // MARK: - Public Methods
     
-    /// Toggles the sidebar visibility
-    ///
-    /// Call this method to show or hide the stations/history sidebar.
-    func toggleSidebar() {
-        isSidebarVisible.toggle()
-    }
-
     /// Selects a sidebar section, closing the sidebar when its visible section is reselected.
     func selectSidebar(_ selection: SidebarSelection) {
         if isSidebarVisible && selectedSidebar == selection {

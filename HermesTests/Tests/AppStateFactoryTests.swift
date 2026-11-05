@@ -295,15 +295,9 @@ struct AppStateFactoryTests {
 
     }
 
-    @Test("Reselecting an open sidebar section closes it")
-    func reselectingOpenSidebarSectionClosesIt() {
+    @Test("Titlebar section controls open, switch, and close the sidebar")
+    func titlebarSectionControlsOpenSwitchAndCloseSidebar() {
         let appState = AppState.test(pandora: MockPandora())
-
-        appState.toggleSidebar()
-        #expect(!appState.isSidebarVisible)
-
-        appState.toggleSidebar()
-        #expect(appState.isSidebarVisible)
 
         appState.selectSidebar(.stations)
 
@@ -314,6 +308,63 @@ struct AppStateFactoryTests {
 
         #expect(appState.isSidebarVisible)
         #expect(appState.selectedSidebar == .history)
+
+        appState.selectSidebar(.history)
+
+        #expect(!appState.isSidebarVisible)
+        #expect(appState.selectedSidebar == .history)
+
+        appState.selectSidebar(.stations)
+
+        #expect(appState.isSidebarVisible)
+        #expect(appState.selectedSidebar == .stations)
+    }
+
+    @Test("Titlebar exposes only section controls")
+    func titlebarExposesOnlySectionControls() {
+        #expect(SidebarSelection.allCases == [.stations, .history])
+    }
+
+    @Test("Titlebar controls are fixed accessories at compact width")
+    func titlebarControlsAreFixedAccessoriesAtCompactWidth() throws {
+        let appState = AppState.test(pandora: MockPandora())
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 300, height: 300),
+            styleMask: [.titled],
+            backing: .buffered,
+            defer: false
+        )
+        let coordinator = TitlebarSidebarControls.Coordinator()
+
+        coordinator.update(appState: appState, in: window)
+
+        let accessory = try #require(coordinator.accessoryController)
+        #expect(window.titlebarAccessoryViewControllers.count == 1)
+        #expect(window.titlebarAccessoryViewControllers.first === accessory)
+        #expect(accessory.layoutAttribute == .left)
+        #expect(accessory.view.fittingSize.width > 32)
+        #expect(accessory.view.fittingSize.width < window.frame.width)
+
+        coordinator.remove()
+        #expect(window.titlebarAccessoryViewControllers.isEmpty)
+    }
+
+    @Test("Content view removes sidebar toggle controls")
+    func contentViewRemovesSidebarToggleControls() throws {
+        let root = sourceRepositoryRoot()
+        let contentView = try String(
+            contentsOf: root.appendingPathComponent("Sources/Swift/Views/ContentView.swift"),
+            encoding: .utf8
+        )
+        let sidebarView = try String(
+            contentsOf: root.appendingPathComponent("Sources/Swift/Views/SidebarView.swift"),
+            encoding: .utf8
+        )
+
+        #expect(contentView.contains(".toolbar(removing: .sidebarToggle)"))
+        #expect(!contentView.contains("Show Sidebar"))
+        #expect(!contentView.contains("sidebar.leading"))
+        #expect(!sidebarView.contains("ToolbarItem("))
     }
 
     @Test("Embedded test bundle alone does not identify a test process")

@@ -63,15 +63,6 @@ struct SidebarView: View {
                 sidebarWidth = geometry.size.width
             }
         }
-        .toolbar {
-            ToolbarItem(placement: .automatic) {
-                stationsButton
-            }
-            
-            ToolbarItem(placement: .automatic) {
-                historyButton
-            }
-        }
         .environment(\.sidebarWidth, sidebarWidth)
         .sheet(item: $stationsViewModel.stationToEdit) { station in
             StationEditView(
@@ -132,24 +123,6 @@ struct SidebarView: View {
         .background(.ultraThinMaterial.opacity(0.5))
     }
 
-    private var stationsButton: some View {
-        TitlebarIconButton(
-            title: "Stations",
-            systemImage: "radio",
-            isSelected: appState.selectedSidebar == .stations,
-            action: { appState.selectSidebar(.stations) }
-        )
-    }
-    
-    private var historyButton: some View {
-        TitlebarIconButton(
-            title: "History",
-            systemImage: "clock",
-            isSelected: appState.selectedSidebar == .history,
-            action: { appState.selectSidebar(.history) }
-        )
-    }
-    
     @ViewBuilder
     private var contentArea: some View {
         switch appState.selectedSidebar {
@@ -320,28 +293,6 @@ struct SidebarIconButton: View {
         .help(helpText)
         .onHover { hovering in
             isHovering = hovering
-        }
-    }
-}
-
-struct TitlebarIconButton: View {
-    let title: String
-    let systemImage: String
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        if isSelected {
-            button.buttonStyle(.glassProminent)
-        } else {
-            button.buttonStyle(.glass)
-        }
-    }
-
-    private var button: some View {
-        Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .frame(width: 16, height: 16)
         }
     }
 }
