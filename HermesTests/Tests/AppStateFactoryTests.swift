@@ -325,28 +325,17 @@ struct AppStateFactoryTests {
         #expect(SidebarSelection.allCases == [.stations, .history])
     }
 
-    @Test("Titlebar controls are fixed accessories at compact width")
-    func titlebarControlsAreFixedAccessoriesAtCompactWidth() throws {
-        let appState = AppState.test(pandora: MockPandora())
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 300, height: 300),
-            styleMask: [.titled],
-            backing: .buffered,
-            defer: false
+    @Test("Titlebar controls use the principal fixed group")
+    func titlebarControlsUsePrincipalFixedGroup() throws {
+        let root = sourceRepositoryRoot()
+        let contentView = try String(
+            contentsOf: root.appendingPathComponent("Sources/Swift/Views/ContentView.swift"),
+            encoding: .utf8
         )
-        let coordinator = TitlebarSidebarControls.Coordinator()
 
-        coordinator.update(appState: appState, in: window)
-
-        let accessory = try #require(coordinator.accessoryController)
-        #expect(window.titlebarAccessoryViewControllers.count == 1)
-        #expect(window.titlebarAccessoryViewControllers.first === accessory)
-        #expect(accessory.layoutAttribute == .left)
-        #expect(accessory.view.fittingSize.width > 32)
-        #expect(accessory.view.fittingSize.width < window.frame.width)
-
-        coordinator.remove()
-        #expect(window.titlebarAccessoryViewControllers.isEmpty)
+        #expect(contentView.contains("ToolbarItem(placement: .principal)"))
+        #expect(contentView.contains("SidebarTitlebarButtons(appState: appState)"))
+        #expect(contentView.contains(".fixedSize()"))
     }
 
     @Test("Content view removes sidebar toggle controls")
