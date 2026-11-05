@@ -85,6 +85,7 @@ struct HermesNowPlayingWidget: Widget {
         .configurationDisplayName("Now Playing")
         .description("Shows the current Hermes song and playback progress.")
         .supportedFamilies([.systemSmall, .systemMedium])
+        .contentMarginsDisabled()
     }
 }
 
@@ -326,9 +327,9 @@ struct HermesNowPlayingWidgetView: View {
                 .frame(width: size, height: size)
                 .foregroundStyle(.white)
                 .shadow(color: .black.opacity(0.45), radius: 3, y: 1)
+                .background(.black.opacity(0.46), in: Circle())
         }
-        .buttonStyle(.glass)
-        .buttonBorderShape(.circle)
+        .buttonStyle(.plain)
         .accessibilityLabel(label)
     }
 }
