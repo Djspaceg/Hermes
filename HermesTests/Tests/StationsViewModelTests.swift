@@ -346,3 +346,36 @@ struct StationsViewModelTests {
         return station
     }
 }
+
+@MainActor
+@Suite("MenuExtraStationSidebarStateTests", .serialized)
+struct MenuExtraStationSidebarStateTests {
+    @Test("Sidebar toggles open and closed")
+    func testSidebarToggle() {
+        let state = MenuExtraStationSidebarState()
+
+        #expect(!state.isPresented)
+
+        state.toggle()
+        #expect(state.isPresented)
+
+        state.toggle()
+        #expect(!state.isPresented)
+    }
+
+    @Test("Selecting a station routes through the supplied selection handler and closes")
+    func testStationSelectionRouting() {
+        let state = MenuExtraStationSidebarState()
+        let station = Station()
+        station.stationId = "station-42"
+        var selectedStationId: String?
+
+        state.present()
+        state.select(station) { selectedStation in
+            selectedStationId = selectedStation.id
+        }
+
+        #expect(selectedStationId == station.id)
+        #expect(!state.isPresented)
+    }
+}

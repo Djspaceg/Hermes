@@ -5,6 +5,8 @@
 //  Menu bar extra icon and dropdown content
 //
 
+import AppKit
+import Observation
 import SwiftUI
 
 @MainActor
@@ -56,6 +58,214 @@ final class MainWindowPresenter {
         }
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
+    }
+}
+
+@MainActor
+@Observable
+final class MenuExtraStationSidebarState {
+    private(set) var isPresented = false
+
+    @ObservationIgnored
+    var onDismiss: (() -> Void)?
+
+    @ObservationIgnored
+    weak var hostWindow: NSWindow?
+
+    func toggle() {
+        isPresented ? dismiss() : present()
+    }
+
+    func present() {
+        isPresented = true
+    }
+
+    func dismiss() {
+        guard isPresented else { return }
+        isPresented = false
+        onDismiss?()
+    }
+
+    func select(_ station: Station, onSelect: (Station) -> Void) {
+        onSelect(station)
+        dismiss()
+    }
+}
+
+@MainActor
+final class MenuExtraStationSidebarPresenter {
+    static let shared = MenuExtraStationSidebarPresenter()
+
+    private let preferredWidth: CGFloat = 280
+    private let preferredHeight: CGFloat = 460
+    private let minimumWidth: CGFloat = 180
+    private var panel: NSPanel?
+
+    private init() {}
+
+    func toggle(
+        state: MenuExtraStationSidebarState,
+        stationsViewModel: StationsViewModel
+    ) {
+        if state.isPresented {
+            state.dismiss()
+            return
+        }
+
+        guard let hostWindow = state.hostWindow else {
+            return
+        }
+
+        let panel = panel ?? makePanel()
+        self.panel = panel
+        let frame = panelFrame(attachedTo: hostWindow)
+        panel.contentView = NSHostingView(
+            rootView: MenuExtraStationSidebar(
+                state: state,
+                stationsViewModel: stationsViewModel,
+                width: frame.width,
+                height: frame.height
+            )
+        )
+        panel.setFrame(frame, display: false)
+        hostWindow.addChildWindow(panel, ordered: .above)
+        panel.orderFront(nil)
+        state.onDismiss = { [weak self] in
+            self?.hidePanel()
+        }
+        state.present()
+    }
+
+    private func makePanel() -> NSPanel {
+        let panel = NSPanel(
+            contentRect: .zero,
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        panel.isFloatingPanel = true
+        panel.level = .popUpMenu
+        panel.collectionBehavior = [.transient, .fullScreenAuxiliary]
+        panel.backgroundColor = .clear
+        panel.isOpaque = false
+        panel.hasShadow = true
+        panel.becomesKeyOnlyIfNeeded = true
+        return panel
+    }
+
+    private func hidePanel() {
+        guard let panel else { return }
+        panel.parent?.removeChildWindow(panel)
+        panel.orderOut(nil)
+    }
+
+    private func panelFrame(attachedTo hostWindow: NSWindow) -> NSRect {
+        let visibleFrame = hostWindow.screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? hostWindow.frame
+        let leftSpace = hostWindow.frame.minX - visibleFrame.minX
+        let rightSpace = visibleFrame.maxX - hostWindow.frame.maxX
+        let availableWidth = max(leftSpace, rightSpace)
+        let width = min(preferredWidth, availableWidth)
+        let attachOnLeft = leftSpace >= minimumWidth || leftSpace >= rightSpace
+        let x = attachOnLeft ? hostWindow.frame.minX - width : hostWindow.frame.maxX
+        let height = min(preferredHeight, visibleFrame.height)
+        let y = min(max(hostWindow.frame.maxY - height, visibleFrame.minY), visibleFrame.maxY - height)
+        return NSRect(x: x, y: y, width: width, height: height)
+    }
+}
+
+private struct MenuExtraWindowReader: NSViewRepresentable {
+    let setHostWindow: (NSWindow) -> Void
+
+    func makeNSView(context: Context) -> NSView {
+        NSView(frame: .zero)
+    }
+
+    func updateNSView(_ view: NSView, context: Context) {
+        DispatchQueue.main.async {
+            if let window = view.window {
+                setHostWindow(window)
+            }
+        }
+    }
+}
+
+private struct MenuExtraStationSidebar: View {
+    @Bindable var state: MenuExtraStationSidebarState
+    @Bindable var stationsViewModel: StationsViewModel
+    let width: CGFloat
+    let height: CGFloat
+
+    @State private var selectedStation: Station?
+    @AppStorage(UserDefaultsKeys.sortStations) private var sortOrderRawValue: Int = 1
+
+    private var sortOrder: StationsViewModel.SortOrder {
+        get {
+            switch sortOrderRawValue {
+            case 0: return .name
+            case 2: return .recentlyPlayed
+            default: return .dateCreated
+            }
+        }
+        nonmutating set {
+            switch newValue {
+            case .name: sortOrderRawValue = 0
+            case .dateCreated: sortOrderRawValue = 1
+            case .recentlyPlayed: sortOrderRawValue = 2
+            }
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("Stations")
+                    .font(.headline)
+                Spacer()
+                Button {
+                    state.dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Close station sidebar")
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+
+            Divider()
+
+            StationsListView(
+                viewModel: stationsViewModel,
+                selectedStation: $selectedStation,
+                sortOrder: Binding(
+                    get: { sortOrder },
+                    set: { sortOrder = $0 }
+                ),
+                onStationSelected: selectStation
+            )
+            .onChange(of: selectedStation) { _, station in
+                if let station {
+                    selectStation(station)
+                }
+            }
+        }
+        .frame(width: width, height: height)
+        .background(.regularMaterial)
+        .environment(\.sidebarWidth, width)
+        .onChange(of: stationsViewModel.selectedStationId) { _, stationId in
+            if let stationId,
+               selectedStation?.id != stationId {
+                selectedStation = stationsViewModel.stations.first { $0.id == stationId }
+            }
+        }
+    }
+
+    private func selectStation(_ station: Station) {
+        guard state.isPresented else { return }
+        state.select(station) { selectedStation in
+            stationsViewModel.selectedStationId = selectedStation.id
+            stationsViewModel.playStation(selectedStation)
+        }
     }
 }
 
@@ -120,6 +330,7 @@ struct StatusBarWindowContent: View {
     @Bindable var stationsViewModel: StationsViewModel
     @Environment(\.openSettings) private var openSettings
     @Environment(\.openWindow) private var openWindow
+    @State private var stationSidebarState = MenuExtraStationSidebarState()
     
     private var currentStationName: String? {
         guard let playingId = stationsViewModel.playingStationId else { return nil }
@@ -147,6 +358,14 @@ struct StatusBarWindowContent: View {
             }
             .padding(12)
             .frame(width: 300)
+        }
+        .background(
+            MenuExtraWindowReader { window in
+                stationSidebarState.hostWindow = window
+            }
+        )
+        .onDisappear {
+            stationSidebarState.dismiss()
         }
     }
     
@@ -258,6 +477,19 @@ struct StatusBarWindowContent: View {
     
     private var appControlsSection: some View {
         VStack(spacing: 2) {
+            Button {
+                MenuExtraStationSidebarPresenter.shared.toggle(
+                    state: stationSidebarState,
+                    stationsViewModel: stationsViewModel
+                )
+            } label: {
+                Label(
+                    stationSidebarState.isPresented ? "Hide Stations" : "Show Stations",
+                    systemImage: "sidebar.left"
+                )
+            }
+            .buttonStyle(MenuItemButtonStyle())
+
             Button {
                 NSApp.activate(ignoringOtherApps: true)
                 // Find and bring forward existing main window instead of opening a new one

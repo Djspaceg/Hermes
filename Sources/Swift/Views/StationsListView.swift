@@ -15,6 +15,7 @@ struct StationsListView: View {
     @Bindable var viewModel: StationsViewModel
     @Binding var selectedStation: Station?
     @Binding var sortOrder: StationsViewModel.SortOrder
+    var onStationSelected: ((Station) -> Void)? = nil
     @Environment(\.sidebarWidth) private var sidebarWidth
     
     private let thumbnailWidthThreshold: CGFloat = 240
@@ -32,7 +33,7 @@ struct StationsListView: View {
             onRowAppear: { station in
                 viewModel.artworkLoader.loadArtworkIfNeeded(for: station)
             },
-            onPlay: viewModel.playStation,
+            onPlay: playStation,
             onEdit: viewModel.editStation,
             onRename: viewModel.startRenameStation,
             onDelete: viewModel.confirmDeleteStation,
@@ -61,6 +62,14 @@ struct StationsListView: View {
                     viewModel.showRenameDialog = false
                 }
             )
+        }
+    }
+
+    private func playStation(_ station: Station) {
+        if let onStationSelected {
+            onStationSelected(station)
+        } else {
+            viewModel.playStation(station)
         }
     }
 }
