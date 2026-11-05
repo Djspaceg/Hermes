@@ -109,16 +109,19 @@ struct ContentView: View {
                     }
                     .navigationSplitViewStyle(.balanced)
                     .toolbar(removing: .sidebarToggle)
-                    .toolbar {
-                        ToolbarItem(placement: .principal) {
-                            SidebarTitlebarButtons(appState: appState)
-                                .fixedSize()
-                        }
-                    }
                     .opacity(controlsOpacity)
                     .allowsHitTesting(controlsVisible)
                     
                     errorOverlay
+
+                    // The hidden-titlebar window does not render principal toolbar
+                    // items. Keep these fixed in its titlebar area so they cannot
+                    // move into the toolbar overflow menu at compact widths.
+                    SidebarTitlebarButtons(appState: appState)
+                        .fixedSize()
+                        .padding(.top, 20)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        .zIndex(1)
                 }
                 .onChange(of: isWindowTooNarrow) { _, tooNarrow in
                     if tooNarrow {

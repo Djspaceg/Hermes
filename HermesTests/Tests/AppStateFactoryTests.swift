@@ -333,9 +333,9 @@ struct AppStateFactoryTests {
             encoding: .utf8
         )
 
-        #expect(contentView.contains("ToolbarItem(placement: .principal)"))
         #expect(contentView.contains("SidebarTitlebarButtons(appState: appState)"))
         #expect(contentView.contains(".fixedSize()"))
+        #expect(contentView.contains(".zIndex(1)"))
     }
 
     @Test("Content view removes sidebar toggle controls")
@@ -353,6 +353,7 @@ struct AppStateFactoryTests {
         #expect(contentView.contains(".toolbar(removing: .sidebarToggle)"))
         #expect(!contentView.contains("Show Sidebar"))
         #expect(!contentView.contains("sidebar.leading"))
+        #expect(!contentView.contains("ToolbarItem("))
         #expect(!sidebarView.contains("ToolbarItem("))
     }
 
