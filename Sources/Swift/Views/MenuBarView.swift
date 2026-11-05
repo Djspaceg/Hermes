@@ -212,11 +212,15 @@ final class MenuExtraStationSidebarPresenter {
 }
 
 enum MenuExtraStationSidebarLayout {
+    static let verticalInset: CGFloat = 16
+    static let cornerRadius: CGFloat = 16
+
     static func panelFrame(
         hostFrame: NSRect,
         visibleFrame: NSRect,
         preferredWidth: CGFloat,
-        minimumWidth: CGFloat
+        minimumWidth: CGFloat,
+        verticalInset: CGFloat = verticalInset
     ) -> NSRect {
         let leftSpace = hostFrame.minX - visibleFrame.minX
         let rightSpace = visibleFrame.maxX - hostFrame.maxX
@@ -224,11 +228,12 @@ enum MenuExtraStationSidebarLayout {
         let width = min(preferredWidth, availableWidth)
         let attachOnLeft = leftSpace >= minimumWidth || leftSpace >= rightSpace
         let x = attachOnLeft ? hostFrame.minX - width : hostFrame.maxX
+        let appliedVerticalInset = min(verticalInset, hostFrame.height / 2)
         return NSRect(
             x: x,
-            y: hostFrame.minY,
+            y: hostFrame.minY + appliedVerticalInset,
             width: width,
-            height: hostFrame.height
+            height: hostFrame.height - (appliedVerticalInset * 2)
         )
     }
 }
@@ -290,6 +295,8 @@ private struct MenuExtraStationSidebar: View {
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
+                .foregroundStyle(.primary)
+                .contentOnGlass()
 
                 Divider()
 
@@ -302,6 +309,7 @@ private struct MenuExtraStationSidebar: View {
                     ),
                     onStationSelected: selectStation
                 )
+                .scrollContentBackground(.hidden)
                 .onChange(of: selectedStation) { _, station in
                     if let station {
                         selectStation(station)
@@ -309,8 +317,20 @@ private struct MenuExtraStationSidebar: View {
                 }
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
-            .background(.regularMaterial)
             .environment(\.sidebarWidth, geometry.size.width)
+            .glassEffect(
+                .regular,
+                in: RoundedRectangle(
+                    cornerRadius: MenuExtraStationSidebarLayout.cornerRadius,
+                    style: .continuous
+                )
+            )
+            .clipShape(
+                RoundedRectangle(
+                    cornerRadius: MenuExtraStationSidebarLayout.cornerRadius,
+                    style: .continuous
+                )
+            )
         }
         .onChange(of: stationsViewModel.selectedStationId) { _, stationId in
             if let stationId,

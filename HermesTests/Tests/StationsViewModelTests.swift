@@ -350,8 +350,8 @@ struct StationsViewModelTests {
 
 @Suite("MenuExtraStationSidebarLayoutTests")
 struct MenuExtraStationSidebarLayoutTests {
-    @Test("Attached sidebar matches the dropdown's vertical bounds")
-    func sidebarMatchesHostHeight() {
+    @Test("Attached sidebar is vertically inset from the dropdown")
+    func sidebarIsInsetFromHostHeight() {
         let hostFrame = NSRect(x: 900, y: 260, width: 300, height: 612)
         let visibleFrame = NSRect(x: 0, y: 0, width: 1440, height: 900)
 
@@ -362,8 +362,8 @@ struct MenuExtraStationSidebarLayoutTests {
             minimumWidth: 180
         )
 
-        #expect(sidebarFrame.minY == hostFrame.minY)
-        #expect(sidebarFrame.maxY == hostFrame.maxY)
+        #expect(sidebarFrame.minY == hostFrame.minY + 16)
+        #expect(sidebarFrame.maxY == hostFrame.maxY - 16)
     }
 }
 
