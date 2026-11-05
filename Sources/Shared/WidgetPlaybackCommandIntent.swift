@@ -4,6 +4,12 @@
 //
 
 import AppIntents
+import OSLog
+
+private let widgetPlaybackCommandIntentLogger = Logger(
+    subsystem: "com.alexcrichton.Hermes",
+    category: "WidgetPlaybackCommandIntent"
+)
 
 enum WidgetPlaybackCommand: String, AppEnum, CaseIterable, Sendable {
     case play
@@ -62,9 +68,15 @@ struct WidgetPlaybackCommandIntent: AudioPlaybackIntent {
     }
 
     func perform() async throws -> some IntentResult {
-        await MainActor.run {
-            _ = WidgetPlaybackCommandRouter.route(command)
+        widgetPlaybackCommandIntentLogger.info(
+            "perform command=\(command.rawValue, privacy: .public)"
+        )
+        let handled = await MainActor.run {
+            WidgetPlaybackCommandRouter.route(command)
         }
+        widgetPlaybackCommandIntentLogger.info(
+            "completed command=\(command.rawValue, privacy: .public) handled=\(handled)"
+        )
         return .result()
     }
 }
@@ -84,9 +96,15 @@ struct WidgetPlaybackStateIntent: AudioPlaybackIntent, SetValueIntent {
     }
 
     func perform() async throws -> some IntentResult {
+        widgetPlaybackCommandIntentLogger.info(
+            "perform state value=\(value)"
+        )
         let handled = await MainActor.run {
             WidgetPlaybackCommandRouter.route(value ? .play : .pause)
         }
+        widgetPlaybackCommandIntentLogger.info(
+            "completed state value=\(value) handled=\(handled)"
+        )
         guard handled else { throw WidgetPlaybackStateIntentError.commandNotHandled }
         return .result()
     }
